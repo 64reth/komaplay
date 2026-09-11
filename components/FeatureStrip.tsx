@@ -1,24 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import type { FeatureItem } from "../data/issue-zero";
 
 export function FeatureStrip({
   items,
-  onOpen,
   label,
 }: {
   items: FeatureItem[];
-  onOpen?: (page: number) => void;
   label?: string;
 }) {
   const id = useId();
   const rail = useRef<HTMLDivElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resizeFrame = useRef<number | null>(null);
-  const measured = useRef({ start: true, end: false, width: 0, scrollWidth: 0 });
+  const measured = useRef({
+    start: true,
+    end: false,
+    width: 0,
+    scrollWidth: 0,
+  });
   const drag = useRef({ x: 0, scroll: 0, active: false, moved: false });
-  const [opening, setOpening] = useState<string | null>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
   const reduced = () =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -27,7 +29,8 @@ export function FeatureStrip({
     const el = rail.current;
     if (!el) return;
     const update = () => {
-      if (resizeFrame.current !== null) cancelAnimationFrame(resizeFrame.current);
+      if (resizeFrame.current !== null)
+        cancelAnimationFrame(resizeFrame.current);
       resizeFrame.current = requestAnimationFrame(() => {
         resizeFrame.current = null;
         const next = {
@@ -37,9 +40,19 @@ export function FeatureStrip({
           scrollWidth: el.scrollWidth,
         };
         const previous = measured.current;
-        if (previous.start === next.start && previous.end === next.end && previous.width === next.width && previous.scrollWidth === next.scrollWidth) return;
+        if (
+          previous.start === next.start &&
+          previous.end === next.end &&
+          previous.width === next.width &&
+          previous.scrollWidth === next.scrollWidth
+        )
+          return;
         measured.current = next;
-        setEdges(current => current.start === next.start && current.end === next.end ? current : { start: next.start, end: next.end });
+        setEdges((current) =>
+          current.start === next.start && current.end === next.end
+            ? current
+            : { start: next.start, end: next.end },
+        );
       });
     };
     const wheel = (event: WheelEvent) => {
@@ -69,8 +82,8 @@ export function FeatureStrip({
       observer.disconnect();
       el.removeEventListener("scroll", update);
       el.removeEventListener("wheel", wheel);
-      if (timer.current) clearTimeout(timer.current);
-      if (resizeFrame.current !== null) cancelAnimationFrame(resizeFrame.current);
+      if (resizeFrame.current !== null)
+        cancelAnimationFrame(resizeFrame.current);
     };
   }, [items]);
 
@@ -180,32 +193,11 @@ export function FeatureStrip({
         }}
       >
         {items.map((item) => (
-          <a
+          <Link
             href={`/features/${item.id}`}
             key={item.id}
-            className={`feature-panel panel-${item.panelSize} ${item.panelClass ?? ""} ${opening === item.id ? "is-opening" : ""}`}
+            className={`feature-panel panel-${item.panelSize} ${item.panelClass ?? ""}`}
             aria-label={`${String(item.pageIndex).padStart(2, "0")}. ${item.category}: ${item.title}. ${item.summary}`}
-            onClick={(event) => {
-              if (
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              )
-                return;
-              event.preventDefault();
-              if (opening) return;
-              const open = () => {
-                if (onOpen) onOpen(item.pageIndex);
-                else location.assign(`/features/${item.id}`);
-              };
-              if (reduced()) {
-                open();
-                return;
-              }
-              setOpening(item.id);
-              timer.current = setTimeout(open, 220);
-            }}
           >
             <span className="feature-meta">
               <span>
@@ -223,7 +215,7 @@ export function FeatureStrip({
             <span className="feature-arrow" aria-hidden="true">
               ↗
             </span>
-          </a>
+          </Link>
         ))}
       </div>
     </section>

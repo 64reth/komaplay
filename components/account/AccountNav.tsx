@@ -90,6 +90,71 @@ function AuthDialog({
     </div>
   );
 }
+export function AccountMenuLinks({
+  role,
+  onNavigate,
+}: {
+  role: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      <Link
+        role="menuitem"
+        href="/profile"
+        prefetch={false}
+        onClick={onNavigate}
+      >
+        VIEW PROFILE
+      </Link>
+      <Link
+        role="menuitem"
+        href="/profile#contributions"
+        prefetch={false}
+        onClick={onNavigate}
+      >
+        MY CONTRIBUTIONS
+      </Link>
+      <Link
+        role="menuitem"
+        href="/handbook"
+        prefetch={false}
+        onClick={onNavigate}
+      >
+        HANDBOOK
+      </Link>
+      <Link
+        role="menuitem"
+        href="/profile/settings"
+        prefetch={false}
+        onClick={onNavigate}
+      >
+        SETTINGS
+      </Link>
+      {["moderator", "admin"].includes(role) && (
+        <Link
+          role="menuitem"
+          href="/moderation"
+          prefetch={false}
+          onClick={onNavigate}
+        >
+          MODERATION
+        </Link>
+      )}
+      {role === "admin" && (
+        <Link
+          role="menuitem"
+          href="/publishing"
+          prefetch={false}
+          onClick={onNavigate}
+        >
+          PUBLISHING
+        </Link>
+      )}
+    </>
+  );
+}
+
 export function AccountNav() {
   const [user, setUser] = useState<Member | null>(null),
     [ready, setReady] = useState(false),
@@ -120,11 +185,14 @@ export function AccountNav() {
       setAuthMode(mode);
       setAuth(true);
     };
+    const lock = () => setOpen(false);
     addEventListener("komaplay:auth", launch);
+    addEventListener("komaplay:membership-lock", lock);
     return () => {
       live = false;
       sub?.data.subscription.unsubscribe();
       removeEventListener("komaplay:auth", launch);
+      removeEventListener("komaplay:membership-lock", lock);
     };
   }, [client]);
   if (!ready) return <span className="account-placeholder" />;
@@ -157,64 +225,20 @@ export function AccountNav() {
         ref={button}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (document.body.classList.contains("membership-onboarding-open"))
+            return;
+          setOpen((value) => !value);
+        }}
       >
         {initials}
       </button>
       {open && (
         <div ref={menu} role="menu" className="account-menu">
-          <Link
-            role="menuitem"
-            href="/profile"
-            prefetch={false}
-            onClick={() => setOpen(false)}
-          >
-            VIEW PROFILE
-          </Link>
-          <Link
-            role="menuitem"
-            href="/profile#contributions"
-            prefetch={false}
-            onClick={() => setOpen(false)}
-          >
-            MY CONTRIBUTIONS
-          </Link>
-          <Link
-            role="menuitem"
-            href="/handbook"
-            prefetch={false}
-            onClick={() => setOpen(false)}
-          >
-            HANDBOOK
-          </Link>
-          <Link
-            role="menuitem"
-            href="/profile/settings"
-            prefetch={false}
-            onClick={() => setOpen(false)}
-          >
-            SETTINGS
-          </Link>
-          {["moderator", "admin"].includes(user.role) && (
-            <Link
-              role="menuitem"
-              href="/moderation"
-              prefetch={false}
-              onClick={() => setOpen(false)}
-            >
-              MODERATION
-            </Link>
-          )}
-          {user.role === "admin" && (
-            <Link
-              role="menuitem"
-              href="/publishing"
-              prefetch={false}
-              onClick={() => setOpen(false)}
-            >
-              PUBLISHING
-            </Link>
-          )}
+          <AccountMenuLinks
+            role={user.role}
+            onNavigate={() => setOpen(false)}
+          />
           <button
             role="menuitem"
             onClick={async () => {

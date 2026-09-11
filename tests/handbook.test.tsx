@@ -9,6 +9,8 @@ import {
   onboardingRouteOutcome,
 } from "../lib/handbook/onboarding-route";
 import { migrateLegacyStorageKey } from "../lib/browser-storage";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MembershipOnboardingLayer } from "../components/handbook/GlobalMembershipGate";
 test("approved handbook copy is byte-for-byte protected and splits into four panels", async () => {
   const fixture = await readFile("tests/fixtures/approved-handbook.md", "utf8");
   assert.equal(approved.content, fixture);
@@ -103,5 +105,22 @@ test("standalone onboarding has safe signed-out, member and restricted outcomes"
   assert.equal(
     onboardingReturnDestination("/features/tokon/workshop"),
     "/features/tokon/workshop",
+  );
+});
+
+test("global handbook uses a dedicated backdrop below its sharp dialog panel", () => {
+  const html = renderToStaticMarkup(
+    <MembershipOnboardingLayer>
+      <p>Guide</p>
+    </MembershipOnboardingLayer>,
+  );
+  assert.match(
+    html,
+    /class="membership-onboarding-backdrop" aria-hidden="true"/,
+  );
+  assert.match(html, /class="membership-onboarding-panel"><p>Guide<\/p>/);
+  assert.ok(
+    html.indexOf("membership-onboarding-backdrop") <
+      html.indexOf("membership-onboarding-panel"),
   );
 });

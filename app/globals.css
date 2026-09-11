@@ -724,9 +724,6 @@ nav button {
     font-size: 0.5rem;
     gap: 8px;
   }
-  .strip-controls {
-    display: none;
-  }
   .feature-panel.panel-narrow,
   .feature-panel.panel-standard,
   .feature-panel.panel-wide {
@@ -1740,20 +1737,10 @@ body:has(.editorial-page) {
 }
 .membership-background {
   min-height: 100%;
-  filter: blur(2px) saturate(0.72) contrast(0.9);
-  transform: scale(0.998);
-  pointer-events: none;
-  user-select: none;
 }
 .membership-onboarding {
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
-}
-@media (prefers-reduced-motion: reduce) {
-  .membership-background {
-    filter: contrast(0.9);
-    transform: none;
-  }
 }
 .editorial-nav {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -2355,5 +2342,58 @@ figcaption {
   }
   .editorial-nav nav a:first-child {
     width: 42px;
+  }
+}
+
+/* The handbook panel is above a dedicated composited backdrop so it remains sharp. */
+.membership-onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  overflow: auto;
+}
+.membership-onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: rgb(28 22 17 / 0.38);
+  backdrop-filter: blur(6px) saturate(0.68) contrast(0.88);
+  -webkit-backdrop-filter: blur(6px) saturate(0.68) contrast(0.88);
+}
+.membership-onboarding-panel {
+  position: relative;
+  z-index: 1;
+  width: min(900px, 100%);
+}
+.membership-onboarding-panel .workshop-onboarding-card {
+  max-height: calc(100svh - 40px);
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .membership-onboarding-backdrop {
+    background: rgb(24 18 13 / 0.82);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .membership-onboarding-backdrop {
+    background: rgb(24 18 13 / 0.72);
+  }
+}
+
+@media (max-width: 600px) {
+  .strip-hint {
+    display: none;
+  }
+  .strip-toolbar {
+    gap: 4px;
+  }
+  .strip-controls button {
+    width: 44px;
   }
 }

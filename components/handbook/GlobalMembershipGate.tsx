@@ -1,16 +1,36 @@
 "use client";
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { browserClient } from "../../lib/supabase/client";
 import { OnboardingFlow } from "./OnboardingFlow";
 import type { HandbookState } from "../../lib/handbook/domain";
+
 type Phase = "public" | "verifying" | "required" | "accepted" | "blocked";
+
+export function MembershipOnboardingLayer({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className="membership-onboarding" role="presentation">
+      <div className="membership-onboarding-backdrop" aria-hidden="true" />
+      <div className="membership-onboarding-panel">{children}</div>
+    </div>
+  );
+}
+
 export function GlobalMembershipGate({ children }: { children: ReactNode }) {
-  const [phase, setPhase] = useState<Phase>("public"),
-    [state, setState] = useState<HandbookState | null>(null);
+  const [phase, setPhase] = useState<Phase>("public");
+  const [state, setState] = useState<HandbookState | null>(null);
   const dialog = useRef<HTMLDivElement>(null);
+  const background = useRef<HTMLDivElement>(null);
   const client = browserClient();
   const pathname = usePathname();
+  const onboarding =
+    pathname !== "/onboarding" && phase === "required" && state?.version;
+
   useEffect(() => {
     let live = true;
     const check = async () => {
@@ -46,33 +66,42 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
       sub?.data.subscription.unsubscribe();
     };
   }, [client]);
+
   useEffect(() => {
-    if (phase !== "required" || pathname === "/onboarding") return;
+    const element = background.current;
+    if (!onboarding) {
+      element?.removeAttribute("inert");
+      document.body.classList.remove("membership-onboarding-open");
+      return;
+    }
+    element?.setAttribute("inert", "");
+    document.body.classList.add("membership-onboarding-open");
+    window.dispatchEvent(new Event("komaplay:membership-lock"));
     const focus = dialog.current?.querySelector<HTMLElement>(
       "button:not([disabled]),input:not([disabled]),a[href]",
     );
     focus?.focus();
-    document.body.classList.add("membership-onboarding-open");
-    return () => document.body.classList.remove("membership-onboarding-open");
-  }, [pathname, phase]);
-  const onboarding =
-    pathname !== "/onboarding" && phase === "required" && state?.version;
+    return () => {
+      element?.removeAttribute("inert");
+      document.body.classList.remove("membership-onboarding-open");
+    };
+  }, [onboarding]);
+
   return (
     <>
-      {children}
+      <div ref={background} className="membership-background">
+        {children}
+      </div>
       {onboarding && (
-        <div
-          className="workshop-onboarding membership-onboarding"
-          role="presentation"
-        >
+        <MembershipOnboardingLayer>
           <div
             ref={dialog}
             className="workshop-onboarding-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="membership-guide-title"
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.preventDefault();
+            onKeyDown={(event) => {
+              if (event.key === "Escape") event.preventDefault();
             }}
           >
             <p className="op-eyebrow">VERIFYING MEMBERSHIP</p>
@@ -115,7 +144,7 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
               SIGN OUT AND CONTINUE READING
             </button>
           </div>
-        </div>
+        </MembershipOnboardingLayer>
       )}
     </>
   );

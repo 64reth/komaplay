@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GateState } from "../components/open-panel/AuthGate";
+import { AccountMenuLinks } from "../components/account/AccountNav";
 import {
   ContributorCredits,
   CommunityAdditions,
@@ -140,4 +141,17 @@ test("weekly drop components render independent connected strips from configurat
   assert.equal((html.match(/class="feature-rail"/g) ?? []).length, 4);
   assert.equal((html.match(/class="feature-panel /g) ?? []).length, 16);
   assert.equal((html.match(/aria-label="Next features"/g) ?? []).length, 4);
+});
+
+test("account menu uses one framework link per protected destination", () => {
+  const html = renderToStaticMarkup(
+    <div role="menu">
+      <AccountMenuLinks role="admin" onNavigate={() => {}} />
+    </div>,
+  );
+  assert.match(html, /href="\/profile"/);
+  assert.match(html, /href="\/profile\/settings"/);
+  assert.match(html, /href="\/moderation"/);
+  assert.equal((html.match(/VIEW PROFILE/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /router\.push|location\.assign/);
 });
