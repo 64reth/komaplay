@@ -58,3 +58,13 @@ test("legacy editorial draft storage migrates once without overwriting a newer d
   );
   assert.equal(values.get("inkplay-editorial-tokon"), "older");
 });
+
+test("KOMA presentation handbook splits into exactly four ordered panels", () => {
+  const panels = handbookPanels(approved.content);
+  assert.equal(panels?.length, 4);
+  assert.match(panels?.[0] ?? "", /WELCOME TO KOMA:\/\/PLAY/);
+});
+
+test("malformed handbook content remains a recoverable unavailable state", () => {
+  assert.equal(handbookPanels("# WELCOME TO KOMA://PLAY\nIncomplete"), null);
+});
