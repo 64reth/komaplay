@@ -160,6 +160,25 @@ Members who need to accept or re-accept an updated handbook are sent to `/onboar
 
 Privileged server routes recheck roles independently of UI gating. Mutation routes reject cross-origin requests. Supabase functions enforce the same permissions for direct RPC callers. Neither cookies containing invented profile roles nor `raw_user_meta_data.role` elevate an account.
 
+## Branded Supabase authentication email
+
+Templates are version controlled in `supabase/email-templates/`. Preview them with fake values only:
+
+```sh
+pnpm email:preview
+```
+
+The generated `.local-email-preview/` and `.local-email-backups/` directories are ignored. To inspect a Management API update without changing anything, use a securely exported token (never `.env.local`):
+
+```sh
+export PROJECT_REF=zrckabmgrbmbjbhqcngp
+export SUPABASE_ACCESS_TOKEN=...
+pnpm email:config:dry-run
+pnpm email:config:apply
+```
+
+Apply retrieves the current Auth mailer configuration, writes an ignored local backup, then patches templates. The default Supabase mailer is suitable for development testing only; production should use custom SMTP. SMTP setup is separate from templates. Editorial/newsletter consent remains separate from required authentication mail and account creation never opts a member into a newsletter.
+
 ## Verification
 
 ```sh

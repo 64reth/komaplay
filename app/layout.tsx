@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { GlobalMembershipGate } from "../components/handbook/GlobalMembershipGate";
 export const metadata: Metadata = {
   title: "INK//:PLAY — Issue Zero",
   description: "A living publication for games, manga and anime.",
@@ -11,7 +12,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <GlobalMembershipGate>{children}</GlobalMembershipGate>
         <footer className="site-handbook-footer">
           <a href="/handbook">Community handbook</a>
         </footer>

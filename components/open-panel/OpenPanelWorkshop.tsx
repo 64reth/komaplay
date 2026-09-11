@@ -1,11 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AuthGate } from "./AuthGate";
 import { ContributionComposer } from "./ContributionComposer";
 import { ContributionCard } from "./ContributionCard";
 import { ContributionFilters, type Filters } from "./ContributionFilters";
 import { api } from "../../lib/open-panel/api";
-import { OnboardingGate } from "../handbook/OnboardingGate";
 import type { HandbookState } from "../../lib/handbook/domain";
 import type { Contribution } from "../../lib/open-panel/domain";
 export function OpenPanelWorkshop({
@@ -19,14 +18,12 @@ export function OpenPanelWorkshop({
 }) {
   return (
     <AuthGate
+      embeddedForm={false}
       signedOut={
         <section className="workshop-entry">
           <p className="op-eyebrow">ENTER THE WORKSHOP</p>
           <h2>You’re adding to “{featureTitle}”.</h2>
-          <p>
-            Sign in to submit knowledge, experience or evidence for its next
-            revision.
-          </p>
+          <p>Sign in or create an account to submit knowledge, experience or evidence for its next revision.</p><p className="op-actions"><button onClick={()=>dispatchEvent(new Event("inkplay:auth"))}>SIGN IN</button><button onClick={()=>dispatchEvent(new Event("inkplay:auth"))}>CREATE ACCOUNT</button></p>
           <p>
             <a
               href={
@@ -89,26 +86,24 @@ function HandbookWorkshop({
       live = false;
     };
   }, []);
-  return (
-    <OnboardingGate
-      state={state}
-      returnTo={
-        typeof location === "undefined"
-          ? "/"
-          : location.pathname + location.search
-      }
-    >
-      <Workshop featureId={featureId} readOnly={readOnly} />
-    </OnboardingGate>
-  );
+  const returnTo = typeof location === "undefined" ? "/" : location.pathname + location.search;
+  if (!state) return <p role="status">VERIFYING WORKSHOP ACCESS…</p>;
+  if (state.status === "unavailable") return <p className="op-notice" role="alert">{state.message}</p>;
+  if (state.status === "required") return <p role="status">VERIFYING MEMBERSHIP…</p>;
+  return <Workshop featureId={featureId} readOnly={readOnly} />;
 }
+
 function Workshop({
   featureId,
   readOnly,
+  accessGranted = false,
 }: {
   featureId: string;
   readOnly: boolean;
+  accessGranted?: boolean;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (accessGranted) heading.current?.focus(); }, [accessGranted]);
   const [filters, setFilters] = useState<Filters>({
     type: "",
     status: "",
@@ -148,6 +143,8 @@ function Workshop({
   return (
     <>
       <section className="workshop-workbench">
+        {accessGranted && <p role="status" aria-live="polite">WORKSHOP ACCESS GRANTED</p>}
+        <h2 ref={heading} tabIndex={-1}>WORKSHOP ACCESS GRANTED</h2>
         <p className="op-eyebrow">AT THE WORKBENCH</p>
         <p>
           Recent, privacy-safe activity appears here as members develop this

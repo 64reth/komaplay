@@ -14,7 +14,10 @@
     "db:generate": "drizzle-kit generate",
     "test": "node --import tsx --test tests/*.test.ts tests/*.test.tsx",
     "format": "prettier --write app components/FeatureStrip.tsx components/EditorialNavigation.tsx components/open-panel components/publication data lib/open-panel lib/supabase lib/publication tests docs README.md package.json",
-    "typecheck": "tsc --noEmit --incremental false"
+    "typecheck": "tsc --noEmit --incremental false",
+    "email:preview": "node scripts/preview-auth-emails.mjs",
+    "email:config:dry-run": "node scripts/configure-supabase-auth-emails.mjs --dry-run",
+    "email:config:apply": "node scripts/configure-supabase-auth-emails.mjs --apply"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

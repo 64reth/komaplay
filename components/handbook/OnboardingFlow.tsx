@@ -39,6 +39,7 @@ export function OnboardingFlow({
   firstWorkshop = null,
   preview = false,
   acceptanceDate = null,
+  onAccepted,
 }: {
   version: HandbookVersion;
   initialStep?: number;
@@ -46,6 +47,7 @@ export function OnboardingFlow({
   firstWorkshop?: string | null;
   preview?: boolean;
   acceptanceDate?: string | null;
+  onAccepted?: (acceptedAt: string) => void;
 }) {
   const [step, setStep] = useState(Math.min(4, Math.max(1, initialStep)));
   const [accepted, setAccepted] = useState(acceptanceDate);
@@ -176,6 +178,7 @@ export function OnboardingFlow({
                     data.error ?? "Acceptance could not be saved.",
                   );
                 setAccepted(data.accepted_at);
+          onAccepted?.(data.accepted_at);
               } catch (e) {
                 setError((e as Error).message);
               } finally {

@@ -15,6 +15,8 @@ export function FeatureStrip({
   const id = useId();
   const rail = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeFrame = useRef<number | null>(null);
+  const measured = useRef({ start: true, end: false, width: 0, scrollWidth: 0 });
   const drag = useRef({ x: 0, scroll: 0, active: false, moved: false });
   const [opening, setOpening] = useState<string | null>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
@@ -24,11 +26,22 @@ export function FeatureStrip({
   useEffect(() => {
     const el = rail.current;
     if (!el) return;
-    const update = () =>
-      setEdges({
-        start: el.scrollLeft < 2,
-        end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
+    const update = () => {
+      if (resizeFrame.current !== null) cancelAnimationFrame(resizeFrame.current);
+      resizeFrame.current = requestAnimationFrame(() => {
+        resizeFrame.current = null;
+        const next = {
+          start: el.scrollLeft < 2,
+          end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
+          width: el.clientWidth,
+          scrollWidth: el.scrollWidth,
+        };
+        const previous = measured.current;
+        if (previous.start === next.start && previous.end === next.end && previous.width === next.width && previous.scrollWidth === next.scrollWidth) return;
+        measured.current = next;
+        setEdges(current => current.start === next.start && current.end === next.end ? current : { start: next.start, end: next.end });
       });
+    };
     const wheel = (event: WheelEvent) => {
       if (event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY))
         return;
@@ -57,6 +70,7 @@ export function FeatureStrip({
       el.removeEventListener("scroll", update);
       el.removeEventListener("wheel", wheel);
       if (timer.current) clearTimeout(timer.current);
+      if (resizeFrame.current !== null) cancelAnimationFrame(resizeFrame.current);
     };
   }, [items]);
 

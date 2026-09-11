@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect } from "react";
+import { AccountNav } from "./account/AccountNav";
 import { issueZeroFeatures } from "../data/issue-zero";
 export function EditorialKeyboard({ slug }: { slug: string }) {
   useEffect(() => {
@@ -71,6 +72,7 @@ export function EditorialHeader({
           </Link>
         ))}
       </nav>
+      <AccountNav />
     </header>
   );
 }

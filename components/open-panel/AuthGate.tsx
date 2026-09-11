@@ -32,14 +32,17 @@ export function AuthGate({
   children,
   moderator = false,
   signedOut,
+  embeddedForm = true,
 }: {
   children: (user: Member) => ReactNode;
   moderator?: boolean;
   signedOut?: ReactNode;
+  embeddedForm?: boolean;
 }) {
   const [user, setUser] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [accessError, setAccessError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const client = browserClient();
@@ -63,7 +66,8 @@ export function AuthGate({
               "That sign-in link has expired or was already used. Request a new link.",
             );
           setUser(data.user ?? null);
-          setError(response.status === 401 ? "" : (data.error ?? ""));
+          setAccessError(response.status === 401 ? "" : (data.error ?? ""));
+          setError("");
           setLoading(false);
         }
       } catch {
@@ -96,6 +100,12 @@ export function AuthGate({
         <p role="alert" className="op-notice">
           {error}
         </p>
+      )}
+      {accessError && (
+        <section className="op-notice" role="alert">
+          <p className="op-eyebrow">{accessError.includes("restricted") || accessError.includes("suspended") ? "WORKSHOP RESTRICTED" : "WORKSHOP CONFIGURATION"}</p>
+          <p>{accessError}</p>
+        </section>
       )}
       {message && (
         <p role="status" className="op-notice">
@@ -139,8 +149,8 @@ export function AuthGate({
           </>
         )}
       </GateState>
-      {!loading && !user && signedOut}
-      {!loading && !user && client && (
+      {!loading && !user && !accessError && signedOut}
+      {!loading && !user && !accessError && client && embeddedForm && (
         <form
           className="op-form op-signin"
           onSubmit={async (event) => {

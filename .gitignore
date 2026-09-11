@@ -46,3 +46,7 @@ next-env.d.ts
 /work/
 !.env.example
 *.tsbuildinfo
+.local-email-backups/
+supabase/.temp/
+
+.local-email-preview/
