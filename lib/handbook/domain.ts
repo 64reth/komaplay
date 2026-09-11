@@ -38,25 +38,38 @@ export function needsOnboarding(
   );
 }
 // Only known reading/participation destinations; never auth, API, or recursively nested redirects.
-export function safeReturnPath(value: unknown, fallback = "/"): string {
+export function safeReturnPath(
+  value: unknown,
+  fallback = "/",
+  preserveOnboardingReturn = true,
+): string {
   if (
     typeof value !== "string" ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
     /[\\\u0000-\u0020]/.test(value) ||
-    /%(?:2f|5c|0[0-9a-f]|1[0-9a-f])/i.test(value)
+    /%(?:5c|0[0-9a-f]|1[0-9a-f])/i.test(value) ||
+    (/%2f/i.test(value) && !value.startsWith("/onboarding?"))
   )
     return fallback;
   try {
     const url = new URL(value, "https://ink.local");
     if (url.origin !== "https://ink.local") return fallback;
     if (
-      !/^\/$|^\/(archive|search|moderation|publishing|handbook|onboarding)$|^\/features\/[a-z0-9-]+(?:\/(?:workshop|correction))?$|^\/issues\/[a-z0-9-]+$/.test(
+      !/^\/$|^\/(archive|search|moderation|publishing|handbook|onboarding|profile(?:\/settings)?)$|^\/features\/[a-z0-9-]+(?:\/(?:workshop|correction))?$|^\/issues\/[a-z0-9-]+$/.test(
         url.pathname,
       )
     )
       return fallback;
     const query = new URLSearchParams();
+    if (preserveOnboardingReturn && url.pathname === "/onboarding") {
+      const nested = url.searchParams.get("returnTo");
+      if (nested) {
+        const safeNested = safeReturnPath(nested, "/", false);
+        if (safeNested === "/" && nested !== "/") return fallback;
+        query.set("returnTo", safeNested);
+      }
+    }
     for (const key of [
       "q",
       "filter",

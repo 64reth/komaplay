@@ -4,6 +4,10 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import approved from "../data/handbook-v1.json";
 import { handbookPanels, safeReturnPath } from "../lib/handbook/domain";
+import {
+  onboardingReturnDestination,
+  onboardingRouteOutcome,
+} from "../lib/handbook/onboarding-route";
 import { migrateLegacyStorageKey } from "../lib/browser-storage";
 test("approved handbook copy is byte-for-byte protected and splits into four panels", async () => {
   const fixture = await readFile("tests/fixtures/approved-handbook.md", "utf8");
@@ -27,6 +31,10 @@ test("handbook return paths retain only safe internal destinations", () => {
   assert.equal(safeReturnPath("/onboarding?returnTo=%2Fapi"), "/");
   assert.equal(safeReturnPath("//outside.example"), "/");
   assert.equal(safeReturnPath("/api/handbook/accept"), "/");
+  assert.equal(
+    safeReturnPath("/onboarding?returnTo=%2Ffeatures%2Ftokon%2Fworkshop"),
+    "/onboarding?returnTo=%2Ffeatures%2Ftokon%2Fworkshop",
+  );
 });
 test("legacy editorial draft storage migrates once without overwriting a newer draft", () => {
   const values = new Map<string, string>([
@@ -67,4 +75,33 @@ test("KOMA presentation handbook splits into exactly four ordered panels", () =>
 
 test("malformed handbook content remains a recoverable unavailable state", () => {
   assert.equal(handbookPanels("# WELCOME TO KOMA://PLAY\nIncomplete"), null);
+});
+
+test("standalone onboarding has safe signed-out, member and restricted outcomes", () => {
+  assert.equal(onboardingRouteOutcome({ session: false }), "signed-out");
+  assert.equal(
+    onboardingRouteOutcome({
+      session: true,
+      accountStatus: "active",
+      handbookStatus: "required",
+    }),
+    "required",
+  );
+  assert.equal(
+    onboardingRouteOutcome({
+      session: true,
+      accountStatus: "active",
+      handbookStatus: "accepted",
+    }),
+    "accepted",
+  );
+  assert.equal(
+    onboardingRouteOutcome({ session: true, accountStatus: "suspended" }),
+    "restricted",
+  );
+  assert.equal(onboardingReturnDestination("/onboarding"), "/profile");
+  assert.equal(
+    onboardingReturnDestination("/features/tokon/workshop"),
+    "/features/tokon/workshop",
+  );
 });

@@ -3,8 +3,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { browserClient } from "../../lib/supabase/client";
 type Member = { id: string; display_name: string; role: string };
-function AuthDialog({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<"sign-in" | "create">("sign-in"),
+function AuthDialog({
+  onClose,
+  initialMode = "sign-in",
+}: {
+  onClose: () => void;
+  initialMode?: "sign-in" | "create";
+}) {
+  const [mode, setMode] = useState<"sign-in" | "create">(initialMode),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const client = browserClient();
@@ -88,7 +94,8 @@ export function AccountNav() {
   const [user, setUser] = useState<Member | null>(null),
     [ready, setReady] = useState(false),
     [open, setOpen] = useState(false),
-    [auth, setAuth] = useState(false);
+    [auth, setAuth] = useState(false),
+    [authMode, setAuthMode] = useState<"sign-in" | "create">("sign-in");
   const button = useRef<HTMLButtonElement>(null),
     menu = useRef<HTMLDivElement>(null);
   const client = browserClient();
@@ -105,7 +112,14 @@ export function AccountNav() {
     };
     void load();
     const sub = client?.auth.onAuthStateChange(() => void load());
-    const launch = () => setAuth(true);
+    const launch = (event: Event) => {
+      const mode =
+        event instanceof CustomEvent && event.detail?.mode === "create"
+          ? "create"
+          : "sign-in";
+      setAuthMode(mode);
+      setAuth(true);
+    };
     addEventListener("komaplay:auth", launch);
     return () => {
       live = false;
@@ -119,11 +133,16 @@ export function AccountNav() {
       <>
         <button
           className="account-signin action-primary"
-          onClick={() => setAuth(true)}
+          onClick={() => {
+            setAuthMode("sign-in");
+            setAuth(true);
+          }}
         >
           SIGN IN
         </button>
-        {auth && <AuthDialog onClose={() => setAuth(false)} />}
+        {auth && (
+          <AuthDialog initialMode={authMode} onClose={() => setAuth(false)} />
+        )}
       </>
     );
   const initials = user.display_name
