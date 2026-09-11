@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit --incremental false",
     "email:preview": "node scripts/preview-auth-emails.mjs",
     "email:config:dry-run": "node scripts/configure-supabase-auth-emails.mjs --dry-run",
-    "email:config:apply": "node scripts/configure-supabase-auth-emails.mjs --apply"
+    "email:config:apply": "node scripts/configure-supabase-auth-emails.mjs --apply",
+    "deploy": "pnpm build && wrangler deploy --config dist/server/wrangler.json"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

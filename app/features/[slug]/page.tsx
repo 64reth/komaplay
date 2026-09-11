@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { editorial } from "../../../data/editorial";
+import { tokonGuide } from "../../../data/tokon-guide";
+import { ArticleRenderer } from "../../../components/editorial/ArticleRenderer";
 import { publicPanel, identity } from "../../../lib/open-panel/server";
 import { catalogue } from "../../../lib/publication/server";
 import { acceptsContributions } from "../../../lib/publication/domain";
@@ -77,21 +79,29 @@ export default async function FeaturePage({
           <OpenPanelStatus data={panel.data} slug={slug} open={open} />
         </div>
         <div className="published-body">
-          <figure className="published-clue">
-            <img
-              src={feature.image}
-              alt={feature.image_alt || copy?.meta || "Editorial clue"}
-            />
-          </figure>
-          <section id="overview">
-            <p className="op-eyebrow">{copy?.meta ?? "INK//:PLAY EDITORIAL"}</p>
-            <h2>Overview</h2>
-            <p className="op-prose">
-              {feature.editorial_body ||
-                copy?.body ||
-                "This editorial panel is being prepared."}
-            </p>
-          </section>
+          {slug === "tokon" ? (
+            <ArticleRenderer document={tokonGuide} />
+          ) : (
+            <>
+              <figure className="published-clue">
+                <img
+                  src={feature.image}
+                  alt={feature.image_alt || copy?.meta || "Editorial clue"}
+                />
+              </figure>
+              <section id="overview">
+                <p className="op-eyebrow">
+                  {copy?.meta ?? "INK//:PLAY EDITORIAL"}
+                </p>
+                <h2>Overview</h2>
+                <p className="op-prose">
+                  {feature.editorial_body ||
+                    copy?.body ||
+                    "This editorial panel is being prepared."}
+                </p>
+              </section>
+            </>
+          )}
         </div>
         {panel.message && (
           <p className="op-notice" role="status">

@@ -1,7 +1,211 @@
 "use client";
 import Link from "next/link";
-import {useEffect,useRef,useState} from "react";
-import {browserClient} from "../../lib/supabase/client";
-type Member={id:string;display_name:string;role:string};
-function AuthDialog({onClose}:{onClose:()=>void}){const [mode,setMode]=useState<'sign-in'|'create'>('sign-in'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');const client=browserClient();const submit=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();if(!client)return;setBusy(true);const form=new FormData(e.currentTarget);const {error}=await client.auth.signInWithOtp({email:String(form.get('email')),options:{emailRedirectTo:`${location.origin}/auth/confirm?next=${encodeURIComponent(location.pathname+location.search)}`,data:mode==='create'?{display_name:String(form.get('name'))}:{}}});setBusy(false);setMessage(error?error.message:'Check your email for a sign-in link.');};return <div className="auth-dialog-backdrop" role="presentation"><section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onKeyDown={e=>{if(e.key==='Escape')onClose()}}><button className="auth-close" onClick={onClose} aria-label="Close sign in">×</button><p className="op-eyebrow">INK//:PLAY ACCOUNT</p><h2 id="auth-title">{mode==='sign-in'?'SIGN IN':'CREATE ACCOUNT'}</h2><div className="auth-tabs"><button aria-pressed={mode==='sign-in'} onClick={()=>setMode('sign-in')}>SIGN IN</button><button aria-pressed={mode==='create'} onClick={()=>setMode('create')}>CREATE ACCOUNT</button></div><form className="op-form" onSubmit={submit}>{mode==='create'&&<label>Display name<input name="name" required maxLength={80}/></label>}<label>Email<input name="email" type="email" required autoComplete="email"/></label><button disabled={busy}>{busy?'SENDING…':mode==='sign-in'?'SIGN IN':'CREATE ACCOUNT'}</button>{message&&<p role="status">{message}</p>}<button type="button" disabled title="Google sign-in needs Supabase provider configuration">CONTINUE WITH GOOGLE</button></form></section></div>}
-export function AccountNav(){const [user,setUser]=useState<Member|null>(null),[ready,setReady]=useState(false),[open,setOpen]=useState(false),[auth,setAuth]=useState(false);const button=useRef<HTMLButtonElement>(null),menu=useRef<HTMLDivElement>(null);const client=browserClient();useEffect(()=>{let live=true;const load=async()=>{const r=await fetch('/api/open-panel/session',{cache:'no-store'});const d=await r.json() as {user?:Member};if(live){setUser(r.ok?d.user??null:null);setReady(true);if(r.ok)setAuth(false)}};void load();const sub=client?.auth.onAuthStateChange(()=>void load());const launch=()=>setAuth(true);addEventListener('inkplay:auth',launch);return()=>{live=false;sub?.data.subscription.unsubscribe();removeEventListener('inkplay:auth',launch)}},[client]);if(!ready)return <span className="account-placeholder"/>;if(!user)return <><button className="account-signin" onClick={()=>setAuth(true)}>SIGN IN</button>{auth&&<AuthDialog onClose={()=>setAuth(false)}/>}</>;const initials=user.display_name.split(/\s+/).map(n=>n[0]).join('').slice(0,2).toUpperCase();return <div className="account-nav"><button ref={button} aria-haspopup="menu" aria-expanded={open} onClick={()=>setOpen(v=>!v)}>{initials}</button>{open&&<div ref={menu} role="menu" className="account-menu"><Link role="menuitem" href="/profile" prefetch={false} onClick={()=>setOpen(false)}>VIEW PROFILE</Link><Link role="menuitem" href="/profile#contributions" prefetch={false} onClick={()=>setOpen(false)}>MY CONTRIBUTIONS</Link><Link role="menuitem" href="/handbook" prefetch={false} onClick={()=>setOpen(false)}>HANDBOOK</Link><Link role="menuitem" href="/profile/settings" prefetch={false} onClick={()=>setOpen(false)}>SETTINGS</Link>{['moderator','admin'].includes(user.role)&&<Link role="menuitem" href="/moderation" prefetch={false} onClick={()=>setOpen(false)}>MODERATION</Link>}{user.role==='admin'&&<Link role="menuitem" href="/publishing" prefetch={false} onClick={()=>setOpen(false)}>PUBLISHING</Link>}<button role="menuitem" onClick={async()=>{await client?.auth.signOut();setUser(null);setOpen(false);location.assign('/')}}>SIGN OUT</button></div>}</div>}
+import { useEffect, useRef, useState } from "react";
+import { browserClient } from "../../lib/supabase/client";
+type Member = { id: string; display_name: string; role: string };
+function AuthDialog({ onClose }: { onClose: () => void }) {
+  const [mode, setMode] = useState<"sign-in" | "create">("sign-in"),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState("");
+  const client = browserClient();
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!client) return;
+    setBusy(true);
+    const form = new FormData(e.currentTarget);
+    const { error } = await client.auth.signInWithOtp({
+      email: String(form.get("email")),
+      options: {
+        emailRedirectTo: `${location.origin}/auth/confirm?next=${encodeURIComponent(location.pathname + location.search)}`,
+        data:
+          mode === "create" ? { display_name: String(form.get("name")) } : {},
+      },
+    });
+    setBusy(false);
+    setMessage(error ? error.message : "Check your email for a sign-in link.");
+  };
+  return (
+    <div className="auth-dialog-backdrop" role="presentation">
+      <section
+        className="auth-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-title"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <button
+          className="auth-close"
+          onClick={onClose}
+          aria-label="Close sign in"
+        >
+          ×
+        </button>
+        <p className="op-eyebrow">INK//:PLAY ACCOUNT</p>
+        <h2 id="auth-title">
+          {mode === "sign-in" ? "SIGN IN" : "CREATE ACCOUNT"}
+        </h2>
+        <div className="auth-tabs">
+          <button
+            aria-pressed={mode === "sign-in"}
+            onClick={() => setMode("sign-in")}
+          >
+            SIGN IN
+          </button>
+          <button
+            aria-pressed={mode === "create"}
+            onClick={() => setMode("create")}
+          >
+            CREATE ACCOUNT
+          </button>
+        </div>
+        <form className="op-form" onSubmit={submit}>
+          {mode === "create" && (
+            <label>
+              Display name
+              <input name="name" required maxLength={80} />
+            </label>
+          )}
+          <label>
+            Email
+            <input name="email" type="email" required autoComplete="email" />
+          </label>
+          <button disabled={busy}>
+            {busy
+              ? "SENDING…"
+              : mode === "sign-in"
+                ? "SIGN IN"
+                : "CREATE ACCOUNT"}
+          </button>
+          {message && <p role="status">{message}</p>}
+        </form>
+      </section>
+    </div>
+  );
+}
+export function AccountNav() {
+  const [user, setUser] = useState<Member | null>(null),
+    [ready, setReady] = useState(false),
+    [open, setOpen] = useState(false),
+    [auth, setAuth] = useState(false);
+  const button = useRef<HTMLButtonElement>(null),
+    menu = useRef<HTMLDivElement>(null);
+  const client = browserClient();
+  useEffect(() => {
+    let live = true;
+    const load = async () => {
+      const r = await fetch("/api/open-panel/session", { cache: "no-store" });
+      const d = (await r.json()) as { user?: Member };
+      if (live) {
+        setUser(r.ok ? (d.user ?? null) : null);
+        setReady(true);
+        if (r.ok) setAuth(false);
+      }
+    };
+    void load();
+    const sub = client?.auth.onAuthStateChange(() => void load());
+    const launch = () => setAuth(true);
+    addEventListener("inkplay:auth", launch);
+    return () => {
+      live = false;
+      sub?.data.subscription.unsubscribe();
+      removeEventListener("inkplay:auth", launch);
+    };
+  }, [client]);
+  if (!ready) return <span className="account-placeholder" />;
+  if (!user)
+    return (
+      <>
+        <button className="account-signin" onClick={() => setAuth(true)}>
+          SIGN IN
+        </button>
+        {auth && <AuthDialog onClose={() => setAuth(false)} />}
+      </>
+    );
+  const initials = user.display_name
+    .split(/\s+/)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <div className="account-nav">
+      <button
+        ref={button}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {initials}
+      </button>
+      {open && (
+        <div ref={menu} role="menu" className="account-menu">
+          <Link
+            role="menuitem"
+            href="/profile"
+            prefetch={false}
+            onClick={() => setOpen(false)}
+          >
+            VIEW PROFILE
+          </Link>
+          <Link
+            role="menuitem"
+            href="/profile#contributions"
+            prefetch={false}
+            onClick={() => setOpen(false)}
+          >
+            MY CONTRIBUTIONS
+          </Link>
+          <Link
+            role="menuitem"
+            href="/handbook"
+            prefetch={false}
+            onClick={() => setOpen(false)}
+          >
+            HANDBOOK
+          </Link>
+          <Link
+            role="menuitem"
+            href="/profile/settings"
+            prefetch={false}
+            onClick={() => setOpen(false)}
+          >
+            SETTINGS
+          </Link>
+          {["moderator", "admin"].includes(user.role) && (
+            <Link
+              role="menuitem"
+              href="/moderation"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+            >
+              MODERATION
+            </Link>
+          )}
+          {user.role === "admin" && (
+            <Link
+              role="menuitem"
+              href="/publishing"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+            >
+              PUBLISHING
+            </Link>
+          )}
+          <button
+            role="menuitem"
+            onClick={async () => {
+              await client?.auth.signOut();
+              setUser(null);
+              setOpen(false);
+              location.assign("/");
+            }}
+          >
+            SIGN OUT
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
