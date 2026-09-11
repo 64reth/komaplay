@@ -21,19 +21,22 @@ export function OpenPanelWorkshop({
       embeddedForm={false}
       signedOut={
         <section className="workshop-entry">
-          <p className="op-eyebrow">ENTER THE WORKSHOP</p>
+          <p className="op-eyebrow editorial-marker">ENTER THE WORKSHOP</p>
           <h2>You’re adding to “{featureTitle}”.</h2>
-          <p>Sign in or create an account to submit knowledge, experience or evidence for its next revision.</p><p className="op-actions"><button onClick={()=>dispatchEvent(new Event("inkplay:auth"))}>SIGN IN</button><button onClick={()=>dispatchEvent(new Event("inkplay:auth"))}>CREATE ACCOUNT</button></p>
           <p>
-            <a
-              href={
-                typeof location === "undefined"
-                  ? "/"
-                  : `/features/${location.pathname.split("/")[2]}`
-              }
+            Sign in or create an account to submit knowledge, experience or
+            evidence for its next revision.
+          </p>
+          <p className="op-actions">
+            <button
+              className="action-primary"
+              onClick={() => dispatchEvent(new Event("komaplay:auth"))}
             >
-              RETURN TO ARTICLE
-            </a>
+              SIGN IN
+            </button>
+            <button onClick={() => dispatchEvent(new Event("komaplay:auth"))}>
+              CREATE ACCOUNT
+            </button>
           </p>
         </section>
       }
@@ -86,10 +89,15 @@ function HandbookWorkshop({
       live = false;
     };
   }, []);
-  const returnTo = typeof location === "undefined" ? "/" : location.pathname + location.search;
   if (!state) return <p role="status">VERIFYING WORKSHOP ACCESS…</p>;
-  if (state.status === "unavailable") return <p className="op-notice" role="alert">{state.message}</p>;
-  if (state.status === "required") return <p role="status">VERIFYING MEMBERSHIP…</p>;
+  if (state.status === "unavailable")
+    return (
+      <p className="op-notice" role="alert">
+        {state.message}
+      </p>
+    );
+  if (state.status === "required")
+    return <p role="status">VERIFYING MEMBERSHIP…</p>;
   return <Workshop featureId={featureId} readOnly={readOnly} />;
 }
 
@@ -103,7 +111,9 @@ function Workshop({
   accessGranted?: boolean;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { if (accessGranted) heading.current?.focus(); }, [accessGranted]);
+  useEffect(() => {
+    if (accessGranted) heading.current?.focus();
+  }, [accessGranted]);
   const [filters, setFilters] = useState<Filters>({
     type: "",
     status: "",
@@ -143,9 +153,15 @@ function Workshop({
   return (
     <>
       <section className="workshop-workbench">
-        {accessGranted && <p role="status" aria-live="polite">WORKSHOP ACCESS GRANTED</p>}
-        <h2 ref={heading} tabIndex={-1}>WORKSHOP ACCESS GRANTED</h2>
+        {accessGranted && (
+          <p className="op-notice" role="status" aria-live="polite">
+            WORKSHOP ACCESS GRANTED
+          </p>
+        )}
         <p className="op-eyebrow">AT THE WORKBENCH</p>
+        <h2 ref={heading} tabIndex={-1}>
+          Developing the next revision
+        </h2>
         <p>
           Recent, privacy-safe activity appears here as members develop this
           feature. No presence tracking or follower counts are used.

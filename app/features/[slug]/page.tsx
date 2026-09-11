@@ -91,7 +91,7 @@ export default async function FeaturePage({
               </figure>
               <section id="overview">
                 <p className="op-eyebrow">
-                  {copy?.meta ?? "INK//:PLAY EDITORIAL"}
+                  {copy?.meta ?? "KOMA://PLAY EDITORIAL"}
                 </p>
                 <h2>Overview</h2>
                 <p className="op-prose">

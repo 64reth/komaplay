@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import approved from "../data/handbook-v1.json";
 import { handbookPanels, safeReturnPath } from "../lib/handbook/domain";
+import { migrateLegacyStorageKey } from "../lib/browser-storage";
 test("approved handbook copy is byte-for-byte protected and splits into four panels", async () => {
   const fixture = await readFile("tests/fixtures/approved-handbook.md", "utf8");
   assert.equal(approved.content, fixture);
@@ -26,4 +27,34 @@ test("handbook return paths retain only safe internal destinations", () => {
   assert.equal(safeReturnPath("/onboarding?returnTo=%2Fapi"), "/");
   assert.equal(safeReturnPath("//outside.example"), "/");
   assert.equal(safeReturnPath("/api/handbook/accept"), "/");
+});
+test("legacy editorial draft storage migrates once without overwriting a newer draft", () => {
+  const values = new Map<string, string>([
+    ["inkplay-editorial-tokon", "legacy"],
+  ]);
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  };
+  assert.equal(
+    migrateLegacyStorageKey(
+      storage,
+      "inkplay-editorial-tokon",
+      "komaplay-editorial-tokon",
+    ),
+    "legacy",
+  );
+  assert.equal(values.get("komaplay-editorial-tokon"), "legacy");
+  assert.equal(values.has("inkplay-editorial-tokon"), false);
+  values.set("inkplay-editorial-tokon", "older");
+  assert.equal(
+    migrateLegacyStorageKey(
+      storage,
+      "inkplay-editorial-tokon",
+      "komaplay-editorial-tokon",
+    ),
+    "legacy",
+  );
+  assert.equal(values.get("inkplay-editorial-tokon"), "older");
 });

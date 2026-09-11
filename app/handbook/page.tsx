@@ -2,15 +2,19 @@ import Link from "next/link";
 import { HandbookCopy } from "../../components/handbook/HandbookCopy";
 import { publicHandbook } from "../../lib/handbook/server";
 import { approved } from "../../lib/handbook/domain";
+import { EditorialHeader } from "../../components/EditorialNavigation";
 export const dynamic = "force-dynamic";
 export default async function HandbookPage() {
   const state = await publicHandbook();
   const version = state.version;
   return (
     <main className="editorial-page">
+      <EditorialHeader />
       <div className="op-workspace handbook-page">
         <Link href="/">← Current issue</Link>
-        <p className="op-eyebrow">INK//:PLAY / COMMUNITY HANDBOOK</p>
+        <p className="op-eyebrow editorial-marker">
+          KOMA://PLAY / COMMUNITY HANDBOOK
+        </p>
         <h1>Community handbook</h1>
         <p>{version?.label ?? approved.label}</p>
         {state.status === "unavailable" && (

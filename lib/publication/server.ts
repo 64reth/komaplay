@@ -1,6 +1,7 @@
 import { serverClient } from "../supabase/server";
 import { developmentCatalogue } from "../../data/publication-demo";
 import type { Catalogue } from "./domain";
+import { resolvePublicMediaPath } from "./media";
 export async function catalogue(editorial = false): Promise<Catalogue> {
   const db = await serverClient();
   if (!db) return developmentCatalogue();
@@ -71,7 +72,10 @@ export async function catalogue(editorial = false): Promise<Catalogue> {
       ...empty,
       issues,
       drops,
-      features,
+      features: (features as { image: string }[]).map((feature) => ({
+        ...feature,
+        image: resolvePublicMediaPath(feature.image),
+      })),
       categories,
       formats,
       tags,

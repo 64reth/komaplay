@@ -1,10 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { migrateLegacyStorageKey } from "../../lib/browser-storage";
 import { ArticleRenderer } from "./ArticleRenderer";
 import {
   blankModule,
   documentIssues,
+  editorialDocumentSchema,
   moduleTypes,
   type ArticleModule,
   type EditorialDocument,
@@ -28,14 +31,40 @@ export function FeatureComposer({ initial }: { initial: EditorialDocument }) {
     [save, setSave] = useState("Saved"),
     [device, setDevice] = useState("desktop");
   useEffect(() => {
+    const saved = migrateLegacyStorageKey(
+      localStorage,
+      "inkplay-editorial-tokon",
+      "komaplay-editorial-tokon",
+    );
+    if (!saved) return;
+    try {
+      const recovered = editorialDocumentSchema.safeParse(JSON.parse(saved));
+      if (recovered.success) setDoc(recovered.data);
+    } catch {
+      // Preserve an unreadable legacy value rather than replacing it with bad data.
+    }
+  }, []);
+  useEffect(() => {
     setSave("Saving…");
     const timer = setTimeout(() => {
-      localStorage.setItem("inkplay-editorial-tokon", JSON.stringify(doc));
+      localStorage.setItem("komaplay-editorial-tokon", JSON.stringify(doc));
       setSave("Saved");
     }, 500);
     return () => clearTimeout(timer);
   }, [doc]);
   const issues = useMemo(() => documentIssues(doc), [doc]);
+  useEffect(() => {
+    const preserveDraft = (event: MouseEvent) => {
+      const target =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (!target) return;
+      localStorage.setItem("komaplay-editorial-tokon", JSON.stringify(doc));
+    };
+    document.addEventListener("click", preserveDraft, true);
+    return () => document.removeEventListener("click", preserveDraft, true);
+  }, [doc]);
   const editHeader = (key: string, value: string) =>
     setDoc((d) => ({ ...d, header: { ...d.header, [key]: value } }));
   const update = (id: string, value: string) =>
@@ -80,6 +109,15 @@ export function FeatureComposer({ initial }: { initial: EditorialDocument }) {
       <header>
         <p className="op-eyebrow">EDITORIAL DASHBOARD / DRAFT</p>
         <h1>Feature composer</h1>
+        <nav
+          className="dashboard-nav"
+          aria-label="Editorial Dashboard navigation"
+        >
+          <Link href="/profile">← RETURN TO PROFILE</Link>
+          <Link href="/">VIEW PUBLICATION</Link>
+          <Link href="/features/tokon">VIEW COMMUNITY EDITION</Link>
+          <Link href="/features/tokon/workshop">OPEN WORKSHOP</Link>
+        </nav>
         <div className="composer-tabs">
           <button
             onClick={() => setMode("compose")}
@@ -105,9 +143,24 @@ export function FeatureComposer({ initial }: { initial: EditorialDocument }) {
       {mode === "preview" ? (
         <>
           <div className="device-tabs">
-            <button onClick={() => setDevice("desktop")}>DESKTOP</button>
-            <button onClick={() => setDevice("tablet")}>TABLET</button>
-            <button onClick={() => setDevice("mobile")}>MOBILE</button>
+            <button
+              onClick={() => setDevice("desktop")}
+              aria-pressed={device === "desktop"}
+            >
+              DESKTOP
+            </button>
+            <button
+              onClick={() => setDevice("tablet")}
+              aria-pressed={device === "tablet"}
+            >
+              TABLET
+            </button>
+            <button
+              onClick={() => setDevice("mobile")}
+              aria-pressed={device === "mobile"}
+            >
+              MOBILE
+            </button>
           </div>
           <article className={`composer-preview ${device}`}>
             <ArticleRenderer document={doc} />

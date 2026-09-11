@@ -6,7 +6,9 @@ export default function PublishingPage() {
     <main className="editorial-page">
       <EditorialHeader />
       <div className="op-workspace">
-        <p className="op-eyebrow">INK//:PLAY / PUBLISHING DESK</p>
+        <p className="op-eyebrow editorial-marker">
+          KOMA://PLAY / PUBLISHING DESK
+        </p>
         <h1>Issues & drops</h1>
         <p>
           New panels every week. New issues every month. Open Panels close when

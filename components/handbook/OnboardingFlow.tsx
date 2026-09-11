@@ -178,7 +178,7 @@ export function OnboardingFlow({
                     data.error ?? "Acceptance could not be saved.",
                   );
                 setAccepted(data.accepted_at);
-          onAccepted?.(data.accepted_at);
+                onAccepted?.(data.accepted_at);
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -202,7 +202,10 @@ export function OnboardingFlow({
                 Load the current handbook
               </a>
             )}
-            <button disabled={preview || busy} className="op-button">
+            <button
+              disabled={preview || busy}
+              className="op-button action-primary"
+            >
               {busy ? "Recording your mark…" : "Accept the Compact"}
             </button>
           </form>

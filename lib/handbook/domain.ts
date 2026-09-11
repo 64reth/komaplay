@@ -86,9 +86,9 @@ export const panelTitles = [
 ] as const;
 export function handbookPanels(content: string) {
   const starts = [
-    "# WELCOME TO INK//:PLAY",
+    "# WELCOME TO KOMA://PLAY",
     "## HOW WE MOVE",
-    "## WHAT INK//:PLAY PROMISES",
+    "## WHAT KOMA://PLAY PROMISES",
     "## YOUR MARK",
   ];
   const positions = starts.map((s) => content.indexOf(s));

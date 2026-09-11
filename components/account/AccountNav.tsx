@@ -42,7 +42,7 @@ function AuthDialog({ onClose }: { onClose: () => void }) {
         >
           ×
         </button>
-        <p className="op-eyebrow">INK//:PLAY ACCOUNT</p>
+        <p className="op-eyebrow">KOMA://PLAY ACCOUNT</p>
         <h2 id="auth-title">
           {mode === "sign-in" ? "SIGN IN" : "CREATE ACCOUNT"}
         </h2>
@@ -71,7 +71,7 @@ function AuthDialog({ onClose }: { onClose: () => void }) {
             Email
             <input name="email" type="email" required autoComplete="email" />
           </label>
-          <button disabled={busy}>
+          <button className="action-primary" disabled={busy}>
             {busy
               ? "SENDING…"
               : mode === "sign-in"
@@ -106,18 +106,21 @@ export function AccountNav() {
     void load();
     const sub = client?.auth.onAuthStateChange(() => void load());
     const launch = () => setAuth(true);
-    addEventListener("inkplay:auth", launch);
+    addEventListener("komaplay:auth", launch);
     return () => {
       live = false;
       sub?.data.subscription.unsubscribe();
-      removeEventListener("inkplay:auth", launch);
+      removeEventListener("komaplay:auth", launch);
     };
   }, [client]);
   if (!ready) return <span className="account-placeholder" />;
   if (!user)
     return (
       <>
-        <button className="account-signin" onClick={() => setAuth(true)}>
+        <button
+          className="account-signin action-primary"
+          onClick={() => setAuth(true)}
+        >
           SIGN IN
         </button>
         {auth && <AuthDialog onClose={() => setAuth(false)} />}

@@ -1,12 +1,27 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 export function IssueNavigation() {
+  const pathname = usePathname();
   return (
     <div className="issue-navigation">
-      <Link href="/">Current issue</Link>
-      <Link href="/archive">Archive</Link>
+      <Link
+        className="active-underline"
+        href="/"
+        aria-current={pathname === "/" ? "page" : undefined}
+      >
+        Current issue
+      </Link>
+      <Link
+        className="active-underline"
+        href="/archive"
+        aria-current={pathname === "/archive" ? "page" : undefined}
+      >
+        Archive
+      </Link>
       <form action="/search" role="search">
         <label className="sr-only" htmlFor="global-search">
-          Search INK//:PLAY
+          Search KOMA://PLAY
         </label>
         <input
           id="global-search"

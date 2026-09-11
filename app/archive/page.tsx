@@ -20,7 +20,7 @@ export default async function Archive({
       <EditorialHeader />
       <IssueNavigation />
       <div className="archive-page">
-        <p className="op-eyebrow">THE PERMANENT COLLECTION</p>
+        <p className="op-eyebrow editorial-marker">THE PERMANENT COLLECTION</p>
         <h1>Archive</h1>
         <p>Completed issues. Preserved panels. Every contributor credited.</p>
         {data.message && <p className="op-notice">{data.message}</p>}

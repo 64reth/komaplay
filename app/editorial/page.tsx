@@ -1,22 +1,19 @@
 /* eslint-disable react-hooks/error-boundaries */
 import Link from "next/link";
 import { FeatureComposer } from "../../components/editorial/FeatureComposer";
+import { EditorialHeader } from "../../components/EditorialNavigation";
 import { tokonGuide } from "../../data/tokon-guide";
 import { communityIdentity } from "../../lib/open-panel/server";
+import { resolveEditorialCapability } from "../../lib/editorial/access";
 export const dynamic = "force-dynamic";
 export default async function EditorialDashboard() {
   try {
     const { profile, db, user } = await communityIdentity(false, "/editorial");
-    const grants = await db
-      .from("editorial_access_grants")
-      .select("access_level")
-      .eq("user_id", user.id)
-      .is("revoked_at", null)
-      .limit(1);
-    const allowed = profile.role === "admin" || Boolean(grants.data?.length);
+    const allowed = await resolveEditorialCapability(db, profile, user.id);
     if (!allowed)
       return (
         <main className="editorial-page">
+          <EditorialHeader />
           <div className="op-workspace">
             <h1>Editorial access required</h1>
             <p>
@@ -29,6 +26,7 @@ export default async function EditorialDashboard() {
       );
     return (
       <main className="editorial-page">
+        <EditorialHeader />
         <div className="op-workspace">
           <FeatureComposer initial={tokonGuide} />
         </div>
@@ -37,6 +35,7 @@ export default async function EditorialDashboard() {
   } catch {
     return (
       <main className="editorial-page">
+        <EditorialHeader />
         <div className="op-workspace">
           <h1>Sign in for Editorial Dashboard</h1>
           <p>Editorial access is checked on the server.</p>

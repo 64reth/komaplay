@@ -24,7 +24,7 @@ export default async function Search({
       <EditorialHeader />
       <IssueNavigation />
       <div className="op-workspace">
-        <p className="op-eyebrow">FIND YOUR NEXT PANEL</p>
+        <p className="op-eyebrow editorial-marker">FIND YOUR NEXT PANEL</p>
         <h1>Search</h1>
         {data.message && <p className="op-notice">{data.message}</p>}
         <DiscoveryForm data={data} filters={filters} />

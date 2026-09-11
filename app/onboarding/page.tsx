@@ -24,7 +24,9 @@ export default async function OnboardingPage({
   return (
     <main className="editorial-page">
       <div className="op-workspace handbook-page">
-        <p className="op-eyebrow">INK//:PLAY / COMMUNITY HANDBOOK</p>
+        <p className="op-eyebrow editorial-marker">
+          KOMA://PLAY / COMMUNITY HANDBOOK
+        </p>
         {data.demo ? (
           <OnboardingFlow
             version={previewVersion}

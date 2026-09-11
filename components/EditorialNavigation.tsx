@@ -50,16 +50,12 @@ export function EditorialHeader({
   return (
     <header className="editorial-nav">
       <Link className="wordmark" href="/">
-        INK//:PLAY
+        KOMA://PLAY
       </Link>
-      <span>{issueLabel ?? "INK//:PLAY · EDITORIAL"}</span>
+      <span>{issueLabel ?? "KOMA://PLAY · EDITORIAL"}</span>
       <nav aria-label="Editorial pages">
-        <Link
-          href="/"
-          aria-label="00 Cover"
-          aria-current={!slug ? "page" : undefined}
-        >
-          00
+        <Link href="/" aria-current={!slug ? "page" : undefined}>
+          HOME
         </Link>
         {issueZeroFeatures.map((f) => (
           <Link

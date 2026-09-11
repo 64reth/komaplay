@@ -15,7 +15,9 @@ export default async function ModerationPage() {
     <main className="editorial-page">
       <EditorialHeader />
       <div className="op-workspace">
-        <p className="op-eyebrow">OPEN PANEL / EDITORIAL DESK</p>
+        <p className="op-eyebrow editorial-marker">
+          OPEN PANEL / EDITORIAL DESK
+        </p>
         <h1>Moderation</h1>
         <p>Shape useful contributions into the next published revision.</p>
         <p>

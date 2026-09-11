@@ -1,4 +1,4 @@
-# INK//:PLAY — Open Panel & publication alpha
+# KOMA://PLAY — Open Panel & publication alpha
 
 A cream-paper, monochrome editorial publication built with React, TypeScript and the Next.js App Router conventions implemented by **Vinext**. Existing clue artwork and the connected horizontal feature strip are retained.
 
@@ -14,7 +14,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-The portable development server normally uses `http://127.0.0.1:5173`. If it is already running, use that server. Restart after changing environment variables. Production builds use `pnpm build`; `pnpm start` previews the generated Worker locally and does not deploy it.
+The portable development server normally uses `http://localhost:5173`. If it is already running, use that server. Restart after changing environment variables. Production builds use `pnpm build`; `pnpm start` previews the generated Worker locally and does not deploy it.
 
 With no Supabase configuration, the site presents **explicitly labelled development previews** of Issue Zero and a lightweight archive. Existing editorial text remains readable. Authentication, publishing and contribution mutations report the missing setup; they do not simulate a successful save. With configuration present but an unavailable database, the UI reports the outage instead of substituting demo database records.
 
@@ -45,7 +45,7 @@ The starter's optional D1 scaffold and `app/chatgpt-auth.ts` remain separate. Op
 
 1. Create a Supabase project (or use a local Supabase CLI/Docker project).
 2. Apply, in order, the two SQL migrations in `supabase/migrations/` using the SQL editor or `psql` as the project database owner. For a linked CLI project, `supabase db push` applies these migrations. Do not apply them repeatedly by hand.
-3. Enable email authentication. Set the Auth Site URL to your local origin for development. Allow `http://127.0.0.1:5173/auth/confirm**` and the equivalent deployment origin in Auth redirect URLs. Keep the default confirmation/magic-link template using `{{ .ConfirmationURL }}`; the client starts a PKCE email flow and `/auth/confirm` exchanges the returned code.
+3. Enable email authentication. Set the Auth Site URL to your local origin for development. Allow `http://localhost:5173/auth/confirm**` and the equivalent deployment origin in Auth redirect URLs. Keep the default confirmation/magic-link template using `{{ .ConfirmationURL }}`; the client starts a PKCE email flow and `/auth/confirm` exchanges the returned code.
 4. Fill `.env.local` and restart the development server.
 5. Sign in from a Workshop using a real email account. The first sign-in creates a profile with **member** role, regardless of any role supplied in user metadata.
 6. Promote your first administrator with the database-owner procedure below.
@@ -208,3 +208,17 @@ No CMS, OAuth providers, user-created topics, nested comments, chat, likes, repu
 See [the architecture notes](docs/open-panel.md) for file boundaries and trust layers.
 
 Implementation references: [Supabase cookie-based SSR clients](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [passwordless email authentication](https://supabase.com/docs/guides/auth/auth-email-passwordless), [database function security](https://supabase.com/docs/guides/database/functions), and [Storage access controls](https://supabase.com/docs/guides/storage/security/access-control).
+
+## KOMA://PLAY production transition
+
+The display brand is `KOMA://PLAY`; spoken/plain-text references use “Koma Play”. The canonical production origin is `https://komaplay.com`; use `@komaplay` for the primary social handle. Configure Supabase Auth with `https://komaplay.com` as its Site URL and retain `http://localhost:5173/**` and `https://komaplay.com/**` as redirect URLs. `auth.komaplay.com` is reserved as the future transactional-email subdomain.
+
+Temporary compatibility note: existing local `.env.local` values, saved browser state, and prior Supabase redirect settings may still refer to the former `https://inkplay.allencreativetechnologies.uk` INK//:PLAY deployment domain. Keep local development on `http://localhost:5173`; update production redirect settings before changing any deployed environment values. No external DNS, Resend, Supabase, or Cloudflare setting is changed by this source update.
+
+### Handbook brand compatibility
+
+The KOMA://PLAY handbook presentation uses the unchanged `compact-v1` conduct statement. Before activating a separately prepared KOMA://PLAY handbook version, an Administrator must register the audited compatibility bridge from the accepted INK//:PLAY version with `public.register_handbook_acceptance_compatibility`. Migration `202609110007_handbook_brand_compatibility.sql` permits this only when both versions have the same compact version. This keeps existing valid acceptances while preserving the server-side handbook gate for every other version change.
+
+### KOMA://PLAY colour language
+
+The interface uses warm paper (`--color-paper`), black ink (`--color-ink`), clean surface (`--color-surface`), and one controlled registration red. The canonical brand accent is `#ef3027` (`--color-accent`); use it for editorial marks, selected states, and primary-action interaction. Small text uses the accessible darker `#9e2a24` (`--color-accent-text`). Destructive actions use `--color-danger` and must not borrow the brand-accent meaning. Default controls remain monochrome.

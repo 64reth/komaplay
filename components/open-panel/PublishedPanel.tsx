@@ -42,7 +42,7 @@ export function OpenPanelStatus({
   return (
     <section className="op-status" aria-label="Open Panel status">
       <div>
-        <b>
+        <b className="editorial-marker">
           COMMUNITY EDITION · REVISION {data?.feature.current_revision ?? 1}
         </b>
         <span>
@@ -59,7 +59,7 @@ export function OpenPanelStatus({
         </span>
       </div>
       <a
-        className="op-button"
+        className="op-button action-primary"
         href={`/features/${slug}/${open ? "workshop" : "correction"}`}
       >
         {open ? "OPEN THE WORKSHOP" : "REPORT A CORRECTION"} ↗
@@ -87,7 +87,7 @@ export function CommunityAdditions({
             strategy, source, experience or different perspective and help
             develop the next revision.
           </p>
-          <a className="op-button" href="#workshop-link">
+          <a className="op-button action-primary" href="#workshop-link">
             ADD TO THIS EDITORIAL →
           </a>
           <small>

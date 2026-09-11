@@ -1,4 +1,4 @@
-# WELCOME TO INK//:PLAY
+# WELCOME TO KOMA://PLAY
 
 A human-edited home for games, anime, manga and the culture surrounding them.
 
@@ -57,7 +57,7 @@ Before submitting, ask:
 
 > Does this add knowledge, clarity, perspective or joy?
 
-## WHAT INK//:PLAY PROMISES
+## WHAT KOMA://PLAY PROMISES
 
 We will not build the community around:
 
@@ -83,7 +83,7 @@ Open Panels close when the issue ends.
 The final edition enters the archive with its revisions and contributors preserved.
 
 **Discord is where we talk.
-INK//:PLAY is where we remember.**
+KOMA://PLAY is where we remember.**
 
 ## PROTECT THE SPACE
 
@@ -97,7 +97,7 @@ Report anything that makes the community unsafe. Asking for help will never coun
 
 ## YOUR MARK
 
-INK//:PLAY does not measure people by follower counts or how loudly they post.
+KOMA://PLAY does not measure people by follower counts or how loudly they post.
 
 Contribution is recognised through the work:
 

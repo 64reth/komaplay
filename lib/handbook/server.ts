@@ -38,6 +38,7 @@ export async function handbookState(
           "No handbook version is active. An administrator needs to activate a prepared version.",
       };
     let acceptance: HandbookAcceptance | null = null;
+    let compatibleAcceptance = false;
     if (userId) {
       const result = await db
         .from("handbook_acceptances")
@@ -47,9 +48,17 @@ export async function handbookState(
         .maybeSingle();
       if (result.error) throw result.error;
       acceptance = result.data;
+      if (!acceptance) {
+        const compatible = await db.rpc("has_current_handbook_acceptance");
+        if (compatible.error) throw compatible.error;
+        compatibleAcceptance = compatible.data === true;
+      }
     }
     return {
-      status: needsOnboarding(version, acceptance) ? "required" : "accepted",
+      status:
+        needsOnboarding(version, acceptance) && !compatibleAcceptance
+          ? "required"
+          : "accepted",
       version: version as HandbookVersion,
       acceptance,
     };

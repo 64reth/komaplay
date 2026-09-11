@@ -84,7 +84,7 @@ export function Gallery({
         >
           ←
         </button>
-        <output aria-live="polite">
+        <output className="text-accent" aria-live="polite">
           {String(current + 1).padStart(2, "0")} /{" "}
           {String(slides.length).padStart(2, "0")}
         </output>
