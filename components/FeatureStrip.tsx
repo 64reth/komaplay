@@ -184,13 +184,6 @@ export function FeatureStrip({
         onPointerLeave={() => {
           if (!drag.current.moved) drag.current.active = false;
         }}
-        onClickCapture={(event) => {
-          if (drag.current.moved) {
-            event.preventDefault();
-            event.stopPropagation();
-            drag.current.moved = false;
-          }
-        }}
       >
         {items.map((item) => (
           <Link

@@ -8,7 +8,7 @@ test("public navigation and authentication dialog remain responsive", async ({
   await expect(page.getByRole("link", { name: "KOMA://PLAY" })).toBeVisible();
   const next = page.getByRole("button", { name: "Next features" }).first();
   await next.click();
-  await page.getByRole("link", { name: /Tōkon/i }).first().click();
+  await page.locator("a.feature-panel[href='/features/tokon']").click();
   await expect(page).toHaveURL(/\/features\/tokon/);
   await page
     .getByRole("link", { name: /workshop|add to this editorial/i })
