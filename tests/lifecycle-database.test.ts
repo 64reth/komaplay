@@ -11,6 +11,7 @@ test("publication database enforces deadlines, private corrections, permissions,
     "202609100001_open_panel.sql",
     "202609100002_publication_lifecycle.sql",
     "202609100003_community_handbook.sql",
+    "202609110004_community_edition_workshop.sql",
   ])
     await db.exec(await readFile(`supabase/migrations/${path}`, "utf8"));
   const [member, other, moderator, admin] = Array.from({ length: 4 }, () =>
@@ -44,6 +45,8 @@ test("publication database enforces deadlines, private corrections, permissions,
     target_section: "Practice",
     title: "A useful contribution",
     body: "A detailed practice suggestion for a beginner.",
+    public_credit: "Display name",
+    publication_consent: true,
   };
   await as(member);
   await assert.rejects(
@@ -263,6 +266,10 @@ test("publication database enforces deadlines, private corrections, permissions,
   await db.query(
     "select moderate_contribution($1,'Accepted','Final edited heading','A curated final addition after the deadline.','Final review complete.')",
     [c],
+  );
+  assert.equal(
+    (await db.query("select * from panel_citations")).rows.length,
+    1,
   );
   await assert.rejects(
     db.query("select manage_publication('issue-state',$1::jsonb)", [

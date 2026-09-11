@@ -37,6 +37,7 @@ export function ContributionComposer({
             ...values,
             feature_id: featureId,
             screenshot_path: screenshot,
+            publication_consent: values.publication_consent === "on",
           });
           if (!parsed.success)
             throw new Error(
@@ -151,6 +152,20 @@ export function ContributionComposer({
             }
           }}
         />
+      </label>
+      <label>
+        Public credit if published
+        <select name="public_credit" defaultValue="Display name">
+          <option>Display name</option>
+          <option>Pen name</option>
+          <option>Anonymous Panelist</option>
+        </select>
+      </label>
+      <label className="op-check">
+        <input name="publication_consent" type="checkbox" required />
+        If this contribution is accepted, its edited text, supporting evidence
+        and your selected credit may become part of the permanent public
+        Community Edition and its Panel Citation.
       </label>
       {screenshot && (
         <p role="status">

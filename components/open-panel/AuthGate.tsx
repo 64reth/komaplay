@@ -2,7 +2,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { browserClient } from "../../lib/supabase/client";
 import { canModerate, type Role } from "../../lib/open-panel/domain";
-export type Member = { id: string; display_name: string; role: Role };
+export type Member = {
+  id: string;
+  display_name: string;
+  role: Role;
+  account_status?: "active" | "restricted" | "suspended";
+};
 export function GateState({
   state,
   moderator = false,
@@ -26,9 +31,11 @@ export function GateState({
 export function AuthGate({
   children,
   moderator = false,
+  signedOut,
 }: {
   children: (user: Member) => ReactNode;
   moderator?: boolean;
+  signedOut?: ReactNode;
 }) {
   const [user, setUser] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,6 +139,7 @@ export function AuthGate({
           </>
         )}
       </GateState>
+      {!loading && !user && signedOut}
       {!loading && !user && client && (
         <form
           className="op-form op-signin"

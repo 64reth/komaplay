@@ -81,6 +81,14 @@ export const contributionSchema = z
       .max(250)
       .regex(/^$|^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(png|jpg|webp)$/)
       .default(""),
+    public_credit: z
+      .enum(["Display name", "Pen name", "Anonymous Panelist"])
+      .default("Display name"),
+    publication_consent: z
+      .literal(true, {
+        errorMap: () => ({ message: "Publication consent is required." }),
+      })
+      .default(true),
   })
   .refine((v) => v.type !== "Screenshot" || !!v.screenshot_path, {
     message: "Upload a screenshot for this contribution type.",
@@ -138,6 +146,18 @@ export type Addition = {
   published_at: string;
   contributor?: Credit;
 };
+export type PanelCitation = {
+  id: string;
+  contribution_id: string;
+  public_credit: string;
+  contribution_type: string;
+  source_url: string;
+  submitted_at: string;
+  reviewing_editor: string;
+  published_at: string;
+  revision_number: number;
+  editorial_summary: string;
+};
 export type Revision = {
   id: string;
   revision_number: number;
@@ -156,7 +176,17 @@ export type PanelData = {
   additions: Addition[];
   revisions: Revision[];
   credits: Credit[];
+  citations: PanelCitation[];
 };
+export const additionLabel = (type: string) =>
+  ({
+    Strategy: "PLAYER STRATEGY",
+    Correction: "COMMUNITY CORRECTION",
+    Source: "SOURCE ADDED",
+    Counterpoint: "COUNTERPOINT",
+    Timeline: "ARCHIVE FIND",
+    Question: "BEGINNER NOTE",
+  })[type] ?? "ADDITIONAL CONTEXT";
 export const splitCredits = (credits: Credit[]) => ({
   visible: credits.slice(0, 4),
   extra: credits.slice(4),

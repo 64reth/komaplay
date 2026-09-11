@@ -77,6 +77,7 @@ export async function GET(
           id: user.id,
           display_name: profile.display_name,
           role: profile.role,
+          account_status: profile.account_status,
         },
       });
     if (action === "profiles") {

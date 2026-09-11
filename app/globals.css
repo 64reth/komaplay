@@ -5,6 +5,81 @@
   --red: #ef3027;
   --acid: #dfff39;
 }
+
+/* Community Edition is finished paper; Workshop exposes its working marks. */
+.op-status {
+  border-block: 2px solid currentColor;
+  padding: 16px 0;
+  display: grid;
+  gap: 14px;
+}
+.op-status > div {
+  display: grid;
+  gap: 5px;
+}
+.op-empty-panel,
+.workshop-entry,
+.workshop-workbench {
+  border: 1px dashed currentColor;
+  padding: 24px;
+  margin-block: 24px;
+}
+.op-addition {
+  border-left: 4px solid currentColor;
+  padding: 18px 22px;
+  margin: 24px 0;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.panel-citation {
+  display: inline;
+}
+.panel-citation summary {
+  display: inline;
+  cursor: pointer;
+  font-weight: 800;
+}
+.panel-citation dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid currentColor;
+  background: Canvas;
+}
+.panel-citation dt {
+  font-weight: 800;
+}
+.panel-citation dd {
+  margin: 0;
+}
+.op-workspace:has(.workshop-workbench) {
+  background-image: linear-gradient(
+    90deg,
+    transparent 49%,
+    color-mix(in srgb, currentColor 18%, transparent) 50%,
+    transparent 51%
+  );
+  animation: workshop-unveil 280ms ease-out;
+}
+.op-workspace:has(.workshop-workbench)::before {
+  content: "DRAFT · CHECK SOURCE · READY FOR PANEL";
+  display: block;
+  font: 700 0.7rem monospace;
+  letter-spacing: 0.12em;
+  color: #a33;
+  transform: rotate(-2deg);
+}
+@keyframes workshop-unveil {
+  from {
+    transform: translateY(8px);
+    opacity: 0.7;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
 * {
   box-sizing: border-box;
 }

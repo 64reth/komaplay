@@ -5,6 +5,7 @@ import {
   type Addition,
   type PanelData,
   type Revision,
+  type PanelCitation,
 } from "./domain";
 import { HttpError } from "./errors";
 import { requireHandbook } from "../handbook/server";
@@ -32,7 +33,7 @@ export async function identity(moderator = false) {
     );
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id,display_name,role")
+    .select("id,display_name,role,account_status")
     .eq("id", user.id)
     .single();
   if (profileError || !profile)
@@ -42,6 +43,13 @@ export async function identity(moderator = false) {
     );
   if (moderator && !canModerate(profile.role))
     throw new HttpError(403, "Moderator or administrator access is required.");
+  if (profile.account_status !== "active")
+    throw new HttpError(
+      403,
+      profile.account_status === "suspended"
+        ? "Workshop access is suspended. Contact the editorial team to request help or an appeal."
+        : "Workshop access is currently restricted. Contact the editorial team for help or an appeal.",
+    );
   return { db, user, profile };
 }
 export async function publicPanel(
@@ -67,7 +75,7 @@ export async function publicPanel(
         data: null,
         message: "Open Panel has not been enabled for this feature yet.",
       };
-    const [a, r] = await Promise.all([
+    const [a, r, citations] = await Promise.all([
       db
         .from("published_additions")
         .select("*")
@@ -78,6 +86,7 @@ export async function publicPanel(
         .select("*")
         .eq("feature_id", feature.id)
         .order("revision_number", { ascending: false }),
+      db.from("panel_citations").select("*").eq("feature_id", feature.id),
     ]);
     if (a.error || r.error) throw a.error || r.error;
     const ids = [...new Set((a.data ?? []).map((row) => row.contributor_id))];
@@ -95,6 +104,7 @@ export async function publicPanel(
         additions,
         revisions: r.data as Revision[],
         credits: publishedCredits(additions),
+        citations: (citations.error ? [] : citations.data) as PanelCitation[],
       },
       message: null,
     };

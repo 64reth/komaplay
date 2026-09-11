@@ -98,7 +98,10 @@ export default async function FeaturePage({
             {panel.message}
           </p>
         )}
-        <CommunityAdditions additions={panel.data?.additions ?? []} />
+        <CommunityAdditions
+          additions={panel.data?.additions ?? []}
+          citations={panel.data?.citations ?? []}
+        />
         <RevisionHistory
           revisions={panel.data?.revisions ?? []}
           credits={panel.data?.credits ?? []}
@@ -130,10 +133,10 @@ export default async function FeaturePage({
           </aside>
         )}
       </article>
-      <footer className="op-footer">
+      <footer className="op-footer" id="workshop-link">
         <Link href={`/issues/${issue.slug}`}>← {issue.title}</Link>
         <Link href={`/features/${slug}/${open ? "workshop" : "correction"}`}>
-          {open ? "Enter the Workshop" : "Report a Correction"} ↗
+          {open ? "ADD TO THIS EDITORIAL →" : "REPORT A CORRECTION →"}
         </Link>
       </footer>
     </main>

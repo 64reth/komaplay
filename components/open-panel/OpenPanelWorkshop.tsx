@@ -11,12 +11,36 @@ import type { Contribution } from "../../lib/open-panel/domain";
 export function OpenPanelWorkshop({
   featureId,
   readOnly = false,
+  featureTitle,
 }: {
   featureId: string | null;
   readOnly?: boolean;
+  featureTitle?: string;
 }) {
   return (
-    <AuthGate>
+    <AuthGate
+      signedOut={
+        <section className="workshop-entry">
+          <p className="op-eyebrow">ENTER THE WORKSHOP</p>
+          <h2>You’re adding to “{featureTitle}”.</h2>
+          <p>
+            Sign in to submit knowledge, experience or evidence for its next
+            revision.
+          </p>
+          <p>
+            <a
+              href={
+                typeof location === "undefined"
+                  ? "/"
+                  : `/features/${location.pathname.split("/")[2]}`
+              }
+            >
+              RETURN TO ARTICLE
+            </a>
+          </p>
+        </section>
+      }
+    >
       {() =>
         featureId ? (
           <HandbookWorkshop featureId={featureId} readOnly={readOnly} />
@@ -123,6 +147,13 @@ function Workshop({
   }, [filters, version, page]);
   return (
     <>
+      <section className="workshop-workbench">
+        <p className="op-eyebrow">AT THE WORKBENCH</p>
+        <p>
+          Recent, privacy-safe activity appears here as members develop this
+          feature. No presence tracking or follower counts are used.
+        </p>
+      </section>
       {!readOnly && (
         <ContributionComposer
           key={editing?.id ?? "new"}

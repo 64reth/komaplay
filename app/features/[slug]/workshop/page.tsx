@@ -21,9 +21,12 @@ export default async function WorkshopPage({
     <main className="editorial-page">
       <EditorialHeader slug={slug} issueLabel={issue.title} />
       <div className="op-workspace">
-        <Link href={`/features/${slug}`}>← Published Panel</Link>
-        <p className="op-eyebrow">OPEN PANEL / {feature.title}</p>
-        <h1>{open ? "Workshop" : "Workshop closed"}</h1>
+        <Link href={`/features/${slug}`}>← RETURN TO COMMUNITY EDITION</Link>
+        <p className="op-eyebrow">OPEN PANEL WORKSHOP</p>
+        <h1>{feature.title}</h1>
+        <p className="op-eyebrow">
+          BUILDING REVISION {feature.current_revision + 1}
+        </p>
         <OpenPanelCountdown feature={feature} issue={issue} now={data.now} />
         <p>
           {open
@@ -42,6 +45,7 @@ export default async function WorkshopPage({
         <OpenPanelWorkshop
           featureId={data.demo ? null : feature.id}
           readOnly={!open}
+          featureTitle={feature.title}
         />
       </div>
     </main>

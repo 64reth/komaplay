@@ -6,6 +6,8 @@ import {
   type PanelData,
   type Addition,
   type Revision,
+  type PanelCitation,
+  additionLabel,
 } from "../../lib/open-panel/domain";
 export function ContributorCredits({ credits }: { credits: Credit[] }) {
   const { visible, extra } = splitCredits(credits);
@@ -40,8 +42,9 @@ export function OpenPanelStatus({
   return (
     <section className="op-status" aria-label="Open Panel status">
       <div>
-        <b>{open ? "OPEN PANEL" : "FINAL PANEL"}</b>
-        <span>Revision {data?.feature.current_revision ?? 1}</span>
+        <b>
+          COMMUNITY EDITION · REVISION {data?.feature.current_revision ?? 1}
+        </b>
         <span>
           Last revised{" "}
           {data
@@ -50,30 +53,57 @@ export function OpenPanelStatus({
               })
             : "10 September 2026"}
         </span>
-        <span>{data?.additions.length ?? 0} accepted contributions</span>
+        <span>
+          Built from the original feature and {data?.additions.length ?? 0}{" "}
+          published community contributions.
+        </span>
       </div>
       <a
         className="op-button"
         href={`/features/${slug}/${open ? "workshop" : "correction"}`}
       >
-        {open ? "Enter the Workshop" : "Report a Correction"} ↗
+        {open ? "OPEN THE WORKSHOP" : "REPORT A CORRECTION"} ↗
       </a>
       <ContributorCredits credits={data?.credits ?? []} />
     </section>
   );
 }
-export function CommunityAdditions({ additions }: { additions: Addition[] }) {
+export function CommunityAdditions({
+  additions,
+  citations = [],
+}: {
+  additions: Addition[];
+  citations?: PanelCitation[];
+}) {
   return (
     <section className="op-additions" aria-labelledby="community-heading">
       <p className="op-eyebrow">CURATED / CREDITED / PUBLISHED</p>
       <h2 id="community-heading">Community Additions</h2>
       {!additions.length ? (
-        <p>No community additions have been published for this Panel.</p>
+        <div className="op-empty-panel">
+          <b>THIS PANEL IS OPEN</b>
+          <p>
+            No community additions have been published yet. Bring a correction,
+            strategy, source, experience or different perspective and help
+            develop the next revision.
+          </p>
+          <a className="op-button" href="#workshop-link">
+            ADD TO THIS EDITORIAL →
+          </a>
+          <small>
+            Your contribution will enter the private Workshop for editorial
+            review. Published additions receive a permanent Panel Citation.
+          </small>
+        </div>
       ) : (
         additions.map((a) => (
           <article key={a.id} className="op-addition">
             <p className="op-eyebrow">
-              {a.target_section} / REVISION {a.revision_number}
+              FROM THE OPEN PANEL ·{" "}
+              {additionLabel(
+                citations.find((c) => c.contribution_id === a.contribution_id)
+                  ?.contribution_type ?? "",
+              )}
             </p>
             <h3>{a.heading}</h3>
             <p className="op-prose">{a.body}</p>
@@ -105,12 +135,61 @@ export function CommunityAdditions({ additions }: { additions: Addition[] }) {
               </p>
             )}
             <small>
-              Contributed by {a.contributor?.display_name ?? "Reader"}
+              Contributed by{" "}
+              {a.contributor?.display_name ?? "Anonymous Panelist"} · Published
+              Contributor · Edited into Revision {a.revision_number} ·{" "}
+              <PanelCitationDisclosure
+                citation={citations.find(
+                  (c) => c.contribution_id === a.contribution_id,
+                )}
+              />
             </small>
           </article>
         ))
       )}
     </section>
+  );
+}
+export function PanelCitationDisclosure({
+  citation,
+}: {
+  citation?: PanelCitation;
+}) {
+  if (!citation) return null;
+  return (
+    <details className="panel-citation">
+      <summary>
+        [P//{String(citation.revision_number).padStart(2, "0")}]
+      </summary>
+      <dl>
+        <dt>Credit</dt>
+        <dd>{citation.public_credit}</dd>
+        <dt>Contribution</dt>
+        <dd>{citation.contribution_type}</dd>
+        <dt>Submitted</dt>
+        <dd>{new Date(citation.submitted_at).toLocaleDateString("en-GB")}</dd>
+        <dt>Reviewed by</dt>
+        <dd>{citation.reviewing_editor}</dd>
+        <dt>Published</dt>
+        <dd>{new Date(citation.published_at).toLocaleDateString("en-GB")}</dd>
+        <dt>Editorial change</dt>
+        <dd>{citation.editorial_summary}</dd>
+        {citation.source_url && (
+          <>
+            <dt>Evidence</dt>
+            <dd>
+              <a
+                href={citation.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Supporting source ↗
+              </a>
+            </dd>
+          </>
+        )}
+      </dl>
+    </details>
   );
 }
 export function RevisionHistory({
