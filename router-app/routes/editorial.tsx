@@ -129,7 +129,13 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
   const pending = fetcher.state !== "idle";
   const response = fetcher.data;
+  const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
+  const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
+  const durableStatus = response && "success" in response && response.status === "draft" ? "Draft saved" : editorialStatusLabel(selectedStatus);
+  const isSubmitted = selectedStatus === "submitted";
+  const isPublishReady = selectedStatus === "approved";
+  const isChangesRequested = selectedStatus === "changes_requested";
 
   useEffect(() => {
     const selectedWork = result.drafts.find((item) => item.feature_id === selectedFeatureId);
@@ -163,15 +169,18 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     setDraft(composerFromWorkItem(item));
   };
 
-  const draftRows: PanelDirectoryRow[] = result.drafts.map((item) => ({
+  const draftRows: PanelDirectoryRow[] = result.drafts.map((item) => {
+    const rowStatus = actionFeatureId === item.feature_id && response && "status" in response && typeof response.status === "string" ? response.status : item.lifecycle_status;
+    const rowLabel = actionFeatureId === item.feature_id && response && "success" in response && rowStatus === "draft" ? "Draft saved" : editorialStatusLabel(rowStatus);
+    return {
     id: item.feature_id,
     title: item.title ?? "Untitled draft",
     type: "Editorial Feature",
-    status: editorialStatusLabel(item.lifecycle_status),
+    status: rowLabel,
     date: new Date(item.updated_at).toLocaleDateString("en-GB"),
     meta: item.reviewer_note ? `Reviewer note: ${item.reviewer_note}` : item.slug,
-    action: item.lifecycle_status === "submitted" || item.lifecycle_status === "approved" ? (
-      <span>{item.lifecycle_status === "approved" ? "PUBLISH-READY" : "VIEW STATUS"}</span>
+    action: rowStatus === "submitted" || rowStatus === "approved" ? (
+      <span>{rowStatus === "approved" ? "PUBLISH-READY" : "SUBMITTED"}</span>
     ) : (
       <div className="panel-directory-actions">
         <button className="op-button" type="button" onClick={() => loadDraft(item)}>
@@ -186,11 +195,12 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input type="hidden" name="image" value={item.image ?? ""} />
           <input type="hidden" name="imageAlt" value={item.image_alt ?? ""} />
           <input type="hidden" name="sections" value={documentBodyText(composerFromWorkItem(item).sections)} />
-          <button className="op-button action-primary" name="intent" value="submitExisting" onClick={() => setSubmitIntent("submit")} disabled={pending}>SUBMIT FOR REVIEW</button>
+          <button className="op-button action-primary" name="intent" value="submitExisting" onClick={() => setSubmitIntent("submit")} disabled={pending}>{pending && submitIntent === "submit" ? "SUBMITTING…" : item.lifecycle_status === "changes_requested" ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}</button>
         </fetcher.Form>
       </div>
     ),
-  }));
+  };
+  });
   const reviewRows: PanelDirectoryRow[] = result.review.map((item: any) => ({
     id: item.feature_id,
     title: item.title ?? "Untitled submitted panel",
@@ -209,11 +219,10 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       </nav>
       <p className="editorial-marker">EDITORIAL DASHBOARD</p>
       <h1>Feature composer</h1>
-      {selected && <p className="profile-contribution">Editing {selected.title} · {editorialStatusLabel(selected.lifecycle_status)}{selected.reviewer_note ? ` · Reviewer note: ${selected.reviewer_note}` : ""}</p>}
+      {(selected || response) && <p className="profile-contribution">Status: <span className="panel-status">{durableStatus}</span>{selected ? ` · Editing ${selected.title}` : ""}{selected?.reviewer_note ? ` · Reviewer note: ${selected.reviewer_note}` : ""}</p>}
       {response && "success" in response && (
         <p className="profile-contribution" role="status">
           {response.success}
-          {"status" in response && response.status === "submitted" ? " Status: Submitted for review." : ""}
         </p>
       )}
       {response && "error" in response && (
@@ -223,7 +232,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       )}
       {response && "success" in response && "featureId" in response && (
         <article className="profile-contribution" aria-label="Latest saved draft">
-          <p>{"status" in response && response.status === "submitted" ? "Submitted for review" : "Draft"} · Just now</p>
+          <p>{durableStatus} · Just now</p>
           <strong>{draft.title}</strong>
           <p>{draft.slug}</p>
         </article>
@@ -270,11 +279,11 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
         </label>
         <div className="profile-actions">
-          <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending}>
-            {pending && submitIntent === "save" ? "SAVING…" : "SAVE DRAFT"}
+          <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending || isPublishReady}>
+            {pending && submitIntent === "save" ? "SAVING…" : isChangesRequested ? "SAVE REVISION" : "SAVE DRAFT"}
           </button>
-          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending}>
-            {pending && submitIntent === "submit" ? "SUBMITTING…" : "SUBMIT FOR REVIEW"}
+          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending || isSubmitted || isPublishReady}>
+            {pending && submitIntent === "submit" ? "SUBMITTING…" : isSubmitted ? "SUBMITTED" : isPublishReady ? "PUBLISH-READY" : isChangesRequested ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}
           </button>
         </div>
       </fetcher.Form>
