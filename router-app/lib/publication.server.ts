@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { developmentCatalogue } from "../data/publication-demo";
 import type { Catalogue } from "./publication";
 import { resolvePublicMediaPath } from "./publication-media";
+import { resolvePublicSupabaseConfig } from "./supabase-config";
 import type {
   PanelData,
   Addition,
@@ -11,10 +12,9 @@ import type {
 import { publishedCredits } from "./open-panel";
 
 function client(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return url && key
-    ? createClient(url, key, {
+  const config = resolvePublicSupabaseConfig();
+  return config
+    ? createClient(config.url, config.key, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,

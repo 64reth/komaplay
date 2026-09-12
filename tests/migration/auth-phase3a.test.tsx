@@ -10,6 +10,7 @@ import {
 } from "../../router-app/lib/auth-origin";
 import { safeReturnPath } from "../../router-app/lib/handbook";
 import { authReturnPath, withQuery } from "../../router-app/lib/auth";
+import { resolvePublicSupabaseConfig } from "../../router-app/lib/supabase-config";
 
 const render = (mode: "sign-in" | "create", initialError = "") =>
   renderToStaticMarkup(
@@ -60,6 +61,31 @@ test("auth callback origins are selected from explicit deployed and local origin
   assert.equal(
     authCallbackUrl("https://evil.test", "https://evil.test/workshop"),
     "https://komaplay.com/auth/callback?returnTo=%2F",
+  );
+});
+
+test("public Supabase config accepts legacy and Worker-safe names only", () => {
+  assert.deepEqual(
+    resolvePublicSupabaseConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+    }),
+    { url: "https://example.supabase.co", key: "anon-key" },
+  );
+  assert.deepEqual(
+    resolvePublicSupabaseConfig({
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key",
+      SUPABASE_SERVICE_ROLE_KEY: "must-not-be-read",
+    }),
+    { url: "https://example.supabase.co", key: "anon-key" },
+  );
+  assert.equal(
+    resolvePublicSupabaseConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "must-not-be-read",
+    }),
+    null,
   );
 });
 

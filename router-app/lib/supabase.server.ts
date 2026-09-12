@@ -5,6 +5,7 @@ import {
 } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRODUCTION_ORIGIN, requestAuthOrigin } from "./auth-origin";
+import { resolvePublicSupabaseConfig } from "./supabase-config";
 
 export type SupabaseRequest = {
   client: SupabaseClient | null;
@@ -12,12 +13,10 @@ export type SupabaseRequest = {
 };
 
 export function publicSupabaseConfig(request?: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return url && key
+  const config = resolvePublicSupabaseConfig();
+  return config
     ? {
-        url,
-        key,
+        ...config,
         authCallbackOrigin: request
           ? requestAuthOrigin(request)
           : PRODUCTION_ORIGIN,
