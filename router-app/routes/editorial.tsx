@@ -48,7 +48,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const [categories, drafts, review] = await Promise.all([
     resolved.client.from("categories").select("id,name,slug").order("name"),
     resolved.client.from("editorial_documents").select("feature_id,lifecycle_status,updated_at,working_document,features(title,slug,summary)").order("updated_at", { ascending: false }),
-    resolved.client.rpc("editorial_submitted_drafts"),
+    resolved.client.rpc("editorial_review_inbox"),
   ]);
   return data(
     { state: "accepted" as const, capabilities: context.capabilities, categories: categories.data ?? [], drafts: drafts.error ? [] : drafts.data ?? [], review: review.error ? [] : review.data ?? [] },
@@ -83,7 +83,7 @@ export async function action({ request }: Route.ActionArgs) {
       payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections), status: value.status, document },
     });
     if (saved.error) throw new Error(saved.error.message);
-    return data({ success: intent === "submit" ? "Draft submitted for review." : "Draft saved.", featureId: saved.data }, { headers: resolved.headers });
+    return data({ success: intent === "submit" ? "Submitted for review." : "Draft saved.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
   } catch (error) {
     return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." }, { status: 400, headers: resolved.headers });
   }
@@ -119,8 +119,10 @@ export default function Editorial() {
           </nav>
           <p className="editorial-marker">EDITORIAL DASHBOARD</p>
           <h1>Feature composer</h1>
+          {actionResult && "success" in actionResult && <p className="profile-contribution" role="status">{actionResult.success}{"status" in actionResult && actionResult.status === "submitted" ? " Status: Submitted for review." : ""}</p>}
+          {actionResult && "error" in actionResult && <p className="profile-contribution" role="alert">{actionResult.error}</p>}
           <Form method="post" className="op-form">
-            <input type="hidden" name="featureId" />
+            <input type="hidden" name="featureId" value={(actionResult && "featureId" in actionResult && typeof actionResult.featureId === "string" ? actionResult.featureId : "")} />
             <label>Title<input name="title" required minLength={4} maxLength={150} defaultValue="Tokon draft feature" /></label>
             <label>Slug<input name="slug" required pattern="[a-z0-9-]{3,80}" defaultValue="tokon-draft" /></label>
             <label>Standfirst / summary<textarea name="summary" required minLength={8} maxLength={1000} defaultValue="A concise summary for the feature strip and article header." /></label>
@@ -130,12 +132,10 @@ export default function Editorial() {
             <label>Body sections<textarea name="sections" required minLength={20} rows={10} defaultValue={"## Opening read\n\nWrite the first section here. Use blank lines between paragraphs.\n\n## Second section\n\nAdd another paragraph for the draft."} /></label>
             <label>YouTube/Twitch video URL<input name="videoUrl" type="url" /></label>
             <div className="profile-actions"><button className="op-button" name="intent" value="save" disabled={navigation.state !== "idle"}>SAVE DRAFT</button><button className="op-button action-primary" name="intent" value="submit" disabled={navigation.state !== "idle"}>SUBMIT FOR REVIEW</button></div>
-            {actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}
-            {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
           </Form>
           <section><h2>Preview</h2><ArticleRenderer document={emptyPreview} /></section>
-          <section><h2>My drafts</h2>{result.drafts.length ? result.drafts.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><strong>{((Array.isArray((draft as any).features) ? (draft as any).features[0] : (draft as any).features)?.title) ?? "Untitled draft"}</strong></article>) : <p>No saved drafts yet.</p>}</section>
-          <section><h2>Review inbox</h2>{result.review.length ? result.review.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><h3>{draft.title}</h3><p>{draft.summary}</p><ArticleRenderer document={draft.working_document as any} /><Form method="post" action="/moderation"><input type="hidden" name="featureId" value={draft.feature_id} /><button className="op-button action-primary" name="intent" value="approveDraft">APPROVE</button><button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button></Form></article>) : <p>No submitted drafts waiting.</p>}</section>
+          <section><h2>My drafts</h2>{result.drafts.length ? result.drafts.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><strong>{((Array.isArray((draft as any).features) ? (draft as any).features[0] : (draft as any).features)?.title) ?? "Untitled draft"}</strong></article>) : <p>No saved drafts yet.</p>}</section>
+          <section><h2>Review inbox</h2>{result.review.length ? result.review.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><h3>{draft.title}</h3><p>{draft.summary}</p><ArticleRenderer document={draft.working_document as any} /><Form method="post" action="/moderation"><input type="hidden" name="featureId" value={draft.feature_id} /><button className="op-button action-primary" name="intent" value="approveDraft">APPROVE</button><button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button></Form></article>) : <p>No submitted drafts waiting.</p>}</section>
         </div>
       )}
     </main>

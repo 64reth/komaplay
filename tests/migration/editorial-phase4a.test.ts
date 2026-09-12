@@ -6,6 +6,8 @@ import { bodyModules, draftDocument, draftSchema } from "../../router-app/lib/ed
 const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha_rpc.sql", "utf8");
 const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
 const moderationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8");
+const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
+const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
 
 test("profile exposes editorial navigation only through capability checks", () => {
   assert.match(profileRoute, /capabilities\.editorial/);
@@ -51,4 +53,21 @@ test("review actions stop at publish-ready approval rather than fake live public
   assert.match(migration, /Approved as publish-ready/);
   assert.doesNotMatch(migration, /lifecycle_status='published'/);
   assert.match(moderationRoute, /Draft approved as publish-ready/);
+});
+
+
+test("editorial save and submit return visible lifecycle feedback", () => {
+  assert.match(editorialRoute, /Submitted for review/);
+  assert.match(editorialRoute, /role=\"status\"/);
+  assert.match(editorialRoute, /role=\"alert\"/);
+  assert.match(editorialRoute, /value=\{\(actionResult/);
+});
+
+test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
+  assert.match(submitFeedbackMigration, /where f\.slug=trim\(payload->>'slug'\)/);
+  assert.match(submitFeedbackMigration, /ed\.author_id=auth\.uid\(\)/);
+  assert.match(submitFeedbackMigration, /ed\.lifecycle_status in \('submitted','approved','changes_requested'\)/);
+  assert.match(submitFeedbackMigration, /author_display_name/);
+  assert.match(moderationRoute, /No submitted drafts waiting/);
+  assert.match(moderationRoute, /author_display_name/);
 });
