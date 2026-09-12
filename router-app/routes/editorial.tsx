@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { data, Form, Link, useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
@@ -115,10 +115,12 @@ const initialComposer: ComposerState = {
 
 function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
   const fetcher = useFetcher<typeof action>();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [draft, setDraft] = useState<ComposerState>(() => {
     const selected = result.drafts.find((item) => item.feature_id === selectedFeatureId);
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
+  const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
   const pending = fetcher.state !== "idle";
   const response = fetcher.data;
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
@@ -154,6 +156,14 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const loadDraft = (item: EditorialWorkItem) => {
     setDraft(composerFromWorkItem(item));
   };
+  const submitDraft = (intent: "save" | "submit") => {
+    const form = formRef.current;
+    if (!form || !form.reportValidity()) return;
+    setSubmitIntent(intent);
+    const formData = new FormData(form);
+    formData.set("intent", intent);
+    fetcher.submit(formData, { method: "post" });
+  };
 
   return (
     <div className="op-workspace profile-page">
@@ -183,7 +193,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>{draft.slug}</p>
         </article>
       )}
-      <fetcher.Form method="post" className="op-form">
+      <fetcher.Form method="post" className="op-form" ref={formRef}>
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
         <label>
           Title
@@ -225,11 +235,11 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
         </label>
         <div className="profile-actions">
-          <button className="op-button" name="intent" value="save" disabled={pending}>
-            {pending ? "SAVING…" : "SAVE DRAFT"}
+          <button className="op-button" type="button" onClick={() => submitDraft("save")} disabled={pending}>
+            {pending && submitIntent === "save" ? "SAVING…" : "SAVE DRAFT"}
           </button>
-          <button className="op-button action-primary" name="intent" value="submit" disabled={pending}>
-            {pending ? "SUBMITTING…" : "SUBMIT FOR REVIEW"}
+          <button className="op-button action-primary" type="button" onClick={() => submitDraft("submit")} disabled={pending}>
+            {pending && submitIntent === "submit" ? "SUBMITTING…" : "SUBMIT FOR REVIEW"}
           </button>
         </div>
       </fetcher.Form>
@@ -238,7 +248,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <ArticleRenderer document={preview} />
       </section>
       <section>
-        <h2>My drafts</h2>
+        <h2>MY PANELS</h2>
         {result.drafts.length ? (
           result.drafts.map((item) => (
             <article key={item.feature_id} className="profile-contribution">
@@ -249,7 +259,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
               <p>{item.slug}</p>
               {item.reviewer_note && <p>Reviewer note: {item.reviewer_note}</p>}
               <button className="op-button" type="button" onClick={() => loadDraft(item)}>
-                {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
+                {item.lifecycle_status === "changes_requested" ? "REVISE PANEL" : "CONTINUE PANEL"}
               </button>
             </article>
           ))

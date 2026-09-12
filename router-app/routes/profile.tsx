@@ -163,18 +163,17 @@ export default function Profile() {
           Citations
         </p>
         <section id="panels">
-          <h2>My Panels</h2>
+          <h2>MY PANELS</h2>
+          <h3>Editorial panels</h3>
           {result.capabilities.editorial ? (result.editorialWork.length ? result.editorialWork.map((item: EditorialWorkItem) => (
             <article key={item.feature_id} className="profile-contribution">
               <p>{editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}</p>
               <strong>{item.title}</strong>
               <p>{item.slug}</p>
-              <Link to={`/editorial?feature=${item.feature_id}`}>CONTINUE IN EDITORIAL →</Link>
+              <Link to={`/editorial?feature=${item.feature_id}`}>CONTINUE PANEL →</Link>
             </article>
           )) : <p>No editorial panels yet.</p>) : <p>Editorial access is granted by moderators.</p>}
-        </section>
-        <section id="contributions">
-          <h2>Open Panel contributions</h2>
+          <h3>Open Panel contributions</h3>
           {result.contributions.length ? (
             result.contributions.map((contribution) => (
               <article key={contribution.id} className="profile-contribution">

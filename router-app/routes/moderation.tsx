@@ -46,7 +46,9 @@ export async function action({ request }: Route.ActionArgs) {
       return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
     }
     if (intent === "approveDraft" || intent === "changesDraft") {
-      const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: String(form.get("note") ?? "") });
+      const note = String(form.get("note") ?? "").trim();
+      if (intent === "changesDraft" && note.length < 4) throw new Error("Add a reviewer note before requesting changes.");
+      const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: note });
       if (result.error) throw new Error(result.error.message);
       return data({ success: intent === "approveDraft" ? "Draft approved as publish-ready." : "Changes requested." }, { headers: resolved.headers });
     }

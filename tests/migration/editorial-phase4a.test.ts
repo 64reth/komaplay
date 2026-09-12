@@ -65,6 +65,8 @@ test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(editorialRoute, /useFetcher<typeof action>/);
   assert.match(editorialRoute, /<fetcher\.Form/);
   assert.match(editorialRoute, /value=\{draft\.featureId/);
+  assert.match(editorialRoute, /formData\.set\("intent", intent\)/);
+  assert.match(editorialRoute, /fetcher\.submit\(formData, \{ method: \"post" \}\)/);
 });
 
 test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
@@ -104,16 +106,16 @@ test("editorial composer shows the latest saved draft immediately after action s
 
 
 test("saved draft cards can reopen the composer for editing", () => {
-  assert.match(editorialRoute, /CONTINUE/);
+  assert.match(editorialRoute, /CONTINUE PANEL/);
   assert.match(editorialRoute, /REVISE/);
   assert.match(editorialRoute, /onClick=\{\(\) => loadDraft\(item\)\}/);
   assert.match(editorialRoute, /composerFromWorkItem\(selected\)/);
   assert.match(editorialRoute, /useSearchParams/);
-  assert.match(profileRoute, /CONTINUE IN EDITORIAL/);
+  assert.match(profileRoute, /CONTINUE PANEL/);
 });
 
 test("profile My Panels lists editorial work alongside Open Panel contributions", () => {
-  assert.match(profileRoute, /My Panels/);
+  assert.match(profileRoute, /MY PANELS/);
   assert.match(profileRoute, /editorial_my_work/);
   assert.match(profileRoute, /Open Panel contributions/);
   assert.match(profileRoute, /Editorial access is granted by moderators/);
