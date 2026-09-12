@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { data, Form, Link, useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
@@ -115,7 +115,6 @@ const initialComposer: ComposerState = {
 
 function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
   const fetcher = useFetcher<typeof action>();
-  const formRef = useRef<HTMLFormElement | null>(null);
   const [draft, setDraft] = useState<ComposerState>(() => {
     const selected = result.drafts.find((item) => item.feature_id === selectedFeatureId);
     return selected ? composerFromWorkItem(selected) : initialComposer;
@@ -156,14 +155,6 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const loadDraft = (item: EditorialWorkItem) => {
     setDraft(composerFromWorkItem(item));
   };
-  const submitDraft = (intent: "save" | "submit") => {
-    const form = formRef.current;
-    if (!form || !form.reportValidity()) return;
-    setSubmitIntent(intent);
-    const formData = new FormData(form);
-    formData.set("intent", intent);
-    fetcher.submit(formData, { method: "post" });
-  };
 
   return (
     <div className="op-workspace profile-page">
@@ -193,7 +184,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>{draft.slug}</p>
         </article>
       )}
-      <fetcher.Form method="post" className="op-form" ref={formRef}>
+      <fetcher.Form method="post" className="op-form">
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
         <label>
           Title
@@ -235,10 +226,10 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
         </label>
         <div className="profile-actions">
-          <button className="op-button" type="button" onClick={() => submitDraft("save")} disabled={pending}>
+          <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending}>
             {pending && submitIntent === "save" ? "SAVING…" : "SAVE DRAFT"}
           </button>
-          <button className="op-button action-primary" type="button" onClick={() => submitDraft("submit")} disabled={pending}>
+          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending}>
             {pending && submitIntent === "submit" ? "SUBMITTING…" : "SUBMIT FOR REVIEW"}
           </button>
         </div>

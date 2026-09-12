@@ -65,8 +65,8 @@ test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(editorialRoute, /useFetcher<typeof action>/);
   assert.match(editorialRoute, /<fetcher\.Form/);
   assert.match(editorialRoute, /value=\{draft\.featureId/);
-  assert.match(editorialRoute, /formData\.set\("intent", intent\)/);
-  assert.match(editorialRoute, /fetcher\.submit\(formData, \{ method: \"post" \}\)/);
+  assert.match(editorialRoute, /name="intent" value="save"/);
+  assert.match(editorialRoute, /name="intent" value="submit"/);
 });
 
 test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
