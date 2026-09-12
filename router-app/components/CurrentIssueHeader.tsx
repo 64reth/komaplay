@@ -1,0 +1,2 @@
+import { Link } from "react-router";
+export function CurrentIssueHeader() { return <section className="cover-brand issue-masthead"><p className="editorial-marker">A LIVING PUBLICATION FOR GAMES / MANGA / ANIME</p><h1 aria-label="KOMA://PLAY"><span aria-hidden="true">KOMA</span><i aria-hidden="true">:</i><span aria-hidden="true">//PLAY</span></h1><small className="text-accent">ISSUE 00 / SEPTEMBER 2026</small><nav aria-label="Categories">{["Gaming","Anime","Manga","Culture"].map(x=><Link key={x} to={`/?category=${x.toLowerCase()}`}>{x}</Link>)}</nav></section>; }

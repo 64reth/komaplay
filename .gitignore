@@ -50,3 +50,7 @@ next-env.d.ts
 supabase/.temp/
 
 .local-email-preview/
+
+react-router-build/
+.react-router/
+test-results/

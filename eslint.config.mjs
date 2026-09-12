@@ -1,28 +1,3 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-  {
-    files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
-    rules: {
-      // These files are vendored verbatim from shadcn@4.17.0. Keep the
-      // registry source intact while applying the stricter rules to Site code.
-      "@typescript-eslint/no-unused-vars": "off",
-      "react-hooks/purity": "off",
-      "react-hooks/set-state-in-effect": "off",
-    },
-  },
-]);
-
-export default eslintConfig;
+import eslint from "@eslint/js";
+import tseslint from "typescript-eslint";
+export default tseslint.config({ ignores: ["app/**","components/**","lib/**","data/**","dist/**","build/**","node_modules/**","test-results/**",".react-router/**"] }, eslint.configs.recommended, ...tseslint.configs.recommended, { files:["router-app/**/*.{ts,tsx}","workers/**/*.ts","tests/migration/**/*.ts","tests/e2e/migration-phase1.spec.ts"], languageOptions:{ globals:{ window:"readonly",document:"readonly",location:"readonly",ResizeObserver:"readonly",requestAnimationFrame:"readonly",cancelAnimationFrame:"readonly" } }, rules:{"@typescript-eslint/no-explicit-any":"off"} });
