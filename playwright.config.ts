@@ -33,7 +33,9 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "pnpm dev",
+        command: process.env.PLAYWRIGHT_PRODUCTION
+          ? "pnpm preview"
+          : "pnpm dev",
         url: "http://127.0.0.1:5173",
         reuseExistingServer: true,
       },

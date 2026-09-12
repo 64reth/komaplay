@@ -1,2 +1,12 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
-export default [index("routes/home.tsx"), route("features/tokon", "routes/tokon.tsx"), route("*", "routes/not-found.tsx")] satisfies RouteConfig;
+export default [
+  index("routes/home.tsx"),
+  route("issues/:slug", "routes/issue.tsx"),
+  route("features/:slug", "routes/feature.tsx"),
+  route("archive", "routes/archive.tsx"),
+  route("search", "routes/search.tsx"),
+  route("handbook", "routes/handbook.tsx"),
+  route("onboarding", "routes/onboarding.tsx"),
+  route("api/open-panel/image", "routes/public-image.ts"),
+  route("*", "routes/not-found.tsx"),
+] satisfies RouteConfig;

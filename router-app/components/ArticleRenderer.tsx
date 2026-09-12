@@ -35,7 +35,23 @@ function Image({
 }
 function VideoEmbed({ src, title }: { src: string; title: string }) {
   const [loaded, setLoaded] = useState(false);
-  return <div className="editorial-video">{loaded ? <iframe src={src} title={title} loading="lazy" allowFullScreen /> : <button className="video-consent" type="button" onClick={() => setLoaded(true)} aria-label={`Load video: ${title}`}><span>VIDEO / EXTERNAL MEDIA</span><b>LOAD VIDEO →</b></button>}</div>;
+  return (
+    <div className="editorial-video">
+      {loaded ? (
+        <iframe src={src} title={title} loading="lazy" allowFullScreen />
+      ) : (
+        <button
+          className="video-consent"
+          type="button"
+          onClick={() => setLoaded(true)}
+          aria-label={`Load video: ${title}`}
+        >
+          <span>VIDEO / EXTERNAL MEDIA</span>
+          <b>LOAD VIDEO →</b>
+        </button>
+      )}
+    </div>
+  );
 }
 function Module({ module }: { module: ArticleModule }) {
   const c = module.content;
@@ -99,7 +115,12 @@ function Module({ module }: { module: ArticleModule }) {
             Video unavailable. <a href={String(c.url ?? "#")}>View source</a>
           </aside>
         );
-      const embed = <VideoEmbed src={video.embed} title={String(c.title ?? "Editorial video")} />;
+      const embed = (
+        <VideoEmbed
+          src={video.embed}
+          title={String(c.title ?? "Editorial video")}
+        />
+      );
       return module.type === "video-text" ? (
         <div className="video-with-text">
           {embed}
@@ -107,6 +128,26 @@ function Module({ module }: { module: ArticleModule }) {
         </div>
       ) : (
         embed
+      );
+    }
+    case "caption":
+      return <p className="editorial-caption">{text}</p>;
+    case "comparison": {
+      const images = (
+        (c.images as Record<string, unknown>[] | undefined) ?? [
+          c.before,
+          c.after,
+        ]
+      ).filter(Boolean) as Record<string, unknown>[];
+      return (
+        <section
+          className="editorial-comparison"
+          aria-label={String(c.title ?? "Image comparison")}
+        >
+          {images.map((image, index) => (
+            <Image key={String(image.id ?? index)} content={image} />
+          ))}
+        </section>
       );
     }
     case "source":
