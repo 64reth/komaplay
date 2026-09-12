@@ -8,6 +8,7 @@ const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
 const moderationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8");
 const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
 const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
+const myDraftsMigration = readFileSync("supabase/migrations/202609120003_editorial_alpha_my_drafts.sql", "utf8");
 
 test("profile exposes editorial navigation only through capability checks", () => {
   assert.match(profileRoute, /capabilities\.editorial/);
@@ -83,4 +84,19 @@ test("editorial composer preview is driven by live client state", () => {
   assert.match(editorialRoute, /onChange=\{update\("summary"\)\}/);
   assert.match(editorialRoute, /onChange=\{update\("sections"\)\}/);
   assert.doesNotMatch(editorialRoute, /ArticleRenderer document=\{emptyPreview\}/);
+});
+
+
+test("editor saved drafts load through a server-checked RPC instead of draft feature RLS", () => {
+  assert.match(editorialRoute, /rpc\("editorial_my_drafts"\)/);
+  assert.match(myDraftsMigration, /create or replace function public\.editorial_my_drafts/);
+  assert.match(myDraftsMigration, /ed\.author_id=auth\.uid\(\)/);
+  assert.match(myDraftsMigration, /public\.editorial_has_access\(auth\.uid\(\),false\)/);
+  assert.match(myDraftsMigration, /grant execute on function public\.editorial_my_drafts\(\) to authenticated/);
+});
+
+test("editorial composer shows the latest saved draft immediately after action success", () => {
+  assert.match(editorialRoute, /aria-label="Latest saved draft"/);
+  assert.match(editorialRoute, /Just now/);
+  assert.match(editorialRoute, /draft\.title/);
 });

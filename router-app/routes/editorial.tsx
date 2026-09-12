@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
   const [categories, drafts, review] = await Promise.all([
     resolved.client.from("categories").select("id,name,slug").order("name"),
-    resolved.client.from("editorial_documents").select("feature_id,lifecycle_status,updated_at,working_document,features(title,slug,summary)").order("updated_at", { ascending: false }),
+    resolved.client.rpc("editorial_my_drafts"),
     resolved.client.rpc("editorial_review_inbox"),
   ]);
   return data(
@@ -163,6 +163,13 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
           {response.error}
         </p>
       )}
+      {response && "success" in response && "featureId" in response && (
+        <article className="profile-contribution" aria-label="Latest saved draft">
+          <p>{"status" in response && response.status === "submitted" ? "Submitted for review" : "draft"} · Just now</p>
+          <strong>{draft.title}</strong>
+          <p>{draft.slug}</p>
+        </article>
+      )}
       <fetcher.Form method="post" className="op-form">
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
         <label>
@@ -225,7 +232,8 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
               <p>
                 {item.lifecycle_status === "submitted" ? "Submitted for review" : item.lifecycle_status} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
               </p>
-              <strong>{((Array.isArray(item.features) ? item.features[0] : item.features)?.title) ?? "Untitled draft"}</strong>
+              <strong>{item.title ?? "Untitled draft"}</strong>
+              <p>{item.slug}</p>
             </article>
           ))
         ) : (
