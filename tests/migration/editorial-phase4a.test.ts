@@ -60,7 +60,9 @@ test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(editorialRoute, /Submitted for review/);
   assert.match(editorialRoute, /role=\"status\"/);
   assert.match(editorialRoute, /role=\"alert\"/);
-  assert.match(editorialRoute, /value=\{\(actionResult/);
+  assert.match(editorialRoute, /useFetcher<typeof action>/);
+  assert.match(editorialRoute, /<fetcher\.Form/);
+  assert.match(editorialRoute, /value=\{draft\.featureId/);
 });
 
 test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
@@ -70,4 +72,15 @@ test("submitted drafts upsert by the editor draft slug and appear in moderation 
   assert.match(submitFeedbackMigration, /author_display_name/);
   assert.match(moderationRoute, /No submitted drafts waiting/);
   assert.match(moderationRoute, /author_display_name/);
+});
+
+
+test("editorial composer preview is driven by live client state", () => {
+  assert.match(editorialRoute, /useState<ComposerState>/);
+  assert.match(editorialRoute, /useMemo\(\(\) =>/);
+  assert.match(editorialRoute, /draftDocument\(draft\)/);
+  assert.match(editorialRoute, /onChange=\{update\("title"\)\}/);
+  assert.match(editorialRoute, /onChange=\{update\("summary"\)\}/);
+  assert.match(editorialRoute, /onChange=\{update\("sections"\)\}/);
+  assert.doesNotMatch(editorialRoute, /ArticleRenderer document=\{emptyPreview\}/);
 });

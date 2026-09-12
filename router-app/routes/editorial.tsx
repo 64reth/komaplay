@@ -1,4 +1,5 @@
-import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { data, Form, Link, useFetcher, useLoaderData } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
@@ -8,18 +9,6 @@ import { resolveAuth } from "../lib/auth";
 import { draftDocument, draftSchema, documentBodyText } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
-const emptyPreview = draftDocument({
-  title: "Tokon draft feature",
-  slug: "tokon-draft",
-  summary: "A working editorial summary for preview.",
-  sections: "## Opening read\n\nThis is how the shared article renderer will treat a submitted draft.",
-  status: "draft",
-  image: "",
-  imageAlt: "",
-  videoUrl: "",
-  featureId: "",
-  categoryId: "",
-});
 
 async function editorialContext(request: Request, review = false) {
   const resolved = await resolveAuth(request);
@@ -101,43 +90,184 @@ function Boundary({ state }: { state: string }) {
   );
 }
 
+type ComposerState = z.infer<typeof draftSchema>;
+
+type AcceptedLoaderData = {
+  state: "accepted";
+  capabilities: { editorial: boolean; moderation: boolean };
+  categories: Array<{ id: string; name: string; slug: string }>;
+  drafts: any[];
+  review: any[];
+};
+
+const initialComposer: ComposerState = {
+  featureId: "",
+  title: "Tokon draft feature",
+  slug: "tokon-draft",
+  summary: "A concise summary for the feature strip and article header.",
+  categoryId: "",
+  image: "",
+  imageAlt: "",
+  sections: "## Opening read\n\nWrite the first section here. Use blank lines between paragraphs.\n\n## Second section\n\nAdd another paragraph for the draft.",
+  videoUrl: "",
+  status: "draft",
+};
+
+function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
+  const fetcher = useFetcher<typeof action>();
+  const [draft, setDraft] = useState<ComposerState>(initialComposer);
+  const pending = fetcher.state !== "idle";
+  const response = fetcher.data;
+
+  useEffect(() => {
+    if (response && "featureId" in response && typeof response.featureId === "string") {
+      setDraft((current) => ({
+        ...current,
+        featureId: response.featureId,
+        status: response.status === "submitted" ? "submitted" : current.status,
+      }));
+    }
+  }, [response]);
+
+  const preview = useMemo(() => {
+    try {
+      return draftDocument(draft);
+    } catch {
+      return draftDocument({ ...draft, videoUrl: "" });
+    }
+  }, [draft]);
+
+  const update =
+    (field: keyof ComposerState) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      setDraft((current) => ({ ...current, [field]: event.target.value }));
+    };
+
+  return (
+    <div className="op-workspace profile-page">
+      <nav className="profile-actions" aria-label="Editorial actions">
+        <Link to="/profile">← RETURN TO PROFILE</Link>
+        <Link to="/">VIEW PUBLICATION</Link>
+        {result.capabilities.moderation && <Link to="/moderation">MODERATION</Link>}
+      </nav>
+      <p className="editorial-marker">EDITORIAL DASHBOARD</p>
+      <h1>Feature composer</h1>
+      {response && "success" in response && (
+        <p className="profile-contribution" role="status">
+          {response.success}
+          {"status" in response && response.status === "submitted" ? " Status: Submitted for review." : ""}
+        </p>
+      )}
+      {response && "error" in response && (
+        <p className="profile-contribution" role="alert">
+          {response.error}
+        </p>
+      )}
+      <fetcher.Form method="post" className="op-form">
+        <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
+        <label>
+          Title
+          <input name="title" required minLength={4} maxLength={150} value={draft.title} onChange={update("title")} />
+        </label>
+        <label>
+          Slug
+          <input name="slug" required pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={update("slug")} />
+        </label>
+        <label>
+          Standfirst / summary
+          <textarea name="summary" required minLength={8} maxLength={1000} value={draft.summary} onChange={update("summary")} />
+        </label>
+        <label>
+          Category
+          <select name="categoryId" value={draft.categoryId ?? ""} onChange={update("categoryId")}>
+            <option value="">Use default category</option>
+            {result.categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Image URL or existing asset path
+          <input name="image" placeholder="/assets/koma-vhs-v2.svg" value={draft.image ?? ""} onChange={update("image")} />
+        </label>
+        <label>
+          Image alt text
+          <input name="imageAlt" maxLength={400} value={draft.imageAlt ?? ""} onChange={update("imageAlt")} />
+        </label>
+        <label>
+          Body sections
+          <textarea name="sections" required minLength={20} rows={10} value={draft.sections} onChange={update("sections")} />
+        </label>
+        <label>
+          YouTube/Twitch video URL
+          <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
+        </label>
+        <div className="profile-actions">
+          <button className="op-button" name="intent" value="save" disabled={pending}>
+            {pending ? "SAVING…" : "SAVE DRAFT"}
+          </button>
+          <button className="op-button action-primary" name="intent" value="submit" disabled={pending}>
+            {pending ? "SUBMITTING…" : "SUBMIT FOR REVIEW"}
+          </button>
+        </div>
+      </fetcher.Form>
+      <section>
+        <h2>Preview</h2>
+        <ArticleRenderer document={preview} />
+      </section>
+      <section>
+        <h2>My drafts</h2>
+        {result.drafts.length ? (
+          result.drafts.map((item: any) => (
+            <article key={item.feature_id} className="profile-contribution">
+              <p>
+                {item.lifecycle_status === "submitted" ? "Submitted for review" : item.lifecycle_status} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
+              </p>
+              <strong>{((Array.isArray(item.features) ? item.features[0] : item.features)?.title) ?? "Untitled draft"}</strong>
+            </article>
+          ))
+        ) : (
+          <p>No saved drafts yet.</p>
+        )}
+      </section>
+      <section>
+        <h2>Review inbox</h2>
+        {result.review.length ? (
+          result.review.map((item: any) => (
+            <article key={item.feature_id} className="profile-contribution">
+              <p>
+                {item.lifecycle_status === "submitted" ? "Submitted for review" : item.lifecycle_status} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
+              </p>
+              <h3>{item.title}</h3>
+              <p>{item.summary}</p>
+              <ArticleRenderer document={item.working_document as any} />
+              <Form method="post" action="/moderation">
+                <input type="hidden" name="featureId" value={item.feature_id} />
+                <button className="op-button action-primary" name="intent" value="approveDraft">
+                  APPROVE
+                </button>
+                <button className="op-button" name="intent" value="changesDraft">
+                  REQUEST CHANGES
+                </button>
+              </Form>
+            </article>
+          ))
+        ) : (
+          <p>No submitted drafts waiting.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export default function Editorial() {
   const result = useLoaderData<typeof loader>();
-  const actionResult = useActionData<typeof action>();
-  const navigation = useNavigation();
   return (
     <main className="editorial-page">
       <Masthead />
-      {result.state !== "accepted" ? (
-        <Boundary state={result.state} />
-      ) : (
-        <div className="op-workspace profile-page">
-          <nav className="profile-actions" aria-label="Editorial actions">
-            <Link to="/profile">← RETURN TO PROFILE</Link>
-            <Link to="/">VIEW PUBLICATION</Link>
-            {result.capabilities.moderation && <Link to="/moderation">MODERATION</Link>}
-          </nav>
-          <p className="editorial-marker">EDITORIAL DASHBOARD</p>
-          <h1>Feature composer</h1>
-          {actionResult && "success" in actionResult && <p className="profile-contribution" role="status">{actionResult.success}{"status" in actionResult && actionResult.status === "submitted" ? " Status: Submitted for review." : ""}</p>}
-          {actionResult && "error" in actionResult && <p className="profile-contribution" role="alert">{actionResult.error}</p>}
-          <Form method="post" className="op-form">
-            <input type="hidden" name="featureId" value={(actionResult && "featureId" in actionResult && typeof actionResult.featureId === "string" ? actionResult.featureId : "")} />
-            <label>Title<input name="title" required minLength={4} maxLength={150} defaultValue="Tokon draft feature" /></label>
-            <label>Slug<input name="slug" required pattern="[a-z0-9-]{3,80}" defaultValue="tokon-draft" /></label>
-            <label>Standfirst / summary<textarea name="summary" required minLength={8} maxLength={1000} defaultValue="A concise summary for the feature strip and article header." /></label>
-            <label>Category<select name="categoryId"><option value="">Use default category</option>{result.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-            <label>Image URL or existing asset path<input name="image" placeholder="/assets/koma-vhs-v2.svg" /></label>
-            <label>Image alt text<input name="imageAlt" maxLength={400} /></label>
-            <label>Body sections<textarea name="sections" required minLength={20} rows={10} defaultValue={"## Opening read\n\nWrite the first section here. Use blank lines between paragraphs.\n\n## Second section\n\nAdd another paragraph for the draft."} /></label>
-            <label>YouTube/Twitch video URL<input name="videoUrl" type="url" /></label>
-            <div className="profile-actions"><button className="op-button" name="intent" value="save" disabled={navigation.state !== "idle"}>SAVE DRAFT</button><button className="op-button action-primary" name="intent" value="submit" disabled={navigation.state !== "idle"}>SUBMIT FOR REVIEW</button></div>
-          </Form>
-          <section><h2>Preview</h2><ArticleRenderer document={emptyPreview} /></section>
-          <section><h2>My drafts</h2>{result.drafts.length ? result.drafts.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><strong>{((Array.isArray((draft as any).features) ? (draft as any).features[0] : (draft as any).features)?.title) ?? "Untitled draft"}</strong></article>) : <p>No saved drafts yet.</p>}</section>
-          <section><h2>Review inbox</h2>{result.review.length ? result.review.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><h3>{draft.title}</h3><p>{draft.summary}</p><ArticleRenderer document={draft.working_document as any} /><Form method="post" action="/moderation"><input type="hidden" name="featureId" value={draft.feature_id} /><button className="op-button action-primary" name="intent" value="approveDraft">APPROVE</button><button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button></Form></article>) : <p>No submitted drafts waiting.</p>}</section>
-        </div>
-      )}
+      {result.state !== "accepted" ? <Boundary state={result.state} /> : <FeatureComposer result={result as AcceptedLoaderData} />}
     </main>
   );
 }
