@@ -21,7 +21,7 @@ test("public navigation and authentication dialog remain responsive", async ({
   await expect(
     page.getByRole("dialog", { name: "CREATE ACCOUNT" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Close sign in" }).click();
+  await page.getByRole("button", { name: "Close account dialog" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(errors).toEqual([]);
 });

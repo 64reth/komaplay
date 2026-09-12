@@ -3,6 +3,11 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AuthDialog } from "../../router-app/components/AccountNav";
+import {
+  authCallbackUrl,
+  requestAuthOrigin,
+  trustedAuthOrigin,
+} from "../../router-app/lib/auth-origin";
 import { safeReturnPath } from "../../router-app/lib/handbook";
 import { authReturnPath, withQuery } from "../../router-app/lib/auth";
 
@@ -28,6 +33,34 @@ test("the shared account dialog has explicit sign-in and account-creation modes"
   assert.match(create, /Display name/);
   assert.match(create, /name="consent"/);
   assert.match(create, /required=""/);
+});
+
+test("auth callback origins are selected from explicit deployed and local origins", () => {
+  assert.equal(
+    authCallbackUrl(
+      requestAuthOrigin(
+        new Request("https://komaplay-canary.garetha81.workers.dev/"),
+      ),
+      "/features/tokon/workshop",
+    ),
+    "https://komaplay-canary.garetha81.workers.dev/auth/callback?returnTo=%2Ffeatures%2Ftokon%2Fworkshop",
+  );
+  assert.equal(
+    authCallbackUrl(requestAuthOrigin(new Request("https://komaplay.com/")), "/"),
+    "https://komaplay.com/auth/callback?returnTo=%2F",
+  );
+  assert.equal(
+    authCallbackUrl(
+      requestAuthOrigin(new Request("http://localhost:5173/search?q=tokon")),
+      "/search?q=tokon",
+    ),
+    "http://localhost:5173/auth/callback?returnTo=%2Fsearch%3Fq%3Dtokon",
+  );
+  assert.equal(trustedAuthOrigin("https://evil.test"), "https://komaplay.com");
+  assert.equal(
+    authCallbackUrl("https://evil.test", "https://evil.test/workshop"),
+    "https://komaplay.com/auth/callback?returnTo=%2F",
+  );
 });
 
 test("callback failures are understandable and retain a safe internal destination", () => {

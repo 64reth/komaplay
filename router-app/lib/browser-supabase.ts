@@ -1,7 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type BrowserSupabaseConfig = { url: string; key: string };
+export type BrowserSupabaseConfig = {
+  url: string;
+  key: string;
+  authCallbackOrigin: string;
+};
 let browser: SupabaseClient | null = null;
 let signature = "";
 

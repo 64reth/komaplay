@@ -4,20 +4,29 @@ import {
   serializeCookieHeader,
 } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PRODUCTION_ORIGIN, requestAuthOrigin } from "./auth-origin";
 
 export type SupabaseRequest = {
   client: SupabaseClient | null;
   headers: Headers;
 };
 
-export function publicSupabaseConfig() {
+export function publicSupabaseConfig(request?: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return url && key ? { url, key } : null;
+  return url && key
+    ? {
+        url,
+        key,
+        authCallbackOrigin: request
+          ? requestAuthOrigin(request)
+          : PRODUCTION_ORIGIN,
+      }
+    : null;
 }
 
 export function supabaseServer(request: Request): SupabaseRequest {
-  const config = publicSupabaseConfig();
+  const config = publicSupabaseConfig(request);
   const headers = new Headers({
     "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
   });

@@ -18,6 +18,7 @@ import {
   supabaseBrowser,
   type BrowserSupabaseConfig,
 } from "../lib/browser-supabase";
+import { authCallbackUrl } from "../lib/auth-origin";
 import { safeReturnPath } from "../lib/handbook";
 
 type RootData = {
@@ -101,7 +102,7 @@ export function AuthDialog({
     event.preventDefault();
     if (busy) return;
     setMessage("");
-    if (!client) {
+    if (!client || !config) {
       setMessage("Authentication is unavailable on this deployment.");
       return;
     }
@@ -113,12 +114,11 @@ export function AuthDialog({
     }
     setBusy(true);
     const destination = safeReturnPath(returnTo);
-    const callback = new URL("/auth/callback", location.origin);
-    callback.searchParams.set("returnTo", destination);
+    const callback = authCallbackUrl(config.authCallbackOrigin, destination);
     const { error } = await client.auth.signInWithOtp({
       email: emailAddress,
       options: {
-        emailRedirectTo: callback.toString(),
+        emailRedirectTo: callback,
         shouldCreateUser: mode === "create",
         data:
           mode === "create"

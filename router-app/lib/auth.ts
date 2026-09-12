@@ -26,7 +26,7 @@ export type ResolvedAuth = {
 
 export async function resolveAuth(request: Request): Promise<ResolvedAuth> {
   const context = supabaseServer(request);
-  const config = publicSupabaseConfig();
+  const config = publicSupabaseConfig(request);
   if (!context.client || !config)
     return {
       auth: { state: "unconfigured", member: null } as AuthSnapshot,
