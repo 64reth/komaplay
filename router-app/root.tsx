@@ -10,14 +10,51 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import { Masthead } from "./components/Masthead";
+import { GlobalMembershipGate } from "./components/handbook/GlobalMembershipGate";
 import { IssueNavigation } from "./components/IssueNavigation";
 import { resolveAuth } from "./lib/auth";
+import { memberCapabilities, membershipState } from "./lib/membership.server";
 import "./app.css";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const resolved = await resolveAuth(request);
+  let membership: Record<string, unknown> = {
+    status: "public",
+    version: null,
+    acceptance: null,
+  };
+  let capabilities = { editorial: false, moderation: false };
+  if (
+    resolved.auth.state === "authenticated" &&
+    resolved.client &&
+    resolved.user
+  ) {
+    const member = resolved.auth.member;
+    membership =
+      member.accountStatus === "active"
+        ? await membershipState(resolved.client, resolved.user.id)
+        : {
+            status: member.accountStatus,
+            version: null,
+            acceptance: null,
+            message: "Member access is unavailable for this account.",
+          };
+    capabilities = await memberCapabilities(resolved.client, member);
+  } else if (resolved.auth.state === "profile-unavailable") {
+    membership = {
+      status: "unavailable",
+      version: null,
+      acceptance: null,
+      message: "Your membership profile could not be verified.",
+    };
+  }
   return data(
-    { auth: resolved.auth, supabase: resolved.config },
+    {
+      auth: resolved.auth,
+      membership,
+      capabilities,
+      supabase: resolved.config,
+    },
     { headers: resolved.headers },
   );
 }
@@ -50,7 +87,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 export default function App() {
-  return <Outlet />;
+  return (
+    <GlobalMembershipGate>
+      <Outlet />
+    </GlobalMembershipGate>
+  );
 }
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const status = isRouteErrorResponse(error) ? error.status : 500;

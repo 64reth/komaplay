@@ -22,6 +22,8 @@ import { safeReturnPath } from "../lib/handbook";
 
 type RootData = {
   auth: AuthSnapshot;
+  membership?: { status: string };
+  capabilities?: { editorial: boolean; moderation: boolean };
   supabase: BrowserSupabaseConfig | null;
 };
 
@@ -286,7 +288,11 @@ export function AccountNav() {
       setDialog({ mode: "sign-in", returnTo: location.pathname });
   }, [auth.state, location.pathname, location.search]);
 
-  if (!data || auth.state === "profile-unavailable")
+  if (
+    !data ||
+    auth.state === "profile-unavailable" ||
+    (auth.state === "authenticated" && data.membership?.status === "required")
+  )
     return (
       <span className="account-placeholder" aria-label="Account unavailable" />
     );
@@ -367,12 +373,12 @@ export function AccountNav() {
           >
             HANDBOOK
           </Link>
-          {["moderator", "admin"].includes(member.role) && (
+          {data.capabilities?.moderation && (
             <span role="menuitem" aria-disabled="true">
               MODERATION · MIGRATING
             </span>
           )}
-          {member.role === "admin" && (
+          {data.capabilities?.editorial && (
             <span role="menuitem" aria-disabled="true">
               EDITORIAL · MIGRATING
             </span>

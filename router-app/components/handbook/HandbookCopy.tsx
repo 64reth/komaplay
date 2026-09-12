@@ -1,4 +1,4 @@
-import { createElement, Fragment } from "react";
+import React, { createElement, Fragment } from "react";
 // Deliberately small renderer for the source-controlled handbook. It never accepts HTML.
 export function HandbookCopy({
   content,

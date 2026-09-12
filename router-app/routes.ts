@@ -8,6 +8,9 @@ export default [
   route("handbook", "routes/handbook.tsx"),
   route("onboarding", "routes/onboarding.tsx"),
   route("auth/callback", "routes/auth-callback.tsx"),
+  route("member/handbook", "routes/member-handbook.tsx"),
+  route("profile", "routes/profile.tsx"),
+  route("profile/settings", "routes/profile-settings.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

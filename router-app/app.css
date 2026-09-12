@@ -2453,3 +2453,37 @@ figcaption {
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 3 membership surfaces preserve stable page geometry under mandatory panels. */
+html {
+  scrollbar-gutter: stable;
+}
+.auth-dialog-backdrop {
+  -webkit-backdrop-filter: blur(5px);
+}
+.account-menu span[role="menuitem"] {
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  font: 700 0.72rem monospace;
+  opacity: 0.62;
+}
+.membership-background[inert] {
+  pointer-events: none;
+  user-select: none;
+}
+.profile-actions span {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.68;
+}
+.profile-contribution {
+  padding-block: 14px;
+  border-top: 1px solid var(--color-border);
+}
+.auth-consent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+}

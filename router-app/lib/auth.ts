@@ -1,4 +1,5 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { BrowserSupabaseConfig } from "./browser-supabase";
 import { safeReturnPath } from "./handbook";
 import { publicSupabaseConfig, supabaseServer } from "./supabase.server";
 
@@ -15,13 +16,22 @@ export type AuthSnapshot =
   | { state: "profile-unavailable"; member: null }
   | { state: "authenticated"; member: PublicMember };
 
-export async function resolveAuth(request: Request) {
+export type ResolvedAuth = {
+  auth: AuthSnapshot;
+  config: BrowserSupabaseConfig | null;
+  client: SupabaseClient | null;
+  headers: Headers;
+  user: User | null;
+};
+
+export async function resolveAuth(request: Request): Promise<ResolvedAuth> {
   const context = supabaseServer(request);
   const config = publicSupabaseConfig();
   if (!context.client || !config)
     return {
       auth: { state: "unconfigured", member: null } as AuthSnapshot,
       config: null,
+      user: null,
       ...context,
     };
 
@@ -30,6 +40,7 @@ export async function resolveAuth(request: Request) {
     return {
       auth: { state: "signed-out", member: null } as AuthSnapshot,
       config,
+      user: null,
       ...context,
     };
 
@@ -42,6 +53,7 @@ export async function resolveAuth(request: Request) {
     return {
       auth: { state: "profile-unavailable", member: null } as AuthSnapshot,
       config,
+      user: data.user,
       ...context,
     };
 
@@ -54,9 +66,9 @@ export async function resolveAuth(request: Request) {
         role: profile.data.role,
         accountStatus: profile.data.account_status,
       },
-    } as AuthSnapshot,
+    },
     config,
-    user: data.user as User,
+    user: data.user,
     ...context,
   };
 }

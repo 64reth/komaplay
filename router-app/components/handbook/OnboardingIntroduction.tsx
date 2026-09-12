@@ -1,7 +1,18 @@
+import React, { useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
-export function OnboardingIntroduction() {
+import { launchAuthentication, type AuthMode } from "../AccountNav";
+
+export function OnboardingIntroduction({
+  returnTo = "/profile",
+}: {
+  returnTo?: string;
+}) {
   const [query] = useSearchParams();
   const mode = query.get("mode");
+  useEffect(() => {
+    if (mode === "sign-in" || mode === "create")
+      launchAuthentication(mode as AuthMode, returnTo);
+  }, [mode, returnTo]);
   return (
     <section
       className="handbook-introduction"
@@ -13,21 +24,19 @@ export function OnboardingIntroduction() {
         Sign in to read and accept the KOMA://PLAY Pocket Guide before you
         contribute. Public articles remain available without an account.
       </p>
-      {mode && (
-        <p className="op-notice" role="status">
-          Authentication will open here when the membership layer is migrated.
-        </p>
-      )}
       <div className="op-actions">
-        <Link
+        <button
           className="op-button action-primary"
-          to="/onboarding?mode=sign-in"
+          onClick={() => launchAuthentication("sign-in", returnTo)}
         >
           SIGN IN
-        </Link>
-        <Link className="op-button" to="/onboarding?mode=create">
+        </button>
+        <button
+          className="op-button"
+          onClick={() => launchAuthentication("create", returnTo)}
+        >
           CREATE ACCOUNT
-        </Link>
+        </button>
       </div>
       <Link to="/">← RETURN TO PUBLICATION</Link>
     </section>
