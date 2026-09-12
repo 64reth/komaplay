@@ -113,6 +113,9 @@ test("all public destinations are reachable through rendered controls", async ({
   await page.getByRole("link", { name: "RETURN TO PUBLICATION" }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "ENTER THE PANEL" }),
+  ).toBeVisible();
   await page.waitForLoadState("networkidle");
   await page.goForward();
   await expect(page).toHaveURL(/\/$/);

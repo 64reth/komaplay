@@ -249,11 +249,17 @@ export function AccountNav() {
   const client = supabaseBrowser(config);
 
   useEffect(() => {
-    const subscription = client?.auth.onAuthStateChange(() => {
+    const subscription = client?.auth.onAuthStateChange((event) => {
+      if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
       setDialog(null);
       setMenuOpen(false);
-      void revalidator.revalidate();
+      if (event === "SIGNED_IN" || event === "USER_UPDATED")
+        void revalidator.revalidate();
     });
+    return () => subscription?.data.subscription.unsubscribe();
+  }, [client, revalidator]);
+
+  useEffect(() => {
     const launch = (event: Event) => {
       const detail =
         event instanceof CustomEvent
@@ -274,7 +280,6 @@ export function AccountNav() {
     addEventListener("komaplay:auth", launch);
     addEventListener("komaplay:membership-lock", lock);
     return () => {
-      subscription?.data.subscription.unsubscribe();
       removeEventListener("komaplay:auth", launch);
       removeEventListener("komaplay:membership-lock", lock);
     };

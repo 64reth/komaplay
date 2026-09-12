@@ -160,7 +160,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
         <Link
           to={
             open
-              ? `/onboarding?returnTo=${encodeURIComponent(`/features/${feature.slug}/workshop`)}`
+              ? `/features/${feature.slug}/workshop`
               : `/features/${feature.slug}/correction`
           }
         >

@@ -62,9 +62,7 @@ export function OpenPanelStatus({
       <Link
         className="op-button action-primary"
         to={
-          open
-            ? `/onboarding?returnTo=${encodeURIComponent(`/features/${slug}/workshop`)}`
-            : `/features/${slug}/correction`
+          open ? `/features/${slug}/workshop` : `/features/${slug}/correction`
         }
       >
         {open ? "OPEN THE WORKSHOP" : "REPORT A CORRECTION"} ↗

@@ -84,11 +84,9 @@ export const contributionSchema = z
     public_credit: z
       .enum(["Display name", "Pen name", "Anonymous Panelist"])
       .default("Display name"),
-    publication_consent: z
-      .literal(true, {
-        errorMap: () => ({ message: "Publication consent is required." }),
-      })
-      .default(true),
+    publication_consent: z.literal(true, {
+      errorMap: () => ({ message: "Publication consent is required." }),
+    }),
   })
   .refine((v) => v.type !== "Screenshot" || !!v.screenshot_path, {
     message: "Upload a screenshot for this contribution type.",

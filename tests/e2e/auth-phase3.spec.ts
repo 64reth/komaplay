@@ -82,3 +82,34 @@ test("standalone onboarding and member routes preserve signed-out reading access
     page.getByRole("link", { name: "RETURN TO PUBLICATION" }),
   ).toBeVisible();
 });
+
+test("signed-out feature Workshop preserves its exact authentication destination", async ({
+  page,
+}) => {
+  await page.goto("/features/tokon/workshop");
+  const entry = page.getByRole("region", {
+    name: /You’re adding to/,
+  });
+  await expect(
+    entry.getByRole("button", { name: "SIGN IN", exact: true }),
+  ).toBeVisible();
+  await expect(
+    entry.getByRole("button", { name: "CREATE ACCOUNT", exact: true }),
+  ).toBeVisible();
+  await expect(
+    entry.getByRole("link", { name: "RETURN TO COMMUNITY EDITION" }),
+  ).toHaveAttribute("href", "/features/tokon");
+  await expect(page.getByText("Your contributions")).toHaveCount(0);
+  await entry.getByRole("button", { name: "SIGN IN", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(page).toHaveURL(/\/features\/tokon\/workshop$/);
+});
+
+test("invalid Workshop slugs return the shared 404 without private content", async ({
+  page,
+}) => {
+  const response = await page.goto("/features/not-a-panel/workshop");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByText("This panel is missing.")).toBeVisible();
+  await expect(page.getByText("Your contributions")).toHaveCount(0);
+});

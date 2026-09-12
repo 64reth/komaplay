@@ -75,7 +75,7 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
     document.body.classList.add("membership-onboarding-open");
     document.body.style.overflow = "hidden";
     dispatchEvent(new Event("komaplay:membership-lock"));
-    requestAnimationFrame(() => {
+    const focusFrame = requestAnimationFrame(() => {
       dialog.current
         ?.querySelector<HTMLElement>(
           "button:not([disabled]),input:not([disabled]),a[href]",
@@ -83,6 +83,7 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
         ?.focus();
     });
     return () => {
+      cancelAnimationFrame(focusFrame);
       page?.removeAttribute("inert");
       document.body.classList.remove("membership-onboarding-open");
       document.body.style.removeProperty("overflow");

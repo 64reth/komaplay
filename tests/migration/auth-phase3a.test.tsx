@@ -68,3 +68,11 @@ test("return paths reject origins, encoded path confusion and internal APIs", ()
   ])
     assert.equal(safeReturnPath(unsafe), "/", unsafe);
 });
+
+test("initial browser session hydration does not trigger a loader revalidation loop", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile("router-app/components/AccountNav.tsx", "utf8");
+  assert.match(source, /event === "INITIAL_SESSION"/);
+  assert.match(source, /event === "TOKEN_REFRESHED"/);
+  assert.match(source, /return;/);
+});
