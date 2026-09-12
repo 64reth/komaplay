@@ -1,6 +1,7 @@
 import { data, Link, useLoaderData } from "react-router";
 import type { Route } from "./+types/profile";
 import { Masthead } from "../components/Masthead";
+import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
@@ -136,6 +137,28 @@ export default function Profile() {
   const published = result.contributions.filter(
     (item) => item.status === "Accepted",
   ).length;
+  const panelRows: PanelDirectoryRow[] = [
+    ...(result.capabilities.editorial
+      ? result.editorialWork.map((item: EditorialWorkItem) => ({
+          id: `editorial-${item.feature_id}`,
+          title: item.title ?? "Untitled panel",
+          type: "Editorial Feature",
+          status: editorialStatusLabel(item.lifecycle_status),
+          date: new Date(item.updated_at).toLocaleDateString("en-GB"),
+          meta: item.slug,
+          action: <Link to={`/editorial?feature=${item.feature_id}`}>{item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"} →</Link>,
+        }))
+      : []),
+    ...result.contributions.map((contribution) => ({
+      id: `contribution-${contribution.id}`,
+      title: contribution.feature?.title ?? "Feature unavailable",
+      type: "Open Panel Contribution",
+      status: contribution.status,
+      date: new Date(contribution.created_at).toLocaleDateString("en-GB"),
+      meta: contribution.feature?.slug ?? "",
+      action: contribution.feature ? <Link to={`/features/${contribution.feature.slug}/workshop`}>VIEW →</Link> : <span>Unavailable</span>,
+    })),
+  ];
   return (
     <main className="editorial-page">
       <Masthead />
@@ -164,37 +187,8 @@ export default function Profile() {
         </p>
         <section id="panels">
           <h2>MY PANELS</h2>
-          <h3>Editorial panels</h3>
-          {result.capabilities.editorial ? (result.editorialWork.length ? result.editorialWork.map((item: EditorialWorkItem) => (
-            <article key={item.feature_id} className="profile-contribution">
-              <p>{editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}</p>
-              <strong>{item.title}</strong>
-              <p>{item.slug}</p>
-              <Link to={`/editorial?feature=${item.feature_id}`}>CONTINUE PANEL →</Link>
-            </article>
-          )) : <p>No editorial panels yet.</p>) : <p>Editorial access is granted by moderators.</p>}
-          <h3>Open Panel contributions</h3>
-          {result.contributions.length ? (
-            result.contributions.map((contribution) => (
-              <article key={contribution.id} className="profile-contribution">
-                <p>
-                  {contribution.status} ·{" "}
-                  {new Date(contribution.created_at).toLocaleDateString(
-                    "en-GB",
-                  )}
-                </p>
-                {contribution.feature ? (
-                  <Link to={`/features/${contribution.feature.slug}/workshop`}>
-                    {contribution.feature.title} Workshop →
-                  </Link>
-                ) : (
-                  <span>Feature unavailable</span>
-                )}
-              </article>
-            ))
-          ) : (
-            <p>No Workshop contributions yet.</p>
-          )}
+          {!result.capabilities.editorial && <p>Editorial access is granted by moderators.</p>}
+          <PanelDirectory label="My Panels" rows={panelRows} empty="No panels yet." />
         </section>
       </div>
     </main>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
+import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
@@ -156,6 +157,30 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     setDraft(composerFromWorkItem(item));
   };
 
+  const draftRows: PanelDirectoryRow[] = result.drafts.map((item) => ({
+    id: item.feature_id,
+    title: item.title ?? "Untitled draft",
+    type: "Editorial Feature",
+    status: editorialStatusLabel(item.lifecycle_status),
+    date: new Date(item.updated_at).toLocaleDateString("en-GB"),
+    meta: item.reviewer_note ? `Reviewer note: ${item.reviewer_note}` : item.slug,
+    action: item.lifecycle_status === "submitted" || item.lifecycle_status === "approved" ? (
+      <span>{item.lifecycle_status === "approved" ? "PUBLISH-READY" : "VIEW STATUS"}</span>
+    ) : (
+      <button className="op-button" type="button" onClick={() => loadDraft(item)}>
+        {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
+      </button>
+    ),
+  }));
+  const reviewRows: PanelDirectoryRow[] = result.review.map((item: any) => ({
+    id: item.feature_id,
+    title: item.title ?? "Untitled submitted panel",
+    type: "Editorial Feature",
+    status: editorialStatusLabel(item.lifecycle_status),
+    date: new Date(item.updated_at).toLocaleDateString("en-GB"),
+    meta: item.summary,
+    action: <Link to="/moderation">REVIEW →</Link>,
+  }));
   return (
     <div className="op-workspace profile-page">
       <nav className="profile-actions" aria-label="Editorial actions">
@@ -240,50 +265,14 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       </section>
       <section>
         <h2>MY PANELS</h2>
-        {result.drafts.length ? (
-          result.drafts.map((item) => (
-            <article key={item.feature_id} className="profile-contribution">
-              <p>
-                {editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
-              </p>
-              <strong>{item.title ?? "Untitled draft"}</strong>
-              <p>{item.slug}</p>
-              {item.reviewer_note && <p>Reviewer note: {item.reviewer_note}</p>}
-              <button className="op-button" type="button" onClick={() => loadDraft(item)}>
-                {item.lifecycle_status === "changes_requested" ? "REVISE PANEL" : "CONTINUE PANEL"}
-              </button>
-            </article>
-          ))
-        ) : (
-          <p>No saved drafts yet.</p>
-        )}
+        <PanelDirectory label="Editorial panels" rows={draftRows} empty="No saved panels yet." />
       </section>
-      <section>
-        <h2>Review inbox</h2>
-        {result.review.length ? (
-          result.review.map((item: any) => (
-            <article key={item.feature_id} className="profile-contribution">
-              <p>
-                {editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
-              </p>
-              <h3>{item.title}</h3>
-              <p>{item.summary}</p>
-              <ArticleRenderer document={item.working_document as any} />
-              <Form method="post" action="/moderation">
-                <input type="hidden" name="featureId" value={item.feature_id} />
-                <button className="op-button action-primary" name="intent" value="approveDraft">
-                  APPROVE
-                </button>
-                <button className="op-button" name="intent" value="changesDraft">
-                  REQUEST CHANGES
-                </button>
-              </Form>
-            </article>
-          ))
-        ) : (
-          <p>No submitted drafts waiting.</p>
-        )}
-      </section>
+      {result.capabilities.moderation && (
+        <section>
+          <h2>Review inbox</h2>
+          <PanelDirectory label="Editorial review inbox" rows={reviewRows} empty="No submitted drafts waiting." />
+        </section>
+      )}
     </div>
   );
 }

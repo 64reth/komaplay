@@ -2,6 +2,7 @@ import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "r
 import type { Route } from "./+types/moderation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
+import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
@@ -67,5 +68,65 @@ export default function Moderation() {
   const result = useLoaderData<typeof loader>();
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
-  return <main className="editorial-page"><Masthead />{result.state !== "accepted" ? <Boundary state={result.state} /> : <div className="op-workspace profile-page"><nav className="profile-actions" aria-label="Moderation actions"><Link to="/profile">← RETURN TO PROFILE</Link><Link to="/editorial">EDITORIAL DASHBOARD</Link><Link to="/">VIEW PUBLICATION</Link></nav><p className="editorial-marker">MODERATION</p><h1>Editorial access and review</h1>{result.capabilities.moderation && <section><h2>Editorial grants</h2><Form className="op-form" method="post"><label>User email<input name="email" type="email" required /></label><label>Reason<input name="reason" maxLength={240} /></label><div className="profile-actions"><button className="op-button action-primary" name="intent" value="grant" disabled={navigation.state !== "idle"}>GRANT EDITORIAL ACCESS</button><button className="op-button" name="intent" value="revoke" disabled={navigation.state !== "idle"}>REVOKE EDITORIAL ACCESS</button></div></Form><div>{result.grants.length ? result.grants.map((grant) => <p key={grant.id}>{grant.revoked_at ? "Revoked" : "Active"} · {grant.access_level} · {((Array.isArray((grant as any).profiles) ? (grant as any).profiles[0] : (grant as any).profiles)?.display_name) ?? "Member"}</p>) : <p>No editorial grants found.</p>}</div></section>}{actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}{actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}<section><h2>Review inbox</h2>{result.review.length ? result.review.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {draft.author_display_name ?? "Panelist"} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><h3>{draft.title}</h3><p>{draft.summary}</p><ArticleRenderer document={draft.working_document as any} /><Form method="post" className="op-form"><input type="hidden" name="featureId" value={draft.feature_id} /><label>Review note<input name="note" maxLength={240} /></label><button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button><button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button></Form></article>) : <p>No submitted drafts waiting.</p>}</section></div>}</main>;
+  if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
+  const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
+    id: draft.feature_id,
+    title: draft.title ?? "Untitled submitted panel",
+    type: "Editorial Feature",
+    status: draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status,
+    date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
+    meta: `${draft.author_display_name ?? "Panelist"} · ${draft.summary ?? ""}`,
+    action: <a href={`#review-${draft.feature_id}`}>REVIEW ↓</a>,
+  }));
+  return (
+    <main className="editorial-page">
+      <Masthead />
+      <div className="op-workspace profile-page">
+        <nav className="profile-actions" aria-label="Moderation actions">
+          <Link to="/profile">← RETURN TO PROFILE</Link>
+          <Link to="/editorial">EDITORIAL DASHBOARD</Link>
+          <Link to="/">VIEW PUBLICATION</Link>
+        </nav>
+        <p className="editorial-marker">MODERATION</p>
+        <h1>Editorial access and review</h1>
+        {result.capabilities.moderation && (
+          <section>
+            <h2>Editorial grants</h2>
+            <Form className="op-form" method="post">
+              <label>User email<input name="email" type="email" required /></label>
+              <label>Reason<input name="reason" maxLength={240} /></label>
+              <div className="profile-actions">
+                <button className="op-button action-primary" name="intent" value="grant" disabled={navigation.state !== "idle"}>GRANT EDITORIAL ACCESS</button>
+                <button className="op-button" name="intent" value="revoke" disabled={navigation.state !== "idle"}>REVOKE EDITORIAL ACCESS</button>
+              </div>
+            </Form>
+            <div>{result.grants.length ? result.grants.map((grant) => <p key={grant.id}>{grant.revoked_at ? "Revoked" : "Active"} · {grant.access_level} · {((Array.isArray((grant as any).profiles) ? (grant as any).profiles[0] : (grant as any).profiles)?.display_name) ?? "Member"}</p>) : <p>No editorial grants found.</p>}</div>
+          </section>
+        )}
+        {actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}
+        {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
+        <section>
+          <h2>REVIEW INBOX</h2>
+          <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
+          {result.review.length ? result.review.map((draft: any) => (
+            <article key={draft.feature_id} id={`review-${draft.feature_id}`} className="review-panel">
+              <p className="editorial-marker">REVIEW PANEL</p>
+              <h3>{draft.title}</h3>
+              <p>{draft.author_display_name ?? "Panelist"} · {draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
+              <p>{draft.summary}</p>
+              <ArticleRenderer document={draft.working_document as any} />
+              <Form method="post" className="op-form">
+                <input type="hidden" name="featureId" value={draft.feature_id} />
+                <label>Review note<input name="note" maxLength={240} /></label>
+                <div className="profile-actions">
+                  <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>
+                  <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
+                </div>
+              </Form>
+            </article>
+          )) : null}
+        </section>
+      </div>
+    </main>
+  );
 }

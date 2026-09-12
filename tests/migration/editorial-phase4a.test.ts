@@ -106,18 +106,18 @@ test("editorial composer shows the latest saved draft immediately after action s
 
 
 test("saved draft cards can reopen the composer for editing", () => {
-  assert.match(editorialRoute, /CONTINUE PANEL/);
+  assert.match(editorialRoute, /CONTINUE/);
   assert.match(editorialRoute, /REVISE/);
   assert.match(editorialRoute, /onClick=\{\(\) => loadDraft\(item\)\}/);
   assert.match(editorialRoute, /composerFromWorkItem\(selected\)/);
   assert.match(editorialRoute, /useSearchParams/);
-  assert.match(profileRoute, /CONTINUE PANEL/);
+  assert.match(profileRoute, /CONTINUE/);
 });
 
 test("profile My Panels lists editorial work alongside Open Panel contributions", () => {
   assert.match(profileRoute, /MY PANELS/);
   assert.match(profileRoute, /editorial_my_work/);
-  assert.match(profileRoute, /Open Panel contributions/);
+  assert.match(profileRoute, /Open Panel Contribution/);
   assert.match(profileRoute, /Editorial access is granted by moderators/);
 });
 
@@ -126,4 +126,18 @@ test("changes requested and approved statuses are visible to editors", () => {
   assert.match(lifecycleMigration, /Changes requested:/);
   assert.equal((editorialStatusLabel("changes_requested")), "Changes requested");
   assert.equal((editorialStatusLabel("approved")), "Publish-ready");
+});
+
+
+test("panel directory pattern is shared by profile editorial and moderation queues", () => {
+  const directory = readFileSync("router-app/components/PanelDirectory.tsx", "utf8");
+  const css = readFileSync("router-app/app.css", "utf8");
+  assert.match(directory, /export function PanelDirectory/);
+  assert.match(directory, /role="table"/);
+  assert.match(directory, /data-label="Status"/);
+  assert.match(css, /\.panel-directory-row/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(profileRoute, /<PanelDirectory label="My Panels"/);
+  assert.match(editorialRoute, /<PanelDirectory label="Editorial panels"/);
+  assert.match(moderationRoute, /<PanelDirectory label="Review Inbox"/);
 });
