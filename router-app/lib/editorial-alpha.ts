@@ -36,3 +36,52 @@ export function draftDocument(input: z.infer<typeof draftSchema>): EditorialDocu
 export function documentBodyText(sections: string) {
   return sections.trim();
 }
+
+
+export type EditorialWorkItem = {
+  feature_id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  lifecycle_status: string;
+  updated_at: string;
+  working_document: EditorialDocument;
+  category_id?: string | null;
+  image?: string | null;
+  image_alt?: string | null;
+  reviewer_note?: string | null;
+};
+
+export function composerFromWorkItem(item: EditorialWorkItem): z.infer<typeof draftSchema> {
+  const modules = Array.isArray(item.working_document?.modules) ? item.working_document.modules : [];
+  const imageModule = modules.find((module) => module.type === "image");
+  const videoModule = modules.find((module) => module.type === "video" || module.type === "video-text");
+  const sections = modules
+    .filter((module) => module.type === "heading" || module.type === "paragraph")
+    .map((module) => {
+      const text = String(module.content?.text ?? "").trim();
+      return module.type === "heading" ? `## ${text}` : text;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+  return {
+    featureId: item.feature_id,
+    title: item.working_document?.header?.title || item.title,
+    slug: item.slug,
+    summary: item.working_document?.header?.standfirst || item.summary,
+    categoryId: item.category_id ?? "",
+    image: String(imageModule?.content?.src ?? item.image ?? ""),
+    imageAlt: String(imageModule?.content?.alt ?? item.image_alt ?? ""),
+    sections: sections || "## Opening read\n\nContinue writing this panel.",
+    videoUrl: String(videoModule?.content?.url ?? ""),
+    status: item.lifecycle_status === "submitted" ? "submitted" : "draft",
+  };
+}
+
+export function editorialStatusLabel(status: string) {
+  if (status === "submitted") return "Submitted for review";
+  if (status === "changes_requested") return "Changes requested";
+  if (status === "approved") return "Publish-ready";
+  if (status === "published") return "Published";
+  return "Draft";
+}

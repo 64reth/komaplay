@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { data, Form, Link, useFetcher, useLoaderData } from "react-router";
+import { data, Form, Link, useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
-import { draftDocument, draftSchema, documentBodyText } from "../lib/editorial-alpha";
+import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 
@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
   const [categories, drafts, review] = await Promise.all([
     resolved.client.from("categories").select("id,name,slug").order("name"),
-    resolved.client.rpc("editorial_my_drafts"),
+    resolved.client.rpc("editorial_my_work"),
     resolved.client.rpc("editorial_review_inbox"),
   ]);
   return data(
@@ -96,7 +96,7 @@ type AcceptedLoaderData = {
   state: "accepted";
   capabilities: { editorial: boolean; moderation: boolean };
   categories: Array<{ id: string; name: string; slug: string }>;
-  drafts: any[];
+  drafts: EditorialWorkItem[];
   review: any[];
 };
 
@@ -113,11 +113,20 @@ const initialComposer: ComposerState = {
   status: "draft",
 };
 
-function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
+function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
   const fetcher = useFetcher<typeof action>();
-  const [draft, setDraft] = useState<ComposerState>(initialComposer);
+  const [draft, setDraft] = useState<ComposerState>(() => {
+    const selected = result.drafts.find((item) => item.feature_id === selectedFeatureId);
+    return selected ? composerFromWorkItem(selected) : initialComposer;
+  });
   const pending = fetcher.state !== "idle";
   const response = fetcher.data;
+  const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
+
+  useEffect(() => {
+    const selectedWork = result.drafts.find((item) => item.feature_id === selectedFeatureId);
+    if (selectedWork) setDraft(composerFromWorkItem(selectedWork));
+  }, [result.drafts, selectedFeatureId]);
 
   useEffect(() => {
     if (response && "featureId" in response && typeof response.featureId === "string") {
@@ -140,8 +149,11 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
   const update =
     (field: keyof ComposerState) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setDraft((current) => ({ ...current, [field]: event.target.value }));
+      setDraft((current) => ({ ...current, [field]: event.target.value, status: current.status === "submitted" ? "draft" : current.status }));
     };
+  const loadDraft = (item: EditorialWorkItem) => {
+    setDraft(composerFromWorkItem(item));
+  };
 
   return (
     <div className="op-workspace profile-page">
@@ -152,6 +164,7 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
       </nav>
       <p className="editorial-marker">EDITORIAL DASHBOARD</p>
       <h1>Feature composer</h1>
+      {selected && <p className="profile-contribution">Editing {selected.title} · {editorialStatusLabel(selected.lifecycle_status)}{selected.reviewer_note ? ` · Reviewer note: ${selected.reviewer_note}` : ""}</p>}
       {response && "success" in response && (
         <p className="profile-contribution" role="status">
           {response.success}
@@ -165,7 +178,7 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
       )}
       {response && "success" in response && "featureId" in response && (
         <article className="profile-contribution" aria-label="Latest saved draft">
-          <p>{"status" in response && response.status === "submitted" ? "Submitted for review" : "draft"} · Just now</p>
+          <p>{"status" in response && response.status === "submitted" ? "Submitted for review" : "Draft"} · Just now</p>
           <strong>{draft.title}</strong>
           <p>{draft.slug}</p>
         </article>
@@ -227,13 +240,17 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
       <section>
         <h2>My drafts</h2>
         {result.drafts.length ? (
-          result.drafts.map((item: any) => (
+          result.drafts.map((item) => (
             <article key={item.feature_id} className="profile-contribution">
               <p>
-                {item.lifecycle_status === "submitted" ? "Submitted for review" : item.lifecycle_status} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
+                {editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
               </p>
               <strong>{item.title ?? "Untitled draft"}</strong>
               <p>{item.slug}</p>
+              {item.reviewer_note && <p>Reviewer note: {item.reviewer_note}</p>}
+              <button className="op-button" type="button" onClick={() => loadDraft(item)}>
+                {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
+              </button>
             </article>
           ))
         ) : (
@@ -246,7 +263,7 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
           result.review.map((item: any) => (
             <article key={item.feature_id} className="profile-contribution">
               <p>
-                {item.lifecycle_status === "submitted" ? "Submitted for review" : item.lifecycle_status} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
+                {editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}
               </p>
               <h3>{item.title}</h3>
               <p>{item.summary}</p>
@@ -272,10 +289,12 @@ function FeatureComposer({ result }: { result: AcceptedLoaderData }) {
 
 export default function Editorial() {
   const result = useLoaderData<typeof loader>();
+  const [searchParams] = useSearchParams();
+  const selectedFeatureId = searchParams.get("feature") ?? "";
   return (
     <main className="editorial-page">
       <Masthead />
-      {result.state !== "accepted" ? <Boundary state={result.state} /> : <FeatureComposer result={result as AcceptedLoaderData} />}
+      {result.state !== "accepted" ? <Boundary state={result.state} /> : <FeatureComposer result={result as AcceptedLoaderData} selectedFeatureId={selectedFeatureId} />}
     </main>
   );
 }

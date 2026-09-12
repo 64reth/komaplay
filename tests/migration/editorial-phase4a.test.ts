@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { bodyModules, draftDocument, draftSchema } from "../../router-app/lib/editorial-alpha";
+import { bodyModules, draftDocument, draftSchema, editorialStatusLabel } from "../../router-app/lib/editorial-alpha";
 
 const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha_rpc.sql", "utf8");
 const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
@@ -9,6 +9,7 @@ const moderationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8")
 const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
 const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
 const myDraftsMigration = readFileSync("supabase/migrations/202609120003_editorial_alpha_my_drafts.sql", "utf8");
+const lifecycleMigration = readFileSync("supabase/migrations/202609120004_editorial_alpha_lifecycle.sql", "utf8");
 
 test("profile exposes editorial navigation only through capability checks", () => {
   assert.match(profileRoute, /capabilities\.editorial/);
@@ -88,15 +89,39 @@ test("editorial composer preview is driven by live client state", () => {
 
 
 test("editor saved drafts load through a server-checked RPC instead of draft feature RLS", () => {
-  assert.match(editorialRoute, /rpc\("editorial_my_drafts"\)/);
-  assert.match(myDraftsMigration, /create or replace function public\.editorial_my_drafts/);
+  assert.match(editorialRoute, /rpc\("editorial_my_work"\)/);
+  assert.match(lifecycleMigration, /create or replace function public\.editorial_my_work/);
   assert.match(myDraftsMigration, /ed\.author_id=auth\.uid\(\)/);
   assert.match(myDraftsMigration, /public\.editorial_has_access\(auth\.uid\(\),false\)/);
-  assert.match(myDraftsMigration, /grant execute on function public\.editorial_my_drafts\(\) to authenticated/);
+  assert.match(lifecycleMigration, /grant execute on function public\.editorial_my_work\(\),public\.editorial_review_inbox\(\) to authenticated/);
 });
 
 test("editorial composer shows the latest saved draft immediately after action success", () => {
   assert.match(editorialRoute, /aria-label="Latest saved draft"/);
   assert.match(editorialRoute, /Just now/);
   assert.match(editorialRoute, /draft\.title/);
+});
+
+
+test("saved draft cards can reopen the composer for editing", () => {
+  assert.match(editorialRoute, /CONTINUE/);
+  assert.match(editorialRoute, /REVISE/);
+  assert.match(editorialRoute, /onClick=\{\(\) => loadDraft\(item\)\}/);
+  assert.match(editorialRoute, /composerFromWorkItem\(selected\)/);
+  assert.match(editorialRoute, /useSearchParams/);
+  assert.match(profileRoute, /CONTINUE IN EDITORIAL/);
+});
+
+test("profile My Panels lists editorial work alongside Open Panel contributions", () => {
+  assert.match(profileRoute, /My Panels/);
+  assert.match(profileRoute, /editorial_my_work/);
+  assert.match(profileRoute, /Open Panel contributions/);
+  assert.match(profileRoute, /Editorial access is granted by moderators/);
+});
+
+test("changes requested and approved statuses are visible to editors", () => {
+  assert.match(editorialRoute, /Reviewer note/);
+  assert.match(lifecycleMigration, /Changes requested:/);
+  assert.equal((editorialStatusLabel("changes_requested")), "Changes requested");
+  assert.equal((editorialStatusLabel("approved")), "Publish-ready");
 });

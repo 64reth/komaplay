@@ -3,6 +3,7 @@ import type { Route } from "./+types/profile";
 import { Masthead } from "../components/Masthead";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
+import { editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 export const meta: Route.MetaFunction = () => [
@@ -36,7 +37,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (handbook.status !== "accepted")
     return data({ state: handbook.status }, { headers: resolved.headers });
 
-  const [profileResult, contributionsResult, capabilities] = await Promise.all([
+  const [profileResult, contributionsResult, capabilities, editorialWork] = await Promise.all([
     resolved.client
       .from("profiles")
       .select("display_name,pen_name,bio,created_at,default_credit")
@@ -48,6 +49,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       .eq("author_id", resolved.user.id)
       .order("created_at", { ascending: false }),
     memberCapabilities(resolved.client, member),
+    resolved.client.rpc("editorial_my_work"),
   ]);
   if (profileResult.error || contributionsResult.error)
     return data(
@@ -79,6 +81,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       profile: profileResult.data,
       capabilities,
       citations: citationResult.error ? 0 : (citationResult.data?.length ?? 0),
+      editorialWork: editorialWork.error ? [] : (editorialWork.data ?? []),
       contributions: (contributionsResult.data ?? []).map((item) => ({
         ...item,
         feature:
@@ -159,8 +162,19 @@ export default function Profile() {
           {published} published contributions · {result.citations} Panel
           Citations
         </p>
+        <section id="panels">
+          <h2>My Panels</h2>
+          {result.capabilities.editorial ? (result.editorialWork.length ? result.editorialWork.map((item: EditorialWorkItem) => (
+            <article key={item.feature_id} className="profile-contribution">
+              <p>{editorialStatusLabel(item.lifecycle_status)} · {new Date(item.updated_at).toLocaleDateString("en-GB")}</p>
+              <strong>{item.title}</strong>
+              <p>{item.slug}</p>
+              <Link to={`/editorial?feature=${item.feature_id}`}>CONTINUE IN EDITORIAL →</Link>
+            </article>
+          )) : <p>No editorial panels yet.</p>) : <p>Editorial access is granted by moderators.</p>}
+        </section>
         <section id="contributions">
-          <h2>My contributions</h2>
+          <h2>Open Panel contributions</h2>
           {result.contributions.length ? (
             result.contributions.map((contribution) => (
               <article key={contribution.id} className="profile-contribution">
