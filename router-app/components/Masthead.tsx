@@ -1,5 +1,7 @@
 import { Link } from "react-router";
 import { issueZeroFeatures } from "../data/issue-zero";
+import { AccountNav } from "./AccountNav";
+
 export function Masthead({ slug }: { slug?: string }) {
   return (
     <header className="editorial-nav">
@@ -22,6 +24,7 @@ export function Masthead({ slug }: { slug?: string }) {
           </Link>
         ))}
       </nav>
+      <AccountNav />
     </header>
   );
 }

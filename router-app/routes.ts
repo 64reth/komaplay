@@ -7,6 +7,7 @@ export default [
   route("search", "routes/search.tsx"),
   route("handbook", "routes/handbook.tsx"),
   route("onboarding", "routes/onboarding.tsx"),
+  route("auth/callback", "routes/auth-callback.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

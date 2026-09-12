@@ -11,11 +11,11 @@
     "preview": "pnpm build && vite preview --host 127.0.0.1 --port 5173 --strictPort",
     "typegen": "WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler types && pnpm exec react-router typegen",
     "typecheck": "pnpm typegen && pnpm exec tsc -b",
-    "test": "node --import tsx --test tests/migration/*.test.ts",
+    "test": "node --import tsx --test tests/migration/*.test.ts tests/migration/*.test.tsx",
     "lint": "pnpm exec eslint router-app workers tests/migration tests/e2e/*.spec.ts vite.config.ts react-router.config.ts playwright.config.ts",
     "deploy:canary": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --keep-vars",
     "deploy:canary:dry-run": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --dry-run --keep-vars",
-    "test:e2e": "playwright test tests/e2e/migration-phase1.spec.ts tests/e2e/publication-phase2.spec.ts"
+    "test:e2e": "playwright test tests/e2e/migration-phase1.spec.ts tests/e2e/publication-phase2.spec.ts tests/e2e/auth-phase3.spec.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

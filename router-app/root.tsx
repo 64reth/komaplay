@@ -1,4 +1,5 @@
 import {
+  data,
   isRouteErrorResponse,
   Link,
   Links,
@@ -10,7 +11,16 @@ import {
 import type { Route } from "./+types/root";
 import { Masthead } from "./components/Masthead";
 import { IssueNavigation } from "./components/IssueNavigation";
+import { resolveAuth } from "./lib/auth";
 import "./app.css";
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const resolved = await resolveAuth(request);
+  return data(
+    { auth: resolved.auth, supabase: resolved.config },
+    { headers: resolved.headers },
+  );
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
