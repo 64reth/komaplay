@@ -14,6 +14,8 @@ export default [
   route("member/workshop/:action", "routes/workshop-action.tsx"),
   route("profile", "routes/profile.tsx"),
   route("profile/settings", "routes/profile-settings.tsx"),
+  route("editorial", "routes/editorial.tsx"),
+  route("moderation", "routes/moderation.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

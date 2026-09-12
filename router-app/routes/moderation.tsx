@@ -1,0 +1,69 @@
+import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "react-router";
+import type { Route } from "./+types/moderation";
+import { ArticleRenderer } from "../components/ArticleRenderer";
+import { Masthead } from "../components/Masthead";
+import { SignedOutMemberBoundary } from "../components/MemberBoundary";
+import { resolveAuth } from "../lib/auth";
+import { memberCapabilities, membershipState } from "../lib/membership.server";
+
+async function moderationContext(request: Request) {
+  const resolved = await resolveAuth(request);
+  if (resolved.auth.state !== "authenticated" || !resolved.client || !resolved.user) return { resolved, state: "signed-out" as const, capabilities: { editorial: false, moderation: false } };
+  if (resolved.auth.member.accountStatus !== "active") return { resolved, state: resolved.auth.member.accountStatus as "restricted" | "suspended", capabilities: { editorial: false, moderation: false } };
+  const handbook = await membershipState(resolved.client, resolved.user.id);
+  if (handbook.status !== "accepted") return { resolved, state: "verifying" as const, capabilities: { editorial: false, moderation: false } };
+  const capabilities = await memberCapabilities(resolved.client, resolved.auth.member);
+  const review = await resolved.client.rpc("editorial_has_access", { target: resolved.user.id, review: true });
+  const allowed = capabilities.moderation || (!review.error && review.data === true);
+  return { resolved, state: allowed ? "accepted" as const : "denied" as const, capabilities };
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const context = await moderationContext(request);
+  const { resolved } = context;
+  if (context.state !== "accepted" || !resolved.client) return data({ state: context.state, capabilities: context.capabilities, grants: [], review: [] }, { headers: resolved.headers });
+  const [grants, review] = await Promise.all([
+    resolved.client.from("editorial_access_grants").select("id,access_level,scope_type,granted_at,revoked_at,reason,profiles!editorial_access_grants_user_id_fkey(display_name)").order("granted_at", { ascending: false }),
+    resolved.client.rpc("editorial_submitted_drafts"),
+  ]);
+  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [] }, { headers: resolved.headers });
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  const context = await moderationContext(request);
+  const { resolved } = context;
+  if (context.state !== "accepted" || !resolved.client) return data({ error: "Moderation access is required." }, { status: 403, headers: resolved.headers });
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return data({ error: "Same-origin request required." }, { status: 403, headers: resolved.headers });
+  const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+  try {
+    if (intent === "grant" || intent === "revoke") {
+      const email = String(form.get("email") ?? "").trim();
+      if (!email || !email.includes("@")) throw new Error("Enter an existing user email.");
+      const result = await resolved.client.rpc("manage_editorial_grant", { target_email: email, grant_access: intent === "grant", grant_reason: String(form.get("reason") ?? "") });
+      if (result.error) throw new Error(result.error.message);
+      return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
+    }
+    if (intent === "approveDraft" || intent === "changesDraft") {
+      const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: String(form.get("note") ?? "") });
+      if (result.error) throw new Error(result.error.message);
+      return data({ success: intent === "approveDraft" ? "Draft approved as publish-ready." : "Changes requested." }, { headers: resolved.headers });
+    }
+    throw new Error("Unknown moderation action.");
+  } catch (error) {
+    return data({ error: error instanceof Error ? error.message : "Action failed." }, { status: 400, headers: resolved.headers });
+  }
+}
+
+function Boundary({ state }: { state: string }) {
+  if (state === "signed-out") return <SignedOutMemberBoundary title="SIGN IN TO USE MODERATION" returnTo="/moderation" />;
+  return <section className="op-workspace"><p className="editorial-marker">MODERATION</p><h1>Moderation unavailable</h1><p role="alert">Administrator, moderator or review permission is required.</p><Link to="/profile">← RETURN TO PROFILE</Link></section>;
+}
+
+export default function Moderation() {
+  const result = useLoaderData<typeof loader>();
+  const actionResult = useActionData<typeof action>();
+  const navigation = useNavigation();
+  return <main className="editorial-page"><Masthead />{result.state !== "accepted" ? <Boundary state={result.state} /> : <div className="op-workspace profile-page"><nav className="profile-actions" aria-label="Moderation actions"><Link to="/profile">← RETURN TO PROFILE</Link><Link to="/editorial">EDITORIAL DASHBOARD</Link><Link to="/">VIEW PUBLICATION</Link></nav><p className="editorial-marker">MODERATION</p><h1>Editorial access and review</h1>{result.capabilities.moderation && <section><h2>Editorial grants</h2><Form className="op-form" method="post"><label>User email<input name="email" type="email" required /></label><label>Reason<input name="reason" maxLength={240} /></label><div className="profile-actions"><button className="op-button action-primary" name="intent" value="grant" disabled={navigation.state !== "idle"}>GRANT EDITORIAL ACCESS</button><button className="op-button" name="intent" value="revoke" disabled={navigation.state !== "idle"}>REVOKE EDITORIAL ACCESS</button></div></Form><div>{result.grants.length ? result.grants.map((grant) => <p key={grant.id}>{grant.revoked_at ? "Revoked" : "Active"} · {grant.access_level} · {((Array.isArray((grant as any).profiles) ? (grant as any).profiles[0] : (grant as any).profiles)?.display_name) ?? "Member"}</p>) : <p>No editorial grants found.</p>}</div></section>}{actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}{actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}<section><h2>Review inbox</h2>{result.review.length ? result.review.map((draft: any) => <article key={draft.feature_id} className="profile-contribution"><p>{draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p><h3>{draft.title}</h3><p>{draft.summary}</p><ArticleRenderer document={draft.working_document as any} /><Form method="post" className="op-form"><input type="hidden" name="featureId" value={draft.feature_id} /><label>Review note<input name="note" maxLength={240} /></label><button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button><button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button></Form></article>) : <p>No submitted drafts waiting.</p>}</section></div>}</main>;
+}

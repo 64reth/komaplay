@@ -73,15 +73,9 @@ export async function memberCapabilities(
   if (member.role === "admin") return { editorial: true, moderation };
   const result = await db
     .from("editorial_access_grants")
-    .select("id,expires_at,revoked_at")
+    .select("id,revoked_at")
     .eq("user_id", member.id)
-    .eq("active", true)
     .is("revoked_at", null);
-  const now = Date.now();
-  const editorial =
-    !result.error &&
-    (result.data ?? []).some(
-      (grant) => !grant.expires_at || Date.parse(grant.expires_at) > now,
-    );
+  const editorial = !result.error && (result.data ?? []).length > 0;
   return { editorial, moderation };
 }

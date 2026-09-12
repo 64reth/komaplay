@@ -143,10 +143,10 @@ export default function Profile() {
           <Link to="/">← RETURN TO PUBLICATION</Link>
           <Link to="/profile/settings">SETTINGS</Link>
           {result.capabilities.editorial && (
-            <span>EDITORIAL DASHBOARD · MIGRATING</span>
+            <Link to="/editorial">EDITORIAL DASHBOARD</Link>
           )}
           {result.capabilities.moderation && (
-            <span>MODERATION · MIGRATING</span>
+            <Link to="/moderation">MODERATION</Link>
           )}
         </nav>
         {result.profile.bio && <p>{result.profile.bio}</p>}
