@@ -55,6 +55,12 @@ export async function action({ request }: Route.ActionArgs) {
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
+    if (intent === "submitExisting") {
+      const featureId = String(form.get("featureId") ?? "");
+      const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
+      if (saved.error) throw new Error(saved.error.message);
+      return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
+    }
     const value = draftSchema.parse({
       featureId: form.get("featureId") ?? "",
       title: form.get("title"),
@@ -180,7 +186,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input type="hidden" name="image" value={item.image ?? ""} />
           <input type="hidden" name="imageAlt" value={item.image_alt ?? ""} />
           <input type="hidden" name="sections" value={documentBodyText(composerFromWorkItem(item).sections)} />
-          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending}>SUBMIT FOR REVIEW</button>
+          <button className="op-button action-primary" name="intent" value="submitExisting" onClick={() => setSubmitIntent("submit")} disabled={pending}>SUBMIT FOR REVIEW</button>
         </fetcher.Form>
       </div>
     ),
