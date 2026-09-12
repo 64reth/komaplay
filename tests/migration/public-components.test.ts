@@ -202,3 +202,20 @@ test("feature metadata preserves the canonical production URL", () => {
     },
   ]);
 });
+
+
+test("missing public article hero image falls back to the KOMA placeholder", () => {
+  const markup = render({
+    schemaVersion: 1,
+    header: {
+      eyebrow: "COMMUNITY EDITION",
+      title: "No image public panel",
+      byline: "KOMA://PLAY Editorial",
+      hero: { id: "missing", src: "", alt: "" },
+      heroCaption: "Placeholder",
+    },
+    modules: [],
+  });
+  assert.match(markup, /koma-feature-placeholder\.svg/);
+  assert.match(markup, /KOMA:\/\/PLAY editorial placeholder/);
+});

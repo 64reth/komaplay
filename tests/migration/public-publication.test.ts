@@ -68,3 +68,16 @@ test("video providers use trusted privacy-preserving adapters", () => {
   );
   assert.equal(trustedVideo("https://example.com/embed"), null);
 });
+
+test("feature image fallback uses the KOMA placeholder only when image data is missing", async () => {
+  const { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT } = await import("../../router-app/lib/publication-media.ts");
+  const d = developmentCatalogue("2026-09-12T00:00:00Z");
+  const drop = d.drops[0];
+  const missing = { ...d.features[0], image: "", image_alt: "" };
+  const existing = { ...d.features[1], image: "/assets/clue-gun.png", image_alt: "Existing art" };
+  const items = stripItems(d, drop, [missing, existing]);
+  assert.equal(items[0].image, KOMA_FEATURE_PLACEHOLDER);
+  assert.equal(items[0].imageAlt, KOMA_FEATURE_PLACEHOLDER_ALT);
+  assert.equal(items[1].image, "/assets/clue-gun.png");
+  assert.equal(items[1].imageAlt, "Existing art");
+});

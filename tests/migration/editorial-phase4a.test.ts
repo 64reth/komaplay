@@ -141,3 +141,15 @@ test("panel directory pattern is shared by profile editorial and moderation queu
   assert.match(editorialRoute, /<PanelDirectory label="Editorial panels"/);
   assert.match(moderationRoute, /<PanelDirectory label="Review Inbox"/);
 });
+
+test("editorial preview uses the KOMA placeholder when no image is set", () => {
+  const parsed = draftSchema.parse({
+    title: "No image panel",
+    slug: "no-image-panel",
+    summary: "A panel with no uploaded image yet.",
+    sections: "## Body\n\nCopy for this draft preview.",
+  });
+  const doc = draftDocument(parsed);
+  assert.equal(doc.header.hero?.src, "/assets/koma-feature-placeholder.svg");
+  assert.equal(doc.header.hero?.alt, "KOMA://PLAY editorial placeholder");
+});

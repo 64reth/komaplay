@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { trustedVideo } from "./media";
 import type { EditorialDocument, ArticleModule } from "./document";
+import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT } from "./publication-media";
 
 export const draftSchema = z.object({
   featureId: z.string().uuid().optional().or(z.literal("")),
@@ -29,8 +30,10 @@ export function bodyModules(sections: string, videoUrl = ""): ArticleModule[] {
 
 export function draftDocument(input: z.infer<typeof draftSchema>): EditorialDocument {
   const modules = bodyModules(input.sections, input.videoUrl);
+  const heroSrc = input.image || KOMA_FEATURE_PLACEHOLDER;
+  const heroAlt = input.imageAlt || KOMA_FEATURE_PLACEHOLDER_ALT;
   if (input.image) modules.unshift({ id: "lead-image", type: "image", version: 1, presentation: "wide", content: { src: input.image, alt: input.imageAlt, caption: "Editorial reference image", source: "Editorial dashboard", rights: "Documented by editor" } });
-  return { schemaVersion: 1, header: { eyebrow: "COMMUNITY EDITION", title: input.title, panelHeadline: input.title.slice(0, 90), standfirst: input.summary, byline: "KOMA://PLAY Editorial" }, modules };
+  return { schemaVersion: 1, header: { eyebrow: "COMMUNITY EDITION", title: input.title, panelHeadline: input.title.slice(0, 90), standfirst: input.summary, byline: "KOMA://PLAY Editorial", hero: { id: "editorial-placeholder", src: heroSrc, alt: heroAlt }, heroCaption: input.image ? "Editorial reference image" : "KOMA://PLAY editorial placeholder" }, modules };
 }
 
 export function documentBodyText(sections: string) {

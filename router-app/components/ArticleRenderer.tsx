@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { useState } from "react";
 import { Gallery } from "./Gallery";
 import { trustedVideo } from "../lib/media";
+import { resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import type {
   ArticleModule,
   EditorialDocument,
@@ -20,8 +21,8 @@ function Image({
   return (
     <figure className={wide ? "editorial-image wide" : "editorial-image"}>
       <img
-        src={String(content.src ?? "")}
-        alt={String(content.alt ?? "")}
+        src={resolvePublicMediaPath(String(content.src ?? ""))}
+        alt={resolvePublicImageAlt(String(content.alt ?? ""))}
         loading="lazy"
       />
       {(caption || source) && (
@@ -225,8 +226,8 @@ export function ArticleRenderer({ document }: { document: EditorialDocument }) {
         {document.header.hero && (
           <figure className="editorial-hero">
             <img
-              src={document.header.hero.src}
-              alt={document.header.hero.alt}
+              src={resolvePublicMediaPath(document.header.hero.src)}
+              alt={resolvePublicImageAlt(document.header.hero.alt)}
             />
             <figcaption>{document.header.heroCaption}</figcaption>
           </figure>

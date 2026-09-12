@@ -8,6 +8,7 @@ import { ArticleRenderer } from "../components/ArticleRenderer";
 import { OpenPanelCountdown } from "../components/publication/OpenPanelCountdown";
 import { tokonGuide } from "../data/tokon-guide";
 import { editorial } from "../data/editorial";
+import { resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import {
   OpenPanelStatus,
   CommunityAdditions,
@@ -50,8 +51,8 @@ function documentFor(
       byline: "KOMA://PLAY Editorial",
       hero: {
         id: `${feature.slug}-hero`,
-        src: feature.image,
-        alt: feature.image_alt,
+        src: resolvePublicMediaPath(feature.image),
+        alt: resolvePublicImageAlt(feature.image_alt),
       },
       heroCaption: "KOMA://PLAY editorial artwork",
     },

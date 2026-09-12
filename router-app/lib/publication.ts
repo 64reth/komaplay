@@ -1,4 +1,5 @@
 import type { FeatureItem } from "../data/issue-zero";
+import { resolvePublicImageAlt, resolvePublicMediaPath } from "./publication-media";
 export type Issue = {
   id: string;
   issue_number: number;
@@ -209,8 +210,8 @@ export function stripItems(
         data.categories.find((c) => c.id === f.category_id)?.name ?? "Feature",
       title: f.title,
       summary: f.summary,
-      image: f.image,
-      imageAlt: f.image_alt,
+      image: resolvePublicMediaPath(f.image),
+      imageAlt: resolvePublicImageAlt(f.image_alt),
       pageIndex: i + 1,
       panelSize: f.panel_size,
       panelClass: f.panel_class,
