@@ -2659,3 +2659,22 @@ html {
     width: 100%;
   }
 }
+
+.panel-directory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.panel-directory-actions form {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .panel-directory-actions {
+    justify-content: stretch;
+  }
+  .panel-directory-actions > *,
+  .panel-directory-actions button {
+    width: 100%;
+  }
+}

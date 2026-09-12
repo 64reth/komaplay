@@ -153,3 +153,12 @@ test("editorial preview uses the KOMA placeholder when no image is set", () => {
   assert.equal(doc.header.hero?.src, "/assets/koma-feature-placeholder.svg");
   assert.equal(doc.header.hero?.alt, "KOMA://PLAY editorial placeholder");
 });
+
+
+test("draft directory rows can submit directly and publish-ready copy is explicit", () => {
+  assert.match(editorialRoute, /SUBMIT FOR REVIEW/);
+  assert.match(editorialRoute, /name="intent" value="submit"/);
+  assert.match(editorialRoute, /name="featureId" value=\{item\.feature_id\}/);
+  assert.match(moderationRoute, /Publishing to the live strip is next/);
+  assert.doesNotMatch(moderationRoute, /PUBLISH FEATURE/);
+});

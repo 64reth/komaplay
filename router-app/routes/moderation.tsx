@@ -107,6 +107,7 @@ export default function Moderation() {
         {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
         <section>
           <h2>REVIEW INBOX</h2>
+          <p>Publishing to the live strip is next. Approved panels are publish-ready but are not public yet.</p>
           <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
           {result.review.length ? result.review.map((draft: any) => (
             <article key={draft.feature_id} id={`review-${draft.feature_id}`} className="review-panel">
@@ -119,7 +120,7 @@ export default function Moderation() {
                 <input type="hidden" name="featureId" value={draft.feature_id} />
                 <label>Review note<input name="note" maxLength={240} /></label>
                 <div className="profile-actions">
-                  <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>
+                  {draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
                   <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
                 </div>
               </Form>

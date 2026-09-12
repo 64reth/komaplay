@@ -167,9 +167,22 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     action: item.lifecycle_status === "submitted" || item.lifecycle_status === "approved" ? (
       <span>{item.lifecycle_status === "approved" ? "PUBLISH-READY" : "VIEW STATUS"}</span>
     ) : (
-      <button className="op-button" type="button" onClick={() => loadDraft(item)}>
-        {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
-      </button>
+      <div className="panel-directory-actions">
+        <button className="op-button" type="button" onClick={() => loadDraft(item)}>
+          {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
+        </button>
+        <fetcher.Form method="post">
+          <input type="hidden" name="featureId" value={item.feature_id} />
+          <input type="hidden" name="title" value={item.title ?? "Untitled draft"} />
+          <input type="hidden" name="slug" value={item.slug} />
+          <input type="hidden" name="summary" value={item.summary} />
+          <input type="hidden" name="categoryId" value={item.category_id ?? ""} />
+          <input type="hidden" name="image" value={item.image ?? ""} />
+          <input type="hidden" name="imageAlt" value={item.image_alt ?? ""} />
+          <input type="hidden" name="sections" value={documentBodyText(composerFromWorkItem(item).sections)} />
+          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending}>SUBMIT FOR REVIEW</button>
+        </fetcher.Form>
+      </div>
     ),
   }));
   const reviewRows: PanelDirectoryRow[] = result.review.map((item: any) => ({
