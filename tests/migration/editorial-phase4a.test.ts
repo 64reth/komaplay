@@ -10,6 +10,7 @@ const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
 const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
 const myDraftsMigration = readFileSync("supabase/migrations/202609120003_editorial_alpha_my_drafts.sql", "utf8");
 const lifecycleMigration = readFileSync("supabase/migrations/202609120004_editorial_alpha_lifecycle.sql", "utf8");
+const canonicalLifecycleMigration = readFileSync("supabase/migrations/202609130002_canonical_editorial_lifecycle.sql", "utf8");
 
 test("profile exposes editorial navigation only through capability checks", () => {
   assert.match(profileRoute, /capabilities\.editorial/);
@@ -50,11 +51,13 @@ test("draft validation blocks unsupported video providers and image modules with
   assert.equal(doc.modules[0].content.alt, "");
 });
 
-test("review actions stop at publish-ready approval rather than fake live publication", () => {
-  assert.match(migration, /next_status:='approved'/);
-  assert.match(migration, /Approved as publish-ready/);
-  assert.doesNotMatch(migration, /lifecycle_status='published'/);
-  assert.match(moderationRoute, /Draft approved as publish-ready/);
+test("review actions use canonical publish-ready status rather than fake live publication", () => {
+  assert.match(canonicalLifecycleMigration, /next_status:='approved'/);
+  assert.match(canonicalLifecycleMigration, /Marked publish-ready/);
+  assert.match(canonicalLifecycleMigration, /approved.*temporarily/);
+  assert.match(canonicalLifecycleMigration, /case when ed\.lifecycle_status='approved' then 'publish_ready'/);
+  assert.doesNotMatch(canonicalLifecycleMigration, /lifecycle_status='published'/);
+  assert.match(moderationRoute, /Panel marked publish-ready/);
 });
 
 
@@ -73,7 +76,7 @@ test("editorial save and submit return visible lifecycle feedback", () => {
 test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
   assert.match(submitFeedbackMigration, /where f\.slug=trim\(payload->>'slug'\)/);
   assert.match(submitFeedbackMigration, /ed\.author_id=auth\.uid\(\)/);
-  assert.match(submitFeedbackMigration, /ed\.lifecycle_status in \('submitted','approved','changes_requested'\)/);
+  assert.match(canonicalLifecycleMigration, /ed\.lifecycle_status in \('submitted','changes_requested','approved'\)/);
   assert.match(submitFeedbackMigration, /author_display_name/);
   assert.match(moderationRoute, /No submitted drafts waiting/);
   assert.match(moderationRoute, /author_display_name/);
@@ -122,10 +125,11 @@ test("profile My Panels lists editorial work alongside Open Panel contributions"
   assert.match(profileRoute, /Editorial access is granted by moderators/);
 });
 
-test("changes requested and approved statuses are visible to editors", () => {
+test("changes requested and publish-ready statuses are visible to editors", () => {
   assert.match(editorialRoute, /Reviewer note/);
-  assert.match(lifecycleMigration, /Changes requested:/);
+  assert.match(canonicalLifecycleMigration, /Changes requested:/);
   assert.equal((editorialStatusLabel("changes_requested")), "Changes requested");
+  assert.equal((editorialStatusLabel("publish_ready")), "Publish-ready");
   assert.equal((editorialStatusLabel("approved")), "Publish-ready");
 });
 
@@ -182,9 +186,26 @@ test("submit existing editorial draft rpc moves saved drafts to review", () => {
 test("shared review inbox is editor visible and keeps drafts private", () => {
   const sharedInboxMigration = readFileSync("supabase/migrations/202609130001_shared_editorial_review_inbox.sql", "utf8");
   assert.match(sharedInboxMigration, /public\.editorial_has_access\(auth\.uid\(\),false\)/);
-  assert.match(sharedInboxMigration, /ed\.lifecycle_status in \('submitted','approved','changes_requested'\)/);
+  assert.match(canonicalLifecycleMigration, /ed\.lifecycle_status in \('submitted','changes_requested','approved'\)/);
   assert.doesNotMatch(sharedInboxMigration, /ed\.lifecycle_status in \('draft'/);
   assert.match(sharedInboxMigration, /left join public\.profiles/);
   assert.match(moderationRoute, /capabilities\.editorial \|\| capabilities\.moderation/);
   assert.match(moderationRoute, /Moderator access is required to approve or request changes/);
+});
+
+
+test("canonical lifecycle views are status-driven", () => {
+  assert.match(canonicalLifecycleMigration, /public\.editorial_documents/);
+  assert.match(canonicalLifecycleMigration, /Storage keeps legacy 'approved' temporarily/);
+  assert.match(canonicalLifecycleMigration, /ed\.author_id=auth\.uid\(\)[\s\S]*ed\.lifecycle_status in \('draft','submitted','changes_requested','approved'\)/);
+  assert.match(canonicalLifecycleMigration, /public\.editorial_has_access\(auth\.uid\(\),false\)[\s\S]*ed\.lifecycle_status in \('submitted','changes_requested','approved'\)/);
+  assert.doesNotMatch(canonicalLifecycleMigration, /editorial_review_inbox[\s\S]*ed\.lifecycle_status in \('draft'/);
+  assert.match(canonicalLifecycleMigration, /doc\.lifecycle_status not in \('draft','changes_requested'\)/);
+});
+
+test("actions fail visibly when lifecycle RPCs reject", () => {
+  assert.match(editorialRoute, /role="alert"/);
+  assert.match(moderationRoute, /role="alert"/);
+  assert.match(canonicalLifecycleMigration, /This panel is not editable in its current status/);
+  assert.match(canonicalLifecycleMigration, /Only draft or changes-requested panels can be submitted for review/);
 });

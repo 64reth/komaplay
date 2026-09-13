@@ -52,7 +52,7 @@ export async function action({ request }: Route.ActionArgs) {
       if (intent === "changesDraft" && note.length < 4) throw new Error("Add a reviewer note before requesting changes.");
       const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: note });
       if (result.error) throw new Error(result.error.message);
-      return data({ success: intent === "approveDraft" ? "Draft approved as publish-ready." : "Changes requested." }, { headers: resolved.headers });
+      return data({ success: intent === "approveDraft" ? "Panel marked publish-ready." : "Changes requested." }, { headers: resolved.headers });
     }
     throw new Error("Unknown moderation action.");
   } catch (error) {
@@ -74,7 +74,7 @@ export default function Moderation() {
     id: draft.feature_id,
     title: draft.title ?? "Untitled submitted panel",
     type: "Editorial Feature",
-    status: draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status,
+    status: draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status === "publish_ready" ? "Publish-ready" : draft.lifecycle_status,
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.summary ?? ""}`,
     action: <a href={`#review-${draft.feature_id}`}>REVIEW ↓</a>,
@@ -108,13 +108,13 @@ export default function Moderation() {
         {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
         <section>
           <h2>REVIEW INBOX</h2>
-          <p>Publishing to the live strip is next. Approved panels are publish-ready but are not public yet.</p>
+          <p>Publishing to the live strip is next. Publish-ready panels are not public yet.</p>
           <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
           {result.review.length ? result.review.map((draft: any) => (
             <article key={draft.feature_id} id={`review-${draft.feature_id}`} className="review-panel">
               <p className="editorial-marker">REVIEW PANEL</p>
               <h3>{draft.title}</h3>
-              <p>{draft.author_display_name ?? "Panelist"} · {draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
+              <p>{draft.author_display_name ?? "Panelist"} · {draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status === "publish_ready" ? "Publish-ready" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
               <p>{draft.summary}</p>
               <ArticleRenderer document={draft.working_document as any} />
               {result.capabilities.moderation ? (
@@ -122,7 +122,7 @@ export default function Moderation() {
                   <input type="hidden" name="featureId" value={draft.feature_id} />
                   <label>Review note<input name="note" maxLength={240} /></label>
                   <div className="profile-actions">
-                    {draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
+                    {draft.lifecycle_status === "publish_ready" || draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">MARK PUBLISH-READY</button>}
                     <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
                   </div>
                 </Form>

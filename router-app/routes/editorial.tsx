@@ -71,7 +71,7 @@ export async function action({ request }: Route.ActionArgs) {
       imageAlt: form.get("imageAlt") ?? "",
       sections: form.get("sections"),
       videoUrl: form.get("videoUrl") ?? "",
-      status: intent === "submit" ? "submitted" : "draft",
+      status: intent === "submit" ? "submitted" : String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft",
     });
     if (value.image && !value.imageAlt) throw new Error("Image alt text is required when an image is provided.");
     const document = draftDocument(value);
@@ -134,7 +134,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
   const durableStatus = response && "success" in response && response.status === "draft" ? "Draft saved" : editorialStatusLabel(selectedStatus);
   const isSubmitted = selectedStatus === "submitted";
-  const isPublishReady = selectedStatus === "approved";
+  const isPublishReady = selectedStatus === "publish_ready" || selectedStatus === "approved";
   const isChangesRequested = selectedStatus === "changes_requested";
 
   useEffect(() => {
@@ -147,7 +147,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       setDraft((current) => ({
         ...current,
         featureId: response.featureId,
-        status: response.status === "submitted" ? "submitted" : current.status,
+        status: typeof response.status === "string" ? response.status as any : current.status,
       }));
     }
   }, [response]);
@@ -179,8 +179,8 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     status: rowLabel,
     date: new Date(item.updated_at).toLocaleDateString("en-GB"),
     meta: item.reviewer_note ? `Reviewer note: ${item.reviewer_note}` : item.slug,
-    action: rowStatus === "submitted" || rowStatus === "approved" ? (
-      <span>{rowStatus === "approved" ? "PUBLISH-READY" : "SUBMITTED"}</span>
+    action: rowStatus === "submitted" || rowStatus === "publish_ready" || rowStatus === "approved" ? (
+      <span>{rowStatus === "publish_ready" || rowStatus === "approved" ? "PUBLISH-READY" : "SUBMITTED"}</span>
     ) : (
       <div className="panel-directory-actions">
         <button className="op-button" type="button" onClick={() => loadDraft(item)}>
@@ -239,6 +239,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       )}
       <fetcher.Form method="post" className="op-form">
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
+        <input type="hidden" name="currentStatus" value={selectedStatus} />
         <label>
           Title
           <input name="title" required minLength={4} maxLength={150} value={draft.title} onChange={update("title")} />
@@ -295,7 +296,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <h2>MY PANELS</h2>
         <PanelDirectory label="Editorial panels" rows={draftRows} empty="No saved panels yet." />
       </section>
-      {result.capabilities.moderation && (
+      {result.capabilities.editorial && (
         <section>
           <h2>Review inbox</h2>
           <PanelDirectory label="Editorial review inbox" rows={reviewRows} empty="No submitted drafts waiting." />

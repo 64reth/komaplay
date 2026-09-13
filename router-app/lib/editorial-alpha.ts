@@ -13,7 +13,7 @@ export const draftSchema = z.object({
   imageAlt: z.string().trim().max(400).optional().default(""),
   sections: z.string().trim().min(20).max(20000),
   videoUrl: z.string().trim().max(2000).optional().default(""),
-  status: z.enum(["draft", "submitted"]).default("draft"),
+  status: z.enum(["draft", "submitted", "changes_requested", "publish_ready", "published", "archived", "taken_down"]).default("draft"),
 });
 
 export function bodyModules(sections: string, videoUrl = ""): ArticleModule[] {
@@ -77,14 +77,16 @@ export function composerFromWorkItem(item: EditorialWorkItem): z.infer<typeof dr
     imageAlt: String(imageModule?.content?.alt ?? item.image_alt ?? ""),
     sections: sections || "## Opening read\n\nContinue writing this panel.",
     videoUrl: String(videoModule?.content?.url ?? ""),
-    status: item.lifecycle_status === "submitted" ? "submitted" : "draft",
+    status: ["submitted", "changes_requested", "publish_ready", "published", "archived", "taken_down"].includes(item.lifecycle_status) ? item.lifecycle_status as any : "draft",
   };
 }
 
 export function editorialStatusLabel(status: string) {
   if (status === "submitted") return "Submitted for review";
   if (status === "changes_requested") return "Changes requested";
-  if (status === "approved") return "Publish-ready";
+  if (status === "publish_ready" || status === "approved") return "Publish-ready";
   if (status === "published") return "Published";
+  if (status === "archived") return "Archived";
+  if (status === "taken_down") return "Taken down";
   return "Draft";
 }
