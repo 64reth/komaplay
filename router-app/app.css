@@ -2886,3 +2886,66 @@ html {
     box-shadow: 6px 6px 0 color-mix(in srgb, var(--color-ink) 7%, transparent);
   }
 }
+
+/* Public about and documents pages. */
+.about-document {
+  max-width: 1120px;
+}
+.about-document section {
+  margin-block: clamp(28px, 5vw, 60px);
+}
+.about-document h2 {
+  margin-bottom: 14px;
+  font: 800 clamp(1.5rem, 4vw, 3rem)/0.95 var(--font-display, inherit);
+  text-transform: uppercase;
+}
+.about-document p {
+  max-width: 74ch;
+  line-height: 1.65;
+}
+.about-roles,
+.documents-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--color-ink);
+  background: var(--color-ink);
+}
+.about-roles section,
+.documents-list article {
+  margin: 0;
+  padding: clamp(18px, 3vw, 28px);
+  background: var(--color-paper);
+}
+.about-roles h3,
+.documents-list h2 {
+  margin: 0 0 10px;
+  font: 800 clamp(1.1rem, 2vw, 1.7rem)/1 var(--font-display, inherit);
+  text-transform: uppercase;
+}
+.documents-callout {
+  padding: clamp(18px, 4vw, 34px);
+  border: 1px solid var(--color-ink);
+  background: color-mix(in srgb, var(--color-paper) 90%, var(--color-accent) 10%);
+}
+.about-signoff {
+  margin-top: clamp(40px, 7vw, 80px);
+  padding-top: 20px;
+  border-top: 2px solid var(--color-ink);
+  font: 800 clamp(1.2rem, 3vw, 2rem)/1 var(--font-display, inherit);
+  text-transform: uppercase;
+}
+.about-signoff p {
+  margin: 0 0 8px;
+}
+.site-handbook-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+@media (max-width: 760px) {
+  .about-roles,
+  .documents-list {
+    grid-template-columns: 1fr;
+  }
+}

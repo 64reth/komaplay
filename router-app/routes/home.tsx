@@ -87,6 +87,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <Link to="/features/time">Read the first panel →</Link>
       </footer>
       <footer className="site-handbook-footer">
+        <Link to="/about">ABOUT</Link>
+        <Link to="/documents">DOCUMENTS</Link>
         <Link to="/handbook">COMMUNITY HANDBOOK</Link>
       </footer>
     </main>

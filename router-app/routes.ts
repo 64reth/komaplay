@@ -6,6 +6,8 @@ export default [
   route("features/:slug/workshop", "routes/workshop.tsx"),
   route("features/:slug/correction", "routes/correction.tsx"),
   route("archive", "routes/archive.tsx"),
+  route("about", "routes/about.tsx"),
+  route("documents", "routes/documents.tsx"),
   route("search", "routes/search.tsx"),
   route("handbook", "routes/handbook.tsx"),
   route("onboarding", "routes/onboarding.tsx"),

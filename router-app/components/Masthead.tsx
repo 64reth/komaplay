@@ -13,6 +13,9 @@ export function Masthead({ slug }: { slug?: string }) {
         <Link to="/" aria-current={!slug ? "page" : undefined}>
           HOME
         </Link>
+        <Link to="/about">
+          ABOUT
+        </Link>
         {issueZeroFeatures.map((feature) => (
           <Link
             key={feature.id}

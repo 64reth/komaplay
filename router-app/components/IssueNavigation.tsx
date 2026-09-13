@@ -17,6 +17,13 @@ export function IssueNavigation() {
       >
         Archive
       </Link>
+      <Link
+        className="active-underline"
+        to="/about"
+        aria-current={pathname === "/about" ? "page" : undefined}
+      >
+        About
+      </Link>
       <form action="/search" role="search">
         <label className="sr-only" htmlFor="global-search">
           Search KOMA://PLAY
