@@ -156,7 +156,7 @@ export function FeatureStrip({
               <span>{item.category}</span>
             </span>
             <span className="feature-art">
-              <img src={item.image} alt="" draggable={false} />
+              <img src={item.image} alt={item.imageAlt} draggable={false} />
             </span>
             <span className="feature-caption">
               <strong>{item.title}</strong>

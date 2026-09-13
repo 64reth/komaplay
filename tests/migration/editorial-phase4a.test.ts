@@ -445,3 +445,10 @@ test("editorial administrator grants expose publish controls through shared capa
   assert.match(moderationRoute, /PUBLISH FEATURE/);
   assert.match(moderationRoute, /No panels ready to publish\. Approve a submitted panel first\./);
 });
+
+test("phase 4b placeholder repair removes broken editorial SVG fallback", () => {
+  const repair = readFileSync("supabase/migrations/202609130006_editorial_placeholder_asset_path.sql", "utf8");
+  assert.match(repair, /where f\.image = '\/assets\/koma-vhs-v2\.svg'/);
+  assert.match(repair, /v_image text := coalesce\(nullif\(payload->>'image',''\),'\/assets\/koma-feature-placeholder\.svg'\)/);
+  assert.match(repair, /f\.image='\/assets\/koma-vhs-v2\.svg'/);
+});

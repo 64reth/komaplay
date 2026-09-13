@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { useState } from "react";
 import { Gallery } from "./Gallery";
 import { trustedVideo } from "../lib/media";
-import { resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
+import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import type {
   ArticleModule,
   EditorialDocument,
@@ -18,11 +18,13 @@ function Image({
   const caption = String(content.caption ?? "");
   const source = String(content.source ?? "");
   const citation = String(content.citation ?? "");
+  const src = resolvePublicMediaPath(String(content.src ?? ""));
+  const alt = src === KOMA_FEATURE_PLACEHOLDER ? KOMA_FEATURE_PLACEHOLDER_ALT : resolvePublicImageAlt(String(content.alt ?? ""));
   return (
     <figure className={wide ? "editorial-image wide" : "editorial-image"}>
       <img
-        src={resolvePublicMediaPath(String(content.src ?? ""))}
-        alt={resolvePublicImageAlt(String(content.alt ?? ""))}
+        src={src}
+        alt={alt}
         loading="lazy"
       />
       {(caption || source) && (
@@ -225,10 +227,11 @@ export function ArticleRenderer({ document }: { document: EditorialDocument }) {
         <p className="editorial-byline">By {document.header.byline}</p>
         {document.header.hero && (
           <figure className="editorial-hero">
-            <img
-              src={resolvePublicMediaPath(document.header.hero.src)}
-              alt={resolvePublicImageAlt(document.header.hero.alt)}
-            />
+            {(() => {
+              const src = resolvePublicMediaPath(document.header.hero.src);
+              const alt = src === KOMA_FEATURE_PLACEHOLDER ? KOMA_FEATURE_PLACEHOLDER_ALT : resolvePublicImageAlt(document.header.hero.alt);
+              return <img src={src} alt={alt} />;
+            })()}
             <figcaption>{document.header.heroCaption}</figcaption>
           </figure>
         )}

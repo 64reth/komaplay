@@ -8,7 +8,7 @@ import { ArticleRenderer } from "../components/ArticleRenderer";
 import { OpenPanelCountdown } from "../components/publication/OpenPanelCountdown";
 import { tokonGuide } from "../data/tokon-guide";
 import { editorial } from "../data/editorial";
-import { resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
+import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import {
   OpenPanelStatus,
   CommunityAdditions,
@@ -44,6 +44,8 @@ function documentFor(
   if (publishedDocument) return publishedDocument;
   if (feature.slug === "tokon") return tokonGuide;
   const copy = editorial[feature.slug];
+  const heroSrc = resolvePublicMediaPath(feature.image);
+  const heroAlt = heroSrc === KOMA_FEATURE_PLACEHOLDER ? KOMA_FEATURE_PLACEHOLDER_ALT : resolvePublicImageAlt(feature.image_alt);
   return {
     schemaVersion: 1,
     header: {
@@ -54,8 +56,8 @@ function documentFor(
       byline: "KOMA://PLAY Editorial",
       hero: {
         id: `${feature.slug}-hero`,
-        src: resolvePublicMediaPath(feature.image),
-        alt: resolvePublicImageAlt(feature.image_alt),
+        src: heroSrc,
+        alt: heroAlt,
       },
       heroCaption: "KOMA://PLAY editorial artwork",
     },

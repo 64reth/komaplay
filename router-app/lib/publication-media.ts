@@ -10,9 +10,13 @@ const retiredVhsAssets = new Set([
   "/assets/koma-vhs.png",
 ]);
 
+const brokenEditorialPlaceholders = new Set([
+  "/assets/koma-vhs-v2.svg",
+]);
+
 export function resolvePublicMediaPath(path: string | null | undefined) {
   const value = (path ?? "").trim();
-  if (!value) return KOMA_FEATURE_PLACEHOLDER;
+  if (!value || brokenEditorialPlaceholders.has(value)) return KOMA_FEATURE_PLACEHOLDER;
   return retiredVhsAssets.has(value) ? KOMA_VHS_ASSET : value;
 }
 

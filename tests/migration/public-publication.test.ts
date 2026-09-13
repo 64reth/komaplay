@@ -81,3 +81,8 @@ test("feature image fallback uses the KOMA placeholder only when image data is m
   assert.equal(items[1].image, "/assets/clue-gun.png");
   assert.equal(items[1].imageAlt, "Existing art");
 });
+
+test("broken editorial placeholder paths resolve to the canonical placeholder", async () => {
+  const { KOMA_FEATURE_PLACEHOLDER, resolvePublicMediaPath } = await import("../../router-app/lib/publication-media.ts");
+  assert.equal(resolvePublicMediaPath("/assets/koma-vhs-v2.svg"), KOMA_FEATURE_PLACEHOLDER);
+});

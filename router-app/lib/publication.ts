@@ -1,5 +1,5 @@
 import type { FeatureItem } from "../data/issue-zero";
-import { resolvePublicImageAlt, resolvePublicMediaPath } from "./publication-media";
+import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "./publication-media";
 export type Issue = {
   id: string;
   issue_number: number;
@@ -203,17 +203,20 @@ export function stripItems(
   return features
     .filter((f) => f.weekly_drop_id === drop.id)
     .sort((a, b) => a.strip_position - b.strip_position)
-    .map((f, i) => ({
-      id: f.slug,
-      issueNumber: String(issue?.issue_number ?? 0).padStart(3, "0"),
-      category:
-        data.categories.find((c) => c.id === f.category_id)?.name ?? "Feature",
-      title: f.title,
-      summary: f.summary,
-      image: resolvePublicMediaPath(f.image),
-      imageAlt: resolvePublicImageAlt(f.image_alt),
-      pageIndex: i + 1,
-      panelSize: f.panel_size,
-      panelClass: f.panel_class,
-    }));
+    .map((f, i) => {
+      const image = resolvePublicMediaPath(f.image);
+      return {
+        id: f.slug,
+        issueNumber: String(issue?.issue_number ?? 0).padStart(3, "0"),
+        category:
+          data.categories.find((c) => c.id === f.category_id)?.name ?? "Feature",
+        title: f.title,
+        summary: f.summary,
+        image,
+        imageAlt: image === KOMA_FEATURE_PLACEHOLDER ? KOMA_FEATURE_PLACEHOLDER_ALT : resolvePublicImageAlt(f.image_alt),
+        pageIndex: i + 1,
+        panelSize: f.panel_size,
+        panelClass: f.panel_class,
+      };
+    });
 }
