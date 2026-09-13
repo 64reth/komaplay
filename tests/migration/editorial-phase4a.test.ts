@@ -65,8 +65,8 @@ test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(editorialRoute, /Submitted for review/);
   assert.match(editorialRoute, /role=\"status\"/);
   assert.match(editorialRoute, /role=\"alert\"/);
-  assert.match(editorialRoute, /useFetcher<typeof action>/);
-  assert.match(editorialRoute, /<fetcher\.Form/);
+  assert.doesNotMatch(editorialRoute, /useFetcher/);
+  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form"/);
   assert.match(editorialRoute, /value=\{draft\.featureId/);
   assert.match(editorialRoute, /name="intent" value="save"/);
   assert.match(editorialRoute, /name="intent" value="submit"/);
@@ -218,5 +218,20 @@ test("row submit is a minimal normal form action", () => {
   assert.match(editorialRoute, /name="featureId" value=\{item\.feature_id\}/);
   assert.doesNotMatch(editorialRoute, /name="title" value=\{item\.title \?\?/);
   assert.match(editorialRoute, /useActionData<typeof action>/);
-  assert.match(editorialRoute, /fetcher\.data \?\? routeActionData/);
+  assert.match(editorialRoute, /const response = routeActionData/);
+});
+
+
+test("composer persistence uses the route action result", () => {
+  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form">/);
+  assert.match(editorialRoute, /name="title"/);
+  assert.match(editorialRoute, /name="slug"/);
+  assert.match(editorialRoute, /name="summary"/);
+  assert.match(editorialRoute, /name="sections"/);
+  assert.match(editorialRoute, /name="intent" value="save"/);
+  assert.match(editorialRoute, /name="intent" value="submit"/);
+  assert.match(editorialRoute, /rpc\("save_editorial_draft"/);
+  assert.match(editorialRoute, /const response = routeActionData/);
+  assert.match(editorialRoute, /Draft saved\./);
+  assert.match(editorialRoute, /Submitted for review\./);
 });

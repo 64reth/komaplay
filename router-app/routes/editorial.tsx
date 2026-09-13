@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { data, Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useSearchParams } from "react-router";
+import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
@@ -122,7 +122,6 @@ const initialComposer: ComposerState = {
 };
 
 function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
-  const fetcher = useFetcher<typeof action>();
   const routeActionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [draft, setDraft] = useState<ComposerState>(() => {
@@ -130,8 +129,8 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
-  const pending = fetcher.state !== "idle" || navigation.state !== "idle";
-  const response = fetcher.data ?? routeActionData;
+  const pending = navigation.state !== "idle";
+  const response = routeActionData;
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
   const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
@@ -234,7 +233,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>{draft.slug}</p>
         </article>
       )}
-      <fetcher.Form method="post" className="op-form">
+      <Form method="post" action="/editorial" className="op-form">
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
         <input type="hidden" name="currentStatus" value={selectedStatus} />
         <label>
@@ -284,7 +283,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
             {pending && submitIntent === "submit" ? "SUBMITTING…" : isSubmitted ? "SUBMITTED" : isPublishReady ? "PUBLISH-READY" : isChangesRequested ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}
           </button>
         </div>
-      </fetcher.Form>
+      </Form>
       <section>
         <h2>Preview</h2>
         <ArticleRenderer document={preview} />
