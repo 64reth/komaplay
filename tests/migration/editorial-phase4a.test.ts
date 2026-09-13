@@ -469,13 +469,13 @@ test("publish and takedown require explicit confirmation", () => {
   assert.match(moderationRoute, /CONFIRM PUBLISH/);
   assert.match(moderationRoute, /CONFIRM TAKE DOWN/);
   assert.match(moderationRoute, /CANCEL/);
-  assert.match(moderationRoute, /value=\{confirmation\.kind === "publish" \? "publishFeature" : confirmation\.kind === "archive" \? "archiveFeature" : "takeDownFeature"\}/);
+  assert.match(moderationRoute, /value=\{confirmation\.kind === "publish" \? "publishFeature" : confirmation\.kind === "archive" \? "archiveFeature" : confirmation\.kind === "closeIssue" \? "closeIssue" : "takeDownFeature"\}/);
 });
 
 test("publish and takedown server-side permission checks still apply", () => {
-  assert.match(moderationRoute, /if \(intent === "publishFeature" \|\| intent === "takeDownFeature" \|\| intent === "archiveFeature"\)/);
+  assert.match(moderationRoute, /if \(intent === "publishFeature" \|\| intent === "takeDownFeature" \|\| intent === "archiveFeature" \|\| intent === "closeIssue"\)/);
   assert.match(moderationRoute, /!context\.capabilities\.moderation/);
-  assert.match(moderationRoute, /Moderator access is required to publish, archive or take down panels\./);
+  assert.match(moderationRoute, /Moderator access is required to publish, archive, close or take down panels\./);
   assert.match(moderationRoute, /publish_editorial_panel/);
   assert.match(moderationRoute, /take_down_editorial_panel/);
 });
@@ -515,4 +515,41 @@ test("phase 4c takedown works from archived state and hides public panels", () =
   assert.match(archiveMigration, /doc\.lifecycle_status not in \('published','archived'\)/);
   assert.match(archiveMigration, /lifecycle_status='taken_down'/);
   assert.match(archiveMigration, /ed\.lifecycle_status in \('approved','published','archived','taken_down'\)/);
+});
+
+test("phase 4d manual archive attaches panels to their calendar-month issue", () => {
+  const issueClose = readFileSync("supabase/migrations/202609130010_issue_close_month_assignment.sql", "utf8");
+  assert.match(issueClose, /create or replace function public\.issue_drop_for_month\(panel_date timestamptz\)/);
+  assert.match(issueClose, /where i\.year=v_year and i\.month=v_month/);
+  assert.match(issueClose, /on conflict\(year,month\)/);
+  assert.match(issueClose, /panel_date := coalesce\(feature\.published_at,\(select min\(s\.created_at\)[\s\S]*feature\.created_at,feature\.archived_at,now\(\)\)/);
+  assert.match(issueClose, /set issue_id=target_issue,[\s\S]*weekly_drop_id=target_drop,[\s\S]*lifecycle_status='archived'/);
+});
+
+test("phase 4d issue close includes live and already archived same-month panels", () => {
+  const issueClose = readFileSync("supabase/migrations/202609130010_issue_close_month_assignment.sql", "utf8");
+  assert.match(issueClose, /create or replace function public\.close_current_issue\(\)/);
+  assert.match(issueClose, /coalesce\(ed\.lifecycle_status,f\.lifecycle_status\) in \('published','archived'\)/);
+  assert.match(issueClose, /f\.issue_id=target_issue\.id/);
+  assert.match(issueClose, /extract\(year from coalesce\(f\.published_at,f\.created_at,f\.archived_at\)/);
+  assert.match(issueClose, /set issue_id=target_issue\.id/);
+  assert.match(issueClose, /set status='archived'/);
+  assert.match(issueClose, /Archived by issue close/);
+});
+
+test("phase 4d moderation exposes manual issue close preview and confirmation", () => {
+  assert.match(moderationRoute, /issue_close_preview/);
+  assert.match(moderationRoute, /CLOSE CURRENT ISSUE/);
+  assert.match(moderationRoute, /Close the current issue\? Published panels from this issue will move to the Archive and leave live issue spaces\. Drafts, submitted panels and publish-ready panels will remain active\./);
+  assert.match(moderationRoute, /CONFIRM CLOSE ISSUE/);
+  assert.match(moderationRoute, /close_current_issue/);
+  assert.match(moderationRoute, /Issue closed and archived\./);
+});
+
+test("phase 4d archive page prefers issue grouping over loose fallback", () => {
+  const archiveRoute = readFileSync("router-app/routes/archive.tsx", "utf8");
+  assert.match(archiveRoute, /<ArchiveShelf data=\{data\} issues=\{archiveIssues\(data, filters\)\} \/>/);
+  assert.match(archiveRoute, /feature\.lifecycle_status === "archived" && !feature\.issue_id/);
+  assert.match(archiveRoute, /Loose archived panels/);
+  assert.match(archiveRoute, /No archived panels yet\./);
 });

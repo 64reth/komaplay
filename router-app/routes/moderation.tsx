@@ -24,13 +24,14 @@ async function moderationContext(request: Request) {
 export async function loader({ request }: Route.LoaderArgs) {
   const context = await moderationContext(request);
   const { resolved } = context;
-  if (context.state !== "accepted" || !resolved.client) return data({ state: context.state, capabilities: context.capabilities, grants: [], review: [] }, { headers: resolved.headers });
-  const [grants, review, publication] = await Promise.all([
+  if (context.state !== "accepted" || !resolved.client) return data({ state: context.state, capabilities: context.capabilities, grants: [], review: [], closePreview: null }, { headers: resolved.headers });
+  const [grants, review, publication, closePreview] = await Promise.all([
     resolved.client.from("editorial_access_grants").select("id,access_level,scope_type,granted_at,revoked_at,reason,profiles!editorial_access_grants_user_id_fkey(display_name)").order("granted_at", { ascending: false }),
     resolved.client.rpc("editorial_review_inbox"),
     resolved.client.rpc("editorial_publication_panels"),
+    context.capabilities.moderation ? resolved.client.rpc("issue_close_preview") : Promise.resolve({ data: null, error: null }),
   ]);
-  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [], publication: publication.error ? [] : publication.data ?? [] }, { headers: resolved.headers });
+  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [], publication: publication.error ? [] : publication.data ?? [], closePreview: closePreview.error ? null : closePreview.data }, { headers: resolved.headers });
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -49,8 +50,13 @@ export async function action({ request }: Route.ActionArgs) {
       if (result.error) throw new Error(result.error.message);
       return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
     }
-    if (intent === "publishFeature" || intent === "takeDownFeature" || intent === "archiveFeature") {
-      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish, archive or take down panels." }, { status: 403, headers: resolved.headers });
+    if (intent === "publishFeature" || intent === "takeDownFeature" || intent === "archiveFeature" || intent === "closeIssue") {
+      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish, archive, close or take down panels." }, { status: 403, headers: resolved.headers });
+      if (intent === "closeIssue") {
+        const result = await resolved.client.rpc("close_current_issue");
+        if (result.error) throw new Error(result.error.message);
+        return data({ success: "Issue closed and archived." }, { headers: resolved.headers });
+      }
       const featureId = String(form.get("featureId") ?? "");
       const rpcName = intent === "publishFeature" ? "publish_editorial_panel" : intent === "archiveFeature" ? "archive_editorial_panel" : "take_down_editorial_panel";
       const result = await resolved.client.rpc(rpcName, { target: featureId });
@@ -81,7 +87,7 @@ export default function Moderation() {
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
-  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown" | "archive"; featureId: string; title: string; slug: string }>(null);
+  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown" | "archive" | "closeIssue"; featureId?: string; title: string; slug: string }>(null);
   if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
   const selectedReviewId = searchParams.get("review") ?? "";
   const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
@@ -149,19 +155,19 @@ export default function Moderation() {
               aria-labelledby="publication-confirmation-title"
             >
               <p className="editorial-marker">PUBLICATION CHECK</p>
-              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : confirmation.kind === "archive" ? "Archive this panel?" : "Take down this feature?"}</h2>
+              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : confirmation.kind === "archive" ? "Archive this panel?" : confirmation.kind === "closeIssue" ? "Close the current issue?" : "Take down this feature?"}</h2>
               <p><strong>{confirmation.title}</strong></p>
               {confirmation.slug && <p className="field-help">Public URL: /features/{confirmation.slug}</p>}
-              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : confirmation.kind === "archive" ? "Archive this panel? It will leave the current issue spaces and move to the Archive. Public archive access will remain available." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
+              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : confirmation.kind === "archive" ? "Archive this panel? It will leave the current issue spaces and move to the Archive. Public archive access will remain available." : confirmation.kind === "closeIssue" ? "Close the current issue? Published panels from this issue will move to the Archive and leave live issue spaces. Drafts, submitted panels and publish-ready panels will remain active." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
               <Form method="post" className="profile-actions">
-                <input type="hidden" name="featureId" value={confirmation.featureId} />
+                {confirmation.featureId && <input type="hidden" name="featureId" value={confirmation.featureId} />}
                 <button
                   className={confirmation.kind === "publish" ? "op-button action-primary" : "op-button"}
                   name="intent"
-                  value={confirmation.kind === "publish" ? "publishFeature" : confirmation.kind === "archive" ? "archiveFeature" : "takeDownFeature"}
+                  value={confirmation.kind === "publish" ? "publishFeature" : confirmation.kind === "archive" ? "archiveFeature" : confirmation.kind === "closeIssue" ? "closeIssue" : "takeDownFeature"}
                   disabled={navigation.state !== "idle"}
                 >
-                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : confirmation.kind === "archive" ? "CONFIRM ARCHIVE" : "CONFIRM TAKE DOWN"}
+                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : confirmation.kind === "archive" ? "CONFIRM ARCHIVE" : confirmation.kind === "closeIssue" ? "CONFIRM CLOSE ISSUE" : "CONFIRM TAKE DOWN"}
                 </button>
                 <button className="op-button" type="button" onClick={() => setConfirmation(null)} disabled={navigation.state !== "idle"}>CANCEL</button>
               </Form>
@@ -177,6 +183,20 @@ export default function Moderation() {
               <h2>PUBLICATION CONTROLS</h2>
               <p>Publish-ready panels can become public features. Published panels can be taken down without deleting history.</p>
               <PanelDirectory label="Publication controls" rows={publicationRows} empty="No panels ready to publish. Approve a submitted panel first." />
+
+              <section className="review-decision-desk" aria-label="Issue close controls">
+                <p className="editorial-marker">MONTHLY RESET</p>
+                <h3>CLOSE CURRENT ISSUE</h3>
+                <p>{result.closePreview?.status === "ready" ? `${result.closePreview.eligiblePanelCount ?? 0} published or already archived panels are eligible for ${result.closePreview.issueTitle ?? "the current issue"}.` : "No current issue is ready to close."}</p>
+                <button
+                  className="op-button"
+                  type="button"
+                  disabled={navigation.state !== "idle" || result.closePreview?.status !== "ready"}
+                  onClick={() => setConfirmation({ kind: "closeIssue", title: `${result.closePreview?.issueTitle ?? "Current issue"}`, slug: "" })}
+                >
+                  CLOSE CURRENT ISSUE
+                </button>
+              </section>
             </>
           )}
           <section id="review-preview" className="review-preview-shell" aria-label="Review preview">

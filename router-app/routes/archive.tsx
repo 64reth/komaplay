@@ -21,7 +21,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 export default function Archive({ loaderData }: Route.ComponentProps) {
   const { data, filters } = loaderData;
-  const archivedPanels = data.features.filter((feature) => feature.lifecycle_status === "archived");
+  const archivedPanels = data.features.filter((feature) => feature.lifecycle_status === "archived" && !feature.issue_id);
   const panelRows: PanelDirectoryRow[] = archivedPanels.map((feature) => {
     const issue = data.issues.find((item) => item.id === feature.issue_id);
     const category = data.categories.find((item) => item.id === feature.category_id);
@@ -46,11 +46,11 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
         <p>Completed issues. Preserved panels. Every contributor credited.</p>
         {data.message && <p className="op-notice">{data.message}</p>}
         <DiscoveryForm data={data} filters={filters} archive />
-        <section>
-          <h2>Archived panels</h2>
-          <PanelDirectory label="Archived panels" rows={panelRows} empty="No archived panels yet." />
-        </section>
         <ArchiveShelf data={data} issues={archiveIssues(data, filters)} />
+        <section>
+          <h2>Loose archived panels</h2>
+          <PanelDirectory label="Loose archived panels" rows={panelRows} empty="No archived panels yet." />
+        </section>
       </div>
     </main>
   );
