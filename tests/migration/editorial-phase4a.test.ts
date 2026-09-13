@@ -237,21 +237,6 @@ test("composer persistence uses the route action result", () => {
 });
 
 
-test("temporary editorial action trace exposes safe action details", () => {
-  assert.match(editorialRoute, /debugTrace/);
-  assert.match(editorialRoute, /actionReached/);
-  assert.match(editorialRoute, /titlePresent/);
-  assert.match(editorialRoute, /slugPresent/);
-  assert.match(editorialRoute, /featureIdPresent/);
-  assert.match(editorialRoute, /rpcCalledName/);
-  assert.match(editorialRoute, /rpcSuccess/);
-  assert.match(editorialRoute, /resultingLifecycleStatus/);
-  assert.match(editorialRoute, /TEMP EDITORIAL TRACE/);
-  assert.doesNotMatch(editorialRoute, /cookie/i);
-  assert.doesNotMatch(editorialRoute, /email/i);
-});
-
-
 test("save editorial draft avoids ambiguous status references", () => {
   const statusFixMigration = readFileSync("supabase/migrations/202609130003_fix_save_editorial_draft_status_ambiguity.sql", "utf8");
   assert.match(statusFixMigration, /requested_status text:=coalesce/);
@@ -263,16 +248,27 @@ test("save editorial draft avoids ambiguous status references", () => {
 });
 
 
-test("temporary editorial trace wraps validation rpc and exceptions", () => {
-  assert.match(editorialRoute, /beforeValidation/);
-  assert.match(editorialRoute, /afterValidation/);
-  assert.match(editorialRoute, /beforeDocumentBuild/);
-  assert.match(editorialRoute, /afterDocumentBuild/);
-  assert.match(editorialRoute, /beforeRpc/);
-  assert.match(editorialRoute, /afterRpc/);
-  assert.match(editorialRoute, /rawRpcDataKind/);
-  assert.match(editorialRoute, /rawRpcDataKeys/);
-  assert.match(editorialRoute, /exceptionCaught/);
-  assert.match(editorialRoute, /exceptionName/);
-  assert.match(editorialRoute, /exceptionMessage/);
+test("save editorial draft avoids category and column local ambiguity", () => {
+  const columnFixMigration = readFileSync("supabase/migrations/202609130004_fix_save_editorial_draft_column_ambiguity.sql", "utf8");
+  assert.match(columnFixMigration, /v_category_id uuid/);
+  assert.match(columnFixMigration, /category_id=v_category_id/);
+  assert.match(columnFixMigration, /format_id=v_format_id/);
+  assert.match(columnFixMigration, /where wd\.issue_id=v_issue_id/);
+  assert.doesNotMatch(columnFixMigration, /declare[\s\S]* category_id uuid/);
+  assert.doesNotMatch(columnFixMigration, /category_id=category_id/);
+  assert.doesNotMatch(columnFixMigration, /format_id=format_id/);
+  assert.doesNotMatch(columnFixMigration, /where issue_id=/);
+});
+
+
+test("temporary editorial trace is removed from production UI", () => {
+  assert.doesNotMatch(editorialRoute, /TEMP EDITORIAL TRACE/);
+  assert.doesNotMatch(editorialRoute, /debugTrace/);
+});
+
+test("image alt validation remains visible beside the field", () => {
+  assert.match(editorialRoute, /Image alt text is required when an image is provided/);
+  assert.match(editorialRoute, /id="image-alt-help"/);
+  assert.match(editorialRoute, /aria-describedby="image-alt-help"/);
+  assert.match(editorialRoute, /default KOMA:\/\/PLAY placeholder/);
 });
