@@ -270,5 +270,94 @@ test("image alt validation remains visible beside the field", () => {
   assert.match(editorialRoute, /Image alt text is required when an image is provided/);
   assert.match(editorialRoute, /id="image-alt-help"/);
   assert.match(editorialRoute, /aria-describedby="image-alt-help"/);
-  assert.match(editorialRoute, /default KOMA:\/\/PLAY placeholder/);
+  assert.match(editorialRoute, /Placeholder fallback uses default alt text: KOMA:\/\/PLAY editorial placeholder\./);
+});
+
+test("shared review inbox is account-wide for authorised editorial reviewers", () => {
+  assert.match(canonicalLifecycleMigration, /create or replace function public\.editorial_review_inbox\(\)/);
+  assert.match(canonicalLifecycleMigration, /where public\.editorial_has_access\(auth\.uid\(\),false\)/);
+  assert.match(canonicalLifecycleMigration, /ed\.lifecycle_status in \('submitted','changes_requested','approved'\)/);
+  assert.match(canonicalLifecycleMigration, /left join public\.profiles p on p\.id=ed\.author_id/);
+  assert.match(canonicalLifecycleMigration, /coalesce\(nullif\(p\.display_name,''\),'Panelist'\)/);
+  const reviewInboxBody = canonicalLifecycleMigration.slice(canonicalLifecycleMigration.indexOf("create or replace function public.editorial_review_inbox"), canonicalLifecycleMigration.indexOf("create or replace function public.editorial_submitted_drafts"));
+  assert.doesNotMatch(reviewInboxBody, /ed\.author_id\s*=\s*auth\.uid\(\)/);
+  assert.doesNotMatch(reviewInboxBody, /author_id=auth\.uid\(\)/);
+  assert.doesNotMatch(reviewInboxBody, /email/i);
+  assert.doesNotMatch(reviewInboxBody, /aca99070|d57573e6|gareth/i);
+  const reviewRpcLine = moderationRoute.split("\n").find((line) => line.includes('rpc("editorial_review_inbox")')) ?? "";
+  assert.match(reviewRpcLine, /resolved\.client\.rpc\("editorial_review_inbox"\)/);
+  assert.doesNotMatch(reviewRpcLine, /author_id|profile_id|user_id/);
+  const reviewRowsBody = moderationRoute.slice(moderationRoute.indexOf("const reviewRows"), moderationRoute.indexOf("return ("));
+  assert.match(reviewRowsBody, /result\.review\.map/);
+  assert.doesNotMatch(reviewRowsBody, /author_id|profile_id|user_id/);
+  assert.match(moderationRoute, /capabilities\.editorial \|\| capabilities\.moderation/);
+});
+
+test("review inbox visibility model is editor A to editor B shared while drafts stay private", () => {
+  const myWorkBody = canonicalLifecycleMigration.slice(canonicalLifecycleMigration.indexOf("create or replace function public.editorial_my_work"), canonicalLifecycleMigration.indexOf("create or replace function public.editorial_review_inbox"));
+  const reviewInboxBody = canonicalLifecycleMigration.slice(canonicalLifecycleMigration.indexOf("create or replace function public.editorial_review_inbox"), canonicalLifecycleMigration.indexOf("create or replace function public.editorial_submitted_drafts"));
+  assert.match(myWorkBody, /ed\.author_id=auth\.uid\(\)/, "editor A drafts are private to editor A in My Panels");
+  assert.match(myWorkBody, /ed\.lifecycle_status in \('draft','submitted','changes_requested','approved'\)/);
+  assert.doesNotMatch(reviewInboxBody, /ed\.author_id=auth\.uid\(\)/, "editor B can see editor A submitted panels through shared inbox");
+  assert.match(reviewInboxBody, /public\.editorial_has_access\(auth\.uid\(\),false\)/, "editor B and admins pass editor-or-higher permission");
+  assert.doesNotMatch(reviewInboxBody, /ed\.lifecycle_status in \('draft'/, "editor A drafts do not enter editor B shared review pool");
+});
+
+test("guided editorial form explains slug format and auto-suggest behaviour", () => {
+  assert.match(editorialRoute, /The short URL name for this panel\. Use lowercase letters, numbers and hyphens\./);
+  assert.match(editorialRoute, /Example: sucker-punch-doing-what-ubisoft-cant/);
+  assert.match(editorialRoute, /const \[slugEdited, setSlugEdited\]/);
+  assert.match(editorialRoute, /if \(field === "title" && !slugEdited && !current\.featureId\) next\.slug = slugify\(value\)/);
+  assert.match(editorialRoute, /Use lowercase letters, numbers and hyphens only\. Do not use spaces or punctuation\./);
+});
+
+test("guided image fields explain alt text and show inline validation", () => {
+  assert.match(editorialRoute, /Optional\. Add an image URL or uploaded image path for the feature card and article preview\./);
+  assert.match(editorialRoute, /Required when you add an image\. Describe the image for readers using assistive technology\./);
+  assert.match(editorialRoute, /Image alt text is required when an image is provided\./);
+  assert.match(editorialRoute, /Placeholder fallback uses default alt text: KOMA:\/\/PLAY editorial placeholder\./);
+});
+
+test("save and submit guidance names private My Panels and shared Review Inbox", () => {
+  assert.match(editorialRoute, /Draft saved\. You can leave and return from MY PANELS\./);
+  assert.match(editorialRoute, /Submitted for review\. Editors can now see this in the Review Inbox\./);
+  assert.match(editorialRoute, /Save keeps this private in MY PANELS\./);
+  assert.match(editorialRoute, /Submit sends it to the shared Review Inbox for editors and moderators\./);
+  assert.match(editorialRoute, /Drafts are private until submitted\./);
+});
+
+test("changes-requested guidance renders reviewer note and resubmit actions", () => {
+  assert.match(editorialRoute, /Reviewer note:/);
+  assert.match(editorialRoute, /Make your changes, then resubmit so editors can review the new version\./);
+  assert.match(editorialRoute, /SAVE REVISION/);
+  assert.match(editorialRoute, /RESUBMIT FOR REVIEW/);
+});
+
+test("human-readable panel directory statuses are contextual", () => {
+  const helper = readFileSync("router-app/lib/editorial-alpha.ts", "utf8");
+  assert.match(helper, /export function myPanelsStatusLabel/);
+  assert.match(helper, /Private draft/);
+  assert.match(helper, /In shared review/);
+  assert.match(helper, /Needs revision/);
+  assert.match(helper, /Ready for publication/);
+  assert.match(helper, /export function reviewInboxStatusLabel/);
+  assert.match(helper, /Awaiting review/);
+  assert.match(helper, /Returned for revision/);
+  assert.match(profileRoute, /myPanelsStatusLabel/);
+  assert.match(editorialRoute, /myPanelsStatusLabel/);
+  assert.match(moderationRoute, /reviewInboxStatusLabel/);
+});
+
+test("directory window and live preview shell render in normal UI", () => {
+  const directory = readFileSync("router-app/components/PanelDirectory.tsx", "utf8");
+  const css = readFileSync("router-app/app.css", "utf8");
+  assert.match(directory, /panel-directory-window/);
+  assert.match(directory, /directory window/);
+  assert.match(css, /\.panel-directory-window/);
+  assert.match(css, /max-height: min\(64vh, 620px\)/);
+  assert.match(css, /position: sticky/);
+  assert.match(editorialRoute, /LIVE PREVIEW/);
+  assert.match(editorialRoute, /Start typing to build the panel preview\./);
+  assert.match(editorialRoute, /editorial-preview-shell/);
+  assert.doesNotMatch(editorialRoute, /TEMP EDITORIAL TRACE/);
 });

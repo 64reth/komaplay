@@ -5,6 +5,7 @@ import { Masthead } from "../components/Masthead";
 import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
+import { reviewInboxStatusLabel } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 async function moderationContext(request: Request) {
@@ -74,7 +75,7 @@ export default function Moderation() {
     id: draft.feature_id,
     title: draft.title ?? "Untitled submitted panel",
     type: "Editorial Feature",
-    status: draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status === "publish_ready" ? "Publish-ready" : draft.lifecycle_status,
+    status: reviewInboxStatusLabel(draft.lifecycle_status),
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.summary ?? ""}`,
     action: <a href={`#review-${draft.feature_id}`}>REVIEW ↓</a>,
@@ -114,7 +115,7 @@ export default function Moderation() {
             <article key={draft.feature_id} id={`review-${draft.feature_id}`} className="review-panel">
               <p className="editorial-marker">REVIEW PANEL</p>
               <h3>{draft.title}</h3>
-              <p>{draft.author_display_name ?? "Panelist"} · {draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status === "publish_ready" ? "Publish-ready" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
+              <p>{draft.author_display_name ?? "Panelist"} · {reviewInboxStatusLabel(draft.lifecycle_status)} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
               <p>{draft.summary}</p>
               <ArticleRenderer document={draft.working_document as any} />
               {result.capabilities.moderation ? (

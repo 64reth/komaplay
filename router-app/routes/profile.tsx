@@ -4,7 +4,7 @@ import { Masthead } from "../components/Masthead";
 import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
-import { editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
+import { myPanelsStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 export const meta: Route.MetaFunction = () => [
@@ -143,7 +143,7 @@ export default function Profile() {
           id: `editorial-${item.feature_id}`,
           title: item.title ?? "Untitled panel",
           type: "Editorial Feature",
-          status: editorialStatusLabel(item.lifecycle_status),
+          status: myPanelsStatusLabel(item.lifecycle_status),
           date: new Date(item.updated_at).toLocaleDateString("en-GB"),
           meta: item.slug,
           action: <Link to={`/editorial?feature=${item.feature_id}`}>{item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"} →</Link>,

@@ -90,3 +90,18 @@ export function editorialStatusLabel(status: string) {
   if (status === "taken_down") return "Taken down";
   return "Draft";
 }
+
+export function myPanelsStatusLabel(status: string) {
+  if (status === "submitted") return "In shared review";
+  if (status === "changes_requested") return "Needs revision";
+  if (status === "publish_ready" || status === "approved") return "Ready for publication";
+  if (status === "published") return "Published";
+  return "Private draft";
+}
+
+export function reviewInboxStatusLabel(status: string) {
+  if (status === "submitted") return "Awaiting review";
+  if (status === "changes_requested") return "Returned for revision";
+  if (status === "publish_ready" || status === "approved") return "Ready for publication";
+  return editorialStatusLabel(status);
+}

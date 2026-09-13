@@ -7,7 +7,7 @@ import { Masthead } from "../components/Masthead";
 import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
-import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
+import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 
@@ -60,7 +60,7 @@ export async function action({ request }: Route.ActionArgs) {
       if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
       if (saved.error) throw new Error(saved.error.message);
-      return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
+      return data({ success: "Submitted for review. Editors can now see this in the Review Inbox.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
     }
     const value = draftSchema.parse({
       featureId: form.get("featureId") ?? "",
@@ -80,7 +80,7 @@ export async function action({ request }: Route.ActionArgs) {
       payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections), status: value.status, document },
     });
     if (saved.error) throw new Error(saved.error.message);
-    return data({ success: intent === "submit" ? "Submitted for review." : "Draft saved.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
+    return data({ success: intent === "submit" ? "Submitted for review. Editors can now see this in the Review Inbox." : "Draft saved. You can leave and return from MY PANELS.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
   } catch (error) {
     return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." }, { status: 400, headers: resolved.headers });
   }
@@ -110,13 +110,13 @@ type AcceptedLoaderData = {
 
 const initialComposer: ComposerState = {
   featureId: "",
-  title: "Tokon draft feature",
-  slug: "tokon-draft",
-  summary: "A concise summary for the feature strip and article header.",
+  title: "",
+  slug: "",
+  summary: "",
   categoryId: "",
   image: "",
   imageAlt: "",
-  sections: "## Opening read\n\nWrite the first section here. Use blank lines between paragraphs.\n\n## Second section\n\nAdd another paragraph for the draft.",
+  sections: "",
   videoUrl: "",
   status: "draft",
 };
@@ -129,6 +129,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
+  const [slugEdited, setSlugEdited] = useState(Boolean(selectedFeatureId));
   const pending = navigation.state !== "idle";
   const response = routeActionData;
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
@@ -138,10 +139,16 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const isSubmitted = selectedStatus === "submitted";
   const isPublishReady = selectedStatus === "publish_ready" || selectedStatus === "approved";
   const isChangesRequested = selectedStatus === "changes_requested";
+  const hasComposerContent = Boolean(draft.title.trim() || draft.summary.trim() || draft.sections.trim());
+  const imageAltError = Boolean(draft.image && !draft.imageAlt);
+  const slugError = Boolean(draft.slug && !/^[a-z0-9-]{3,80}$/.test(draft.slug));
 
   useEffect(() => {
     const selectedWork = result.drafts.find((item) => item.feature_id === selectedFeatureId);
-    if (selectedWork) setDraft(composerFromWorkItem(selectedWork));
+    if (selectedWork) {
+      setDraft(composerFromWorkItem(selectedWork));
+      setSlugEdited(true);
+    }
   }, [result.drafts, selectedFeatureId]);
 
   useEffect(() => {
@@ -162,18 +169,33 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     }
   }, [draft]);
 
+  const slugify = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
   const update =
     (field: keyof ComposerState) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setDraft((current) => ({ ...current, [field]: event.target.value, status: current.status === "submitted" ? "draft" : current.status }));
+      const value = event.target.value;
+      if (field === "slug") setSlugEdited(true);
+      setDraft((current) => {
+        const next = { ...current, [field]: value, status: current.status === "submitted" ? "draft" : current.status };
+        if (field === "title" && !slugEdited && !current.featureId) next.slug = slugify(value);
+        return next;
+      });
     };
   const loadDraft = (item: EditorialWorkItem) => {
     setDraft(composerFromWorkItem(item));
+    setSlugEdited(true);
   };
 
   const draftRows: PanelDirectoryRow[] = result.drafts.map((item) => {
     const rowStatus = actionFeatureId === item.feature_id && response && "status" in response && typeof response.status === "string" ? response.status : item.lifecycle_status;
-    const rowLabel = actionFeatureId === item.feature_id && response && "success" in response && rowStatus === "draft" ? "Draft saved" : editorialStatusLabel(rowStatus);
+    const rowLabel = actionFeatureId === item.feature_id && response && "success" in response && rowStatus === "draft" ? "Draft saved" : myPanelsStatusLabel(rowStatus);
     return {
     id: item.feature_id,
     title: item.title ?? "Untitled draft",
@@ -201,7 +223,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     id: item.feature_id,
     title: item.title ?? "Untitled submitted panel",
     type: "Editorial Feature",
-    status: editorialStatusLabel(item.lifecycle_status),
+    status: reviewInboxStatusLabel(item.lifecycle_status),
     date: new Date(item.updated_at).toLocaleDateString("en-GB"),
     meta: item.summary,
     action: <Link to="/moderation">REVIEW →</Link>,
@@ -215,7 +237,13 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       </nav>
       <p className="editorial-marker">EDITORIAL DASHBOARD</p>
       <h1>Feature composer</h1>
-      {(selected || response) && <p className="profile-contribution">Status: <span className="panel-status">{durableStatus}</span>{selected ? ` · Editing ${selected.title}` : ""}{selected?.reviewer_note ? ` · Reviewer note: ${selected.reviewer_note}` : ""}</p>}
+      <section className="composer-status" aria-label="Composer status">
+        <p className="editorial-marker">PANEL STATE</p>
+        <strong><span className="panel-status">{durableStatus}</span></strong>
+        {selected ? <p>Editing {selected.title}</p> : <p>New panels begin as private drafts.</p>}
+        {selected?.reviewer_note ? <p className="reviewer-note"><strong>Reviewer note:</strong> {selected.reviewer_note}</p> : null}
+        {isChangesRequested ? <p>Make your changes, then resubmit so editors can review the new version.</p> : null}
+      </section>
       {response && "success" in response && (
         <p className="profile-contribution" role="status">
           {response.success}
@@ -242,8 +270,11 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         </label>
         <label>
           Slug
-          <input name="slug" required pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={update("slug")} />
+          <span className="field-help">The short URL name for this panel. Use lowercase letters, numbers and hyphens.</span>
+          <input name="slug" required pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={update("slug")} aria-describedby="slug-help slug-error" />
+          <span id="slug-help" className="field-help">Example: sucker-punch-doing-what-ubisoft-cant</span>
         </label>
+        {slugError ? <p id="slug-error" className="field-error" role="alert">Use lowercase letters, numbers and hyphens only. Do not use spaces or punctuation.</p> : null}
         <label>
           Standfirst / summary
           <textarea name="summary" required minLength={8} maxLength={1000} value={draft.summary} onChange={update("summary")} />
@@ -261,21 +292,29 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         </label>
         <label>
           Image URL or existing asset path
+          <span className="field-help">Optional. Add an image URL or uploaded image path for the feature card and article preview.</span>
           <input name="image" placeholder="/assets/koma-vhs-v2.svg" value={draft.image ?? ""} onChange={update("image")} />
         </label>
         <label>
           Image alt text
+          <span className="field-help">Required when you add an image. Describe the image for readers using assistive technology.</span>
           <input name="imageAlt" maxLength={400} value={draft.imageAlt ?? ""} onChange={update("imageAlt")} aria-describedby="image-alt-help" />
         </label>
-        {draft.image && !draft.imageAlt ? <p id="image-alt-help" className="profile-contribution" role="alert">Image alt text is required when an image is provided.</p> : <p id="image-alt-help" className="profile-contribution">Leave blank only when using the default KOMA://PLAY placeholder.</p>}
+        {imageAltError ? <p id="image-alt-help" className="field-error" role="alert">Image alt text is required when an image is provided.</p> : <p id="image-alt-help" className="field-help">Placeholder fallback uses default alt text: KOMA://PLAY editorial placeholder.</p>}
         <label>
           Body sections
+          <span className="field-help">Use section headings like ## Opening read, followed by paragraphs for the article body.</span>
           <textarea name="sections" required minLength={20} rows={10} value={draft.sections} onChange={update("sections")} />
         </label>
         <label>
           YouTube/Twitch video URL
           <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
         </label>
+        <div className="composer-action-help">
+          <p>Save keeps this private in MY PANELS.</p>
+          <p>Submit sends it to the shared Review Inbox for editors and moderators.</p>
+          <p>Drafts are private until submitted.</p>
+        </div>
         <div className="profile-actions">
           <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending || isPublishReady}>
             {pending && submitIntent === "save" ? "SAVING…" : isChangesRequested ? "SAVE REVISION" : "SAVE DRAFT"}
@@ -285,9 +324,9 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           </button>
         </div>
       </Form>
-      <section>
-        <h2>Preview</h2>
-        <ArticleRenderer document={preview} />
+      <section className="editorial-preview-shell" aria-label="Live editorial preview">
+        <p className="editorial-marker">LIVE PREVIEW</p>
+        {hasComposerContent ? <ArticleRenderer document={preview} /> : <p className="preview-empty">Start typing to build the panel preview.</p>}
       </section>
       <section>
         <h2>MY PANELS</h2>
