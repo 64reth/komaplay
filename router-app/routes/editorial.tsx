@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { data, Form, Link, useFetcher, useLoaderData, useSearchParams } from "react-router";
+import { data, Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
@@ -55,8 +55,9 @@ export async function action({ request }: Route.ActionArgs) {
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
-    if (intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
+    if (intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
       const featureId = String(form.get("featureId") ?? "");
+      if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
       if (saved.error) throw new Error(saved.error.message);
       return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
@@ -122,13 +123,15 @@ const initialComposer: ComposerState = {
 
 function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
   const fetcher = useFetcher<typeof action>();
+  const routeActionData = useActionData<typeof action>();
+  const navigation = useNavigation();
   const [draft, setDraft] = useState<ComposerState>(() => {
     const selected = result.drafts.find((item) => item.feature_id === selectedFeatureId);
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
-  const pending = fetcher.state !== "idle";
-  const response = fetcher.data;
+  const pending = fetcher.state !== "idle" || navigation.state !== "idle";
+  const response = fetcher.data ?? routeActionData;
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
   const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
@@ -186,16 +189,10 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <button className="op-button" type="button" onClick={() => loadDraft(item)}>
           {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
         </button>
-        <Form method="post">
+        <Form method="post" action="/editorial">
+          <input type="hidden" name="intent" value="submit-existing" />
           <input type="hidden" name="featureId" value={item.feature_id} />
-          <input type="hidden" name="title" value={item.title ?? "Untitled draft"} />
-          <input type="hidden" name="slug" value={item.slug} />
-          <input type="hidden" name="summary" value={item.summary} />
-          <input type="hidden" name="categoryId" value={item.category_id ?? ""} />
-          <input type="hidden" name="image" value={item.image ?? ""} />
-          <input type="hidden" name="imageAlt" value={item.image_alt ?? ""} />
-          <input type="hidden" name="sections" value={documentBodyText(composerFromWorkItem(item).sections)} />
-          <button className="op-button action-primary" name="intent" value="submitExisting" onClick={() => setSubmitIntent("submit")} disabled={pending}>{pending && submitIntent === "submit" ? "SUBMITTING…" : item.lifecycle_status === "changes_requested" ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}</button>
+          <button className="op-button action-primary" type="submit" onClick={() => setSubmitIntent("submit")} disabled={pending}>{pending && submitIntent === "submit" ? "SUBMITTING…" : item.lifecycle_status === "changes_requested" ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}</button>
         </Form>
       </div>
     ),

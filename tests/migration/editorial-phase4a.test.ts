@@ -70,7 +70,7 @@ test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(editorialRoute, /value=\{draft\.featureId/);
   assert.match(editorialRoute, /name="intent" value="save"/);
   assert.match(editorialRoute, /name="intent" value="submit"/);
-  assert.match(editorialRoute, /name="intent" value="submitExisting"/);
+  assert.match(editorialRoute, /name="intent" value="submit-existing"/);
 });
 
 test("submitted drafts upsert by the editor draft slug and appear in moderation with safe identity", () => {
@@ -163,7 +163,7 @@ test("editorial preview uses the KOMA placeholder when no image is set", () => {
 test("draft directory rows can submit directly and publish-ready copy is explicit", () => {
   assert.match(editorialRoute, /SUBMIT FOR REVIEW/);
   assert.match(editorialRoute, /name="intent" value="submit"/);
-  assert.match(editorialRoute, /name="intent" value="submitExisting"/);
+  assert.match(editorialRoute, /name="intent" value="submit-existing"/);
   assert.match(editorialRoute, /name="featureId" value=\{item\.feature_id\}/);
   assert.match(moderationRoute, /Publishing to the live strip is next/);
   assert.doesNotMatch(moderationRoute, /PUBLISH FEATURE/);
@@ -176,10 +176,11 @@ test("submit existing editorial draft rpc moves saved drafts to review", () => {
   assert.match(submitMigration, /lifecycle_status='submitted'/);
   assert.match(submitMigration, /Submitted for review/);
   assert.match(submitMigration, /doc\.author_id<>auth\.uid\(\) and not can_review/);
-  assert.match(editorialRoute, /intent === "submitExisting"/);
+  assert.match(editorialRoute, /intent === "submit-existing"/);
   assert.match(editorialRoute, /intent === "submit" && !form\.has\("title"\)/);
+  assert.match(editorialRoute, /Saved panel id is missing/);
   assert.match(editorialRoute, /rpc\("submit_editorial_draft"/);
-  assert.match(editorialRoute, /name="intent" value="submitExisting"/);
+  assert.match(editorialRoute, /name="intent" value="submit-existing"/);
 });
 
 
@@ -208,4 +209,14 @@ test("actions fail visibly when lifecycle RPCs reject", () => {
   assert.match(moderationRoute, /role="alert"/);
   assert.match(canonicalLifecycleMigration, /This panel is not editable in its current status/);
   assert.match(canonicalLifecycleMigration, /Only draft or changes-requested panels can be submitted for review/);
+});
+
+
+test("row submit is a minimal normal form action", () => {
+  assert.match(editorialRoute, /<Form method="post" action="\/editorial">/);
+  assert.match(editorialRoute, /name="intent" value="submit-existing"/);
+  assert.match(editorialRoute, /name="featureId" value=\{item\.feature_id\}/);
+  assert.doesNotMatch(editorialRoute, /name="title" value=\{item\.title \?\?/);
+  assert.match(editorialRoute, /useActionData<typeof action>/);
+  assert.match(editorialRoute, /fetcher\.data \?\? routeActionData/);
 });
