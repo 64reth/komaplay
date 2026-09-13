@@ -546,6 +546,26 @@ test("phase 4d moderation exposes manual issue close preview and confirmation", 
   assert.match(moderationRoute, /Issue closed and archived\./);
 });
 
+
+test("phase 4d issue close repair avoids production-only feature created_at column", () => {
+  const repair = readFileSync("supabase/migrations/202609130011_fix_issue_close_selection.sql", "utf8");
+  assert.match(repair, /create or replace function public\.close_current_issue\(\)/);
+  assert.match(repair, /create or replace function public\.issue_close_preview\(\)/);
+  assert.doesNotMatch(repair, /feature\.created_at/);
+  assert.doesNotMatch(repair, /f\.created_at/);
+  assert.match(repair, /f\.updated_at/);
+  assert.match(repair, /willCreateIssue/);
+  assert.match(repair, /No published panels are ready to close for this issue\./);
+});
+
+test("phase 4d close selection can derive or create the month issue", () => {
+  const repair = readFileSync("supabase/migrations/202609130011_fix_issue_close_selection.sql", "utf8");
+  assert.match(repair, /where i\.status in \('current','finalising','published','open'\)/);
+  assert.match(repair, /i\.year=target_year and i\.month=target_month/);
+  assert.match(repair, /select i\.\* into target_issue from public\.issues i where i\.id=\(select x\.issue_id from public\.issue_drop_for_month\(current_panel_date\) x limit 1\) for update/);
+  assert.match(repair, /coalesce\(ed\.lifecycle_status,f\.lifecycle_status\) in \('published','archived'\)/);
+});
+
 test("phase 4d archive page prefers issue grouping over loose fallback", () => {
   const archiveRoute = readFileSync("router-app/routes/archive.tsx", "utf8");
   assert.match(archiveRoute, /<ArchiveShelf data=\{data\} issues=\{archiveIssues\(data, filters\)\} \/>/);
