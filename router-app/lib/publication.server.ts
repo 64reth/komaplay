@@ -119,7 +119,7 @@ export async function catalogue(): Promise<Catalogue> {
     result.features = result.features.filter(
       (feature) =>
         feature.status === "published" &&
-        feature.lifecycle_status !== "draft" &&
+        !["draft", "archived", "taken_down"].includes(feature.lifecycle_status) &&
         Date.parse(feature.published_at) <= Date.now() &&
         result.drops.some((drop) => drop.id === feature.weekly_drop_id),
     );
@@ -131,6 +131,13 @@ export async function catalogue(): Promise<Catalogue> {
         "Publication data is temporarily unavailable. Please try again shortly.",
     };
   }
+}
+
+export async function publicEditorialDocument(slug: string) {
+  const db = client();
+  if (!db) return null;
+  const result = await db.rpc("public_editorial_document", { feature_slug: slug });
+  return result.error ? null : result.data;
 }
 
 export async function publicPanel(

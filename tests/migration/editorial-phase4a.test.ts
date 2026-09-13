@@ -7,6 +7,7 @@ const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha
 const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
 const moderationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8");
 const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
+const featureRoute = readFileSync("router-app/routes/feature.tsx", "utf8");
 const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
 const myDraftsMigration = readFileSync("supabase/migrations/202609120003_editorial_alpha_my_drafts.sql", "utf8");
 const lifecycleMigration = readFileSync("supabase/migrations/202609120004_editorial_alpha_lifecycle.sql", "utf8");
@@ -166,7 +167,7 @@ test("draft directory rows can submit directly and publish-ready copy is explici
   assert.match(editorialRoute, /name="intent" value="submit-existing"/);
   assert.match(editorialRoute, /name="featureId" value=\{item\.feature_id\}/);
   assert.match(moderationRoute, /Publishing to the live strip is next/);
-  assert.doesNotMatch(moderationRoute, /PUBLISH FEATURE/);
+  assert.match(moderationRoute, /PUBLISH FEATURE/);
 });
 
 
@@ -383,5 +384,54 @@ test("moderation decision controls separate review feedback from publish-ready a
   assert.match(moderationRoute, /APPROVE AS PUBLISH-READY/);
   assert.match(moderationRoute, /Approval marks the panel publish-ready only; it does not publish it live\./);
   assert.match(moderationRoute, /Publishing to the live strip is next\. This panel is publish-ready\./);
-  assert.doesNotMatch(moderationRoute, /PUBLISH FEATURE/);
+  assert.match(moderationRoute, /PUBLISH FEATURE/);
+});
+
+test("phase 4b publish and takedown RPCs require moderator review access", () => {
+  const publishingMigration = readFileSync("supabase/migrations/202609130005_editorial_publication_controls.sql", "utf8");
+  assert.match(publishingMigration, /create or replace function public\.publish_editorial_panel\(target uuid\)/);
+  assert.match(publishingMigration, /create or replace function public\.take_down_editorial_panel\(target uuid\)/);
+  assert.match(publishingMigration, /not public\.editorial_has_access\(auth\.uid\(\),true\)/);
+  assert.match(publishingMigration, /Only publish-ready panels can be published/);
+  assert.match(publishingMigration, /Only published panels can be taken down/);
+  assert.match(publishingMigration, /A published feature already uses this slug/);
+});
+
+test("phase 4b publish makes canonical documents public and takedown removes them", () => {
+  const publishingMigration = readFileSync("supabase/migrations/202609130005_editorial_publication_controls.sql", "utf8");
+  assert.match(publishingMigration, /doc\.lifecycle_status<>\'approved\'/);
+  assert.match(publishingMigration, /status='published'/);
+  assert.match(publishingMigration, /lifecycle_status='open_panel'/);
+  assert.match(publishingMigration, /set lifecycle_status='published'/);
+  assert.match(publishingMigration, /set lifecycle_status='taken_down'/);
+  assert.match(publishingMigration, /status='archived',lifecycle_status='archived'/);
+  assert.match(publishingMigration, /public_editorial_document\(feature_slug text\)/);
+  assert.match(publishingMigration, /ed\.lifecycle_status='published'/);
+});
+
+test("phase 4b public catalogue includes published editorial panels and excludes taken-down panels", () => {
+  const publicationServer = readFileSync("router-app/lib/publication.server.ts", "utf8");
+  assert.match(publicationServer, /publicEditorialDocument/);
+  assert.match(publicationServer, /public_editorial_document/);
+  assert.match(publicationServer, /!\["draft", "archived", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
+  assert.match(featureRoute, /publicEditorialDocument/);
+  assert.match(featureRoute, /publishedDocument/);
+  assert.match(featureRoute, /if \(publishedDocument\) return publishedDocument/);
+});
+
+test("phase 4b moderation exposes publication controls without fake live publishing", () => {
+  assert.match(moderationRoute, /editorial_publication_panels/);
+  assert.match(moderationRoute, /PUBLISH FEATURE/);
+  assert.match(moderationRoute, /TAKE DOWN/);
+  assert.match(moderationRoute, /Feature published\./);
+  assert.match(moderationRoute, /Feature taken down\./);
+  assert.match(moderationRoute, /publish_editorial_panel/);
+  assert.match(moderationRoute, /take_down_editorial_panel/);
+  assert.match(moderationRoute, /APPROVE AS PUBLISH-READY/);
+});
+
+test("phase 4b placeholder image is applied when publishing without an image", () => {
+  const publishingMigration = readFileSync("supabase/migrations/202609130005_editorial_publication_controls.sql", "utf8");
+  assert.match(publishingMigration, /\/assets\/koma-feature-placeholder\.svg/);
+  assert.match(publishingMigration, /KOMA:\/\/PLAY editorial placeholder/);
 });

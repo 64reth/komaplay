@@ -24,11 +24,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   const context = await moderationContext(request);
   const { resolved } = context;
   if (context.state !== "accepted" || !resolved.client) return data({ state: context.state, capabilities: context.capabilities, grants: [], review: [] }, { headers: resolved.headers });
-  const [grants, review] = await Promise.all([
+  const [grants, review, publication] = await Promise.all([
     resolved.client.from("editorial_access_grants").select("id,access_level,scope_type,granted_at,revoked_at,reason,profiles!editorial_access_grants_user_id_fkey(display_name)").order("granted_at", { ascending: false }),
     resolved.client.rpc("editorial_review_inbox"),
+    resolved.client.rpc("editorial_publication_panels"),
   ]);
-  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [] }, { headers: resolved.headers });
+  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [], publication: publication.error ? [] : publication.data ?? [] }, { headers: resolved.headers });
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -46,6 +47,14 @@ export async function action({ request }: Route.ActionArgs) {
       const result = await resolved.client.rpc("manage_editorial_grant", { target_email: email, grant_access: intent === "grant", grant_reason: String(form.get("reason") ?? "") });
       if (result.error) throw new Error(result.error.message);
       return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
+    }
+    if (intent === "publishFeature" || intent === "takeDownFeature") {
+      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish or take down panels." }, { status: 403, headers: resolved.headers });
+      const featureId = String(form.get("featureId") ?? "");
+      const rpcName = intent === "publishFeature" ? "publish_editorial_panel" : "take_down_editorial_panel";
+      const result = await resolved.client.rpc(rpcName, { target: featureId });
+      if (result.error) throw new Error(result.error.message);
+      return data({ success: intent === "publishFeature" ? "Feature published." : "Feature taken down." }, { headers: resolved.headers });
     }
     if (intent === "approveDraft" || intent === "changesDraft") {
       if (!context.capabilities.moderation) return data({ error: "Moderator access is required to approve or request changes." }, { status: 403, headers: resolved.headers });
@@ -74,6 +83,25 @@ export default function Moderation() {
   if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
   const selectedReviewId = searchParams.get("review") ?? "";
   const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
+  const publicationRows: PanelDirectoryRow[] = ("publication" in result ? result.publication : []).map((draft: any) => ({
+    id: `publication-${draft.feature_id}`,
+    title: draft.title ?? "Untitled panel",
+    type: "Editorial Feature",
+    status: reviewInboxStatusLabel(draft.lifecycle_status),
+    date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
+    meta: `${draft.author_display_name ?? "Panelist"} · ${draft.slug ?? ""}`,
+    action: draft.lifecycle_status === "publish_ready" ? (
+      <Form method="post">
+        <input type="hidden" name="featureId" value={draft.feature_id} />
+        <button className="op-button action-primary" name="intent" value="publishFeature" disabled={navigation.state !== "idle"}>PUBLISH FEATURE</button>
+      </Form>
+    ) : draft.lifecycle_status === "published" ? (
+      <Form method="post">
+        <input type="hidden" name="featureId" value={draft.feature_id} />
+        <button className="op-button" name="intent" value="takeDownFeature" disabled={navigation.state !== "idle"}>TAKE DOWN</button>
+      </Form>
+    ) : <span>{draft.lifecycle_status === "taken_down" ? "TAKEN DOWN" : "NO PUBLIC ACTION"}</span>,
+  }));
   const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
     id: draft.feature_id,
     title: draft.title ?? "Untitled submitted panel",
@@ -114,6 +142,13 @@ export default function Moderation() {
           <h2>REVIEW INBOX</h2>
           <p>Publishing to the live strip is next. Publish-ready panels are not public yet.</p>
           <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
+          {result.capabilities.moderation && (
+            <>
+              <h2>PUBLICATION CONTROLS</h2>
+              <p>Publish-ready panels can become public features. Published panels can be taken down without deleting history.</p>
+              <PanelDirectory label="Publication controls" rows={publicationRows} empty="No publish-ready or published panels yet." />
+            </>
+          )}
           <section id="review-preview" className="review-preview-shell" aria-label="Review preview">
             <p className="editorial-marker">REVIEW PREVIEW</p>
             {selectedReview ? (

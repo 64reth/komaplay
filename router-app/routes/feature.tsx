@@ -1,6 +1,6 @@
 import { data, Link } from "react-router";
 import type { Route } from "./+types/feature";
-import { catalogue, publicPanel } from "../lib/publication.server";
+import { catalogue, publicEditorialDocument, publicPanel } from "../lib/publication.server";
 import { acceptsContributions } from "../lib/publication";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
@@ -20,7 +20,8 @@ export async function loader({ params }: { params: { slug?: string } }) {
   const all = await catalogue();
   const feature = all.features.find((item) => item.slug === params.slug);
   if (!feature) throw data("Panel not found", { status: 404 });
-  return { all, feature, panel: await publicPanel(feature.slug) };
+  const [panel, publishedDocument] = await Promise.all([publicPanel(feature.slug), publicEditorialDocument(feature.slug)]);
+  return { all, feature, panel, publishedDocument };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) =>
@@ -38,7 +39,9 @@ export const meta: Route.MetaFunction = ({ loaderData }) =>
 
 function documentFor(
   feature: Route.ComponentProps["loaderData"]["feature"],
+  publishedDocument?: EditorialDocument | null,
 ): EditorialDocument {
+  if (publishedDocument) return publishedDocument;
   if (feature.slug === "tokon") return tokonGuide;
   const copy = editorial[feature.slug];
   return {
@@ -108,7 +111,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           <OpenPanelStatus data={panel.data} slug={feature.slug} open={open} />
         </div>
         <div className="published-body">
-          <ArticleRenderer document={documentFor(feature)} />
+          <ArticleRenderer document={documentFor(feature, loaderData.publishedDocument as EditorialDocument | null)} />
         </div>
         {panel.message && (
           <p className="op-notice" role="status">
