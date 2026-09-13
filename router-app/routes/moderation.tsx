@@ -1,4 +1,4 @@
-import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "react-router";
+import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import type { Route } from "./+types/moderation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
@@ -70,7 +70,10 @@ export default function Moderation() {
   const result = useLoaderData<typeof loader>();
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
   if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
+  const selectedReviewId = searchParams.get("review") ?? "";
+  const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
   const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
     id: draft.feature_id,
     title: draft.title ?? "Untitled submitted panel",
@@ -78,7 +81,7 @@ export default function Moderation() {
     status: reviewInboxStatusLabel(draft.lifecycle_status),
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.summary ?? ""}`,
-    action: <a href={`#review-${draft.feature_id}`}>REVIEW ↓</a>,
+    action: <Link to={`/moderation?review=${draft.feature_id}#review-preview`}>REVIEW ↓</Link>,
   }));
   return (
     <main className="editorial-page">
@@ -111,25 +114,45 @@ export default function Moderation() {
           <h2>REVIEW INBOX</h2>
           <p>Publishing to the live strip is next. Publish-ready panels are not public yet.</p>
           <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
-          {result.review.length ? result.review.map((draft: any) => (
-            <article key={draft.feature_id} id={`review-${draft.feature_id}`} className="review-panel">
-              <p className="editorial-marker">REVIEW PANEL</p>
-              <h3>{draft.title}</h3>
-              <p>{draft.author_display_name ?? "Panelist"} · {reviewInboxStatusLabel(draft.lifecycle_status)} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
-              <p>{draft.summary}</p>
-              <ArticleRenderer document={draft.working_document as any} />
-              {result.capabilities.moderation ? (
-                <Form method="post" className="op-form">
-                  <input type="hidden" name="featureId" value={draft.feature_id} />
-                  <label>Review note<input name="note" maxLength={240} /></label>
-                  <div className="profile-actions">
-                    {draft.lifecycle_status === "publish_ready" || draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">MARK PUBLISH-READY</button>}
-                    <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
+          <section id="review-preview" className="review-preview-shell" aria-label="Review preview">
+            <p className="editorial-marker">REVIEW PREVIEW</p>
+            {selectedReview ? (
+              <>
+                <header className="review-preview-header">
+                  <div>
+                    <h3>{selectedReview.title}</h3>
+                    <p>{selectedReview.summary}</p>
                   </div>
-                </Form>
-              ) : <p>Editors can view the shared Review Inbox. Moderator access is required to approve or request changes.</p>}
-            </article>
-          )) : null}
+                  <dl className="review-preview-meta">
+                    <div><dt>Author</dt><dd>{selectedReview.author_display_name ?? "Panelist"}</dd></div>
+                    <div><dt>Status</dt><dd><span className="panel-status">{reviewInboxStatusLabel(selectedReview.lifecycle_status)}</span></dd></div>
+                    <div><dt>Updated</dt><dd>{new Date(selectedReview.updated_at).toLocaleDateString("en-GB")}</dd></div>
+                  </dl>
+                </header>
+                <div className="review-article-frame">
+                  <ArticleRenderer document={selectedReview.working_document as any} />
+                </div>
+                <aside className="review-decision-desk" aria-label="Reviewer decision controls">
+                  <div>
+                    <h4>Reviewer note</h4>
+                    <p>Use the note to explain requested changes clearly. Approval marks the panel publish-ready only; it does not publish it live.</p>
+                  </div>
+                  {result.capabilities.moderation ? (
+                    <Form method="post" className="op-form review-decision-form">
+                      <input type="hidden" name="featureId" value={selectedReview.feature_id} />
+                      <label>Reviewer note<textarea name="note" minLength={4} maxLength={240} rows={3} placeholder="Explain what needs to change before this can move forward." /></label>
+                      <div className="profile-actions">
+                        {selectedReview.lifecycle_status === "publish_ready" || selectedReview.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
+                        <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
+                      </div>
+                    </Form>
+                  ) : <p>Editors can view the shared Review Inbox. Moderator access is required to approve or request changes.</p>}
+                </aside>
+              </>
+            ) : (
+              <p className="preview-empty">Select a submitted panel to review.</p>
+            )}
+          </section>
         </section>
       </div>
     </main>

@@ -361,3 +361,27 @@ test("directory window and live preview shell render in normal UI", () => {
   assert.match(editorialRoute, /editorial-preview-shell/);
   assert.doesNotMatch(editorialRoute, /TEMP EDITORIAL TRACE/);
 });
+
+test("moderation review preview uses a selected editorial review desk", () => {
+  const css = readFileSync("router-app/app.css", "utf8");
+  assert.match(moderationRoute, /REVIEW PREVIEW/);
+  assert.match(moderationRoute, /Select a submitted panel to review\./);
+  assert.match(moderationRoute, /selectedReviewId/);
+  assert.match(moderationRoute, /selectedReview = result\.review\.find/);
+  assert.match(moderationRoute, /review-preview-shell/);
+  assert.match(moderationRoute, /review-preview-meta/);
+  assert.match(moderationRoute, /review-article-frame/);
+  assert.match(moderationRoute, /<ArticleRenderer document=\{selectedReview\.working_document as any\}/);
+  assert.match(css, /\.review-preview-shell/);
+  assert.match(css, /\.review-decision-desk/);
+});
+
+test("moderation decision controls separate review feedback from publish-ready approval", () => {
+  assert.match(moderationRoute, /Reviewer note/);
+  assert.match(moderationRoute, /minLength=\{4\}/);
+  assert.match(moderationRoute, /REQUEST CHANGES/);
+  assert.match(moderationRoute, /APPROVE AS PUBLISH-READY/);
+  assert.match(moderationRoute, /Approval marks the panel publish-ready only; it does not publish it live\./);
+  assert.match(moderationRoute, /Publishing to the live strip is next\. This panel is publish-ready\./);
+  assert.doesNotMatch(moderationRoute, /PUBLISH FEATURE/);
+});

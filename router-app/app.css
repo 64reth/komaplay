@@ -2801,3 +2801,88 @@ html {
     box-shadow: 6px 6px 0 color-mix(in srgb, var(--color-ink) 7%, transparent);
   }
 }
+
+/* Phase 4A moderation review desk. */
+.review-preview-shell {
+  margin: 30px 0 36px;
+  border: 1px solid var(--color-ink);
+  background: color-mix(in srgb, var(--color-paper) 96%, white 4%);
+  box-shadow: 10px 10px 0 color-mix(in srgb, var(--color-ink) 7%, transparent);
+  padding: clamp(18px, 3vw, 34px);
+}
+.review-preview-shell > .editorial-marker {
+  margin-bottom: 18px;
+}
+.review-preview-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  gap: clamp(18px, 4vw, 42px);
+  align-items: start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.review-preview-header h3 {
+  margin: 0;
+  font: 800 clamp(2rem, 6vw, 4.8rem)/0.9 var(--font-display, inherit);
+  text-transform: uppercase;
+}
+.review-preview-header p {
+  max-width: 62ch;
+}
+.review-preview-meta {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border-left: 3px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-paper) 90%, var(--color-accent) 10%);
+}
+.review-preview-meta div {
+  display: grid;
+  gap: 2px;
+}
+.review-preview-meta dt {
+  color: var(--color-accent-text);
+  font: 800 0.62rem/1.2 monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.review-preview-meta dd {
+  margin: 0;
+  font: 700 0.82rem/1.35 monospace;
+}
+.review-article-frame {
+  margin: 24px 0;
+  padding: clamp(12px, 2vw, 24px);
+  border-block: 1px solid var(--color-border);
+}
+.review-decision-desk {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(16px, 3vw, 32px);
+  align-items: start;
+  padding-top: 20px;
+  border-top: 2px solid var(--color-ink);
+}
+.review-decision-desk h4 {
+  margin: 0 0 8px;
+  font: 800 0.82rem/1.2 monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.review-decision-form {
+  margin: 0;
+}
+.review-decision-form textarea {
+  resize: vertical;
+}
+@media (max-width: 760px) {
+  .review-preview-header,
+  .review-decision-desk {
+    grid-template-columns: 1fr;
+  }
+  .review-preview-shell {
+    padding: 16px;
+    box-shadow: 6px 6px 0 color-mix(in srgb, var(--color-ink) 7%, transparent);
+  }
+}
