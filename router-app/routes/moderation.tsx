@@ -146,7 +146,7 @@ export default function Moderation() {
             <>
               <h2>PUBLICATION CONTROLS</h2>
               <p>Publish-ready panels can become public features. Published panels can be taken down without deleting history.</p>
-              <PanelDirectory label="Publication controls" rows={publicationRows} empty="No publish-ready or published panels yet." />
+              <PanelDirectory label="Publication controls" rows={publicationRows} empty="No panels ready to publish. Approve a submitted panel first." />
             </>
           )}
           <section id="review-preview" className="review-preview-shell" aria-label="Review preview">

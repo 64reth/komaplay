@@ -69,13 +69,15 @@ export async function memberCapabilities(
 ) {
   if (member.accountStatus !== "active")
     return { editorial: false, moderation: false };
-  const moderation = member.role === "moderator" || member.role === "admin";
-  if (member.role === "admin") return { editorial: true, moderation };
+  const roleModeration = member.role === "moderator" || member.role === "admin";
+  if (member.role === "admin") return { editorial: true, moderation: true };
   const result = await db
     .from("editorial_access_grants")
-    .select("id,revoked_at")
+    .select("id,access_level,revoked_at")
     .eq("user_id", member.id)
     .is("revoked_at", null);
-  const editorial = !result.error && (result.data ?? []).length > 0;
-  return { editorial, moderation };
+  const activeGrants = result.error ? [] : result.data ?? [];
+  const editorial = activeGrants.length > 0;
+  const grantModeration = activeGrants.some((grant) => grant.access_level === "administrator");
+  return { editorial: editorial || roleModeration, moderation: roleModeration || grantModeration };
 }

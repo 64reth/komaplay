@@ -435,3 +435,13 @@ test("phase 4b placeholder image is applied when publishing without an image", (
   assert.match(publishingMigration, /\/assets\/koma-feature-placeholder\.svg/);
   assert.match(publishingMigration, /KOMA:\/\/PLAY editorial placeholder/);
 });
+
+test("editorial administrator grants expose publish controls through shared capabilities", () => {
+  const membership = readFileSync("router-app/lib/membership.server.ts", "utf8");
+  assert.match(membership, /select\("id,access_level,revoked_at"\)/);
+  assert.match(membership, /grantModeration = activeGrants\.some\(\(grant\) => grant\.access_level === "administrator"\)/);
+  assert.match(membership, /moderation: roleModeration \|\| grantModeration/);
+  assert.match(moderationRoute, /context\.capabilities\.moderation/);
+  assert.match(moderationRoute, /PUBLISH FEATURE/);
+  assert.match(moderationRoute, /No panels ready to publish\. Approve a submitted panel first\./);
+});
