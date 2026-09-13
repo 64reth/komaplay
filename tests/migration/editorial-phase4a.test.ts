@@ -452,3 +452,9 @@ test("phase 4b placeholder repair removes broken editorial SVG fallback", () => 
   assert.match(repair, /v_image text := coalesce\(nullif\(payload->>'image',''\),'\/assets\/koma-feature-placeholder\.svg'\)/);
   assert.match(repair, /f\.image='\/assets\/koma-vhs-v2\.svg'/);
 });
+
+test("phase 4b placeholder repair normalizes current editorial documents", () => {
+  const repair = readFileSync("supabase/migrations/202609130008_editorial_placeholder_document_paths.sql", "utf8");
+  assert.match(repair, /update public\.editorial_documents ed/);
+  assert.match(repair, /replace\(ed\.working_document::text,'\/assets\/koma-vhs-v2\.svg','\/assets\/koma-feature-placeholder\.svg'\)::jsonb/);
+});
