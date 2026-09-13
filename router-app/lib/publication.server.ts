@@ -119,7 +119,7 @@ export async function catalogue(): Promise<Catalogue> {
     result.features = result.features.filter(
       (feature) =>
         feature.status === "published" &&
-        !["draft", "archived", "taken_down"].includes(feature.lifecycle_status) &&
+        !["draft", "taken_down"].includes(feature.lifecycle_status) &&
         Date.parse(feature.published_at) <= Date.now() &&
         result.drops.some((drop) => drop.id === feature.weekly_drop_id),
     );

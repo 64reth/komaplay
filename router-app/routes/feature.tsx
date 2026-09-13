@@ -99,7 +99,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
       <article className="published-panel">
         <div className="published-heading">
           <p className="op-eyebrow">
-            PUBLISHED PANEL /{" "}
+            {feature.lifecycle_status === "archived" ? "ARCHIVED PANEL" : "PUBLISHED PANEL"} /{" "}
             {
               all.categories.find((item) => item.id === feature.category_id)
                 ?.name
@@ -109,7 +109,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           </p>
           <h1>{feature.title}</h1>
           <p className="published-dek">{feature.summary}</p>
-          <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />
+          {feature.lifecycle_status === "archived" ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
           <OpenPanelStatus data={panel.data} slug={feature.slug} open={open} />
         </div>
         <div className="published-body">

@@ -52,7 +52,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       </main>
     );
-  const features = filterFeatures(data, { ...filters, issue: issue.slug });
+  const features = filterFeatures(data, { ...filters, issue: issue.slug }).filter(
+    (feature) => !["archived", "taken_down"].includes(feature.lifecycle_status),
+  );
   const drops = orderedDrops(
     data.drops.filter((d) => d.issue_id === issue.id),
     true,

@@ -413,7 +413,7 @@ test("phase 4b public catalogue includes published editorial panels and excludes
   const publicationServer = readFileSync("router-app/lib/publication.server.ts", "utf8");
   assert.match(publicationServer, /publicEditorialDocument/);
   assert.match(publicationServer, /public_editorial_document/);
-  assert.match(publicationServer, /!\["draft", "archived", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
+  assert.match(publicationServer, /!\["draft", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
   assert.match(featureRoute, /publicEditorialDocument/);
   assert.match(featureRoute, /publishedDocument/);
   assert.match(featureRoute, /if \(publishedDocument\) return publishedDocument/);
@@ -460,7 +460,7 @@ test("phase 4b placeholder repair normalizes current editorial documents", () =>
 });
 
 test("publish and takedown require explicit confirmation", () => {
-  assert.match(moderationRoute, /useState<null \| \{ kind: "publish" \| "takeDown"/);
+  assert.match(moderationRoute, /useState<null \| \{ kind: "publish" \| "takeDown" \| "archive"/);
   assert.match(moderationRoute, /setConfirmation\(\{ kind: "publish"/);
   assert.match(moderationRoute, /setConfirmation\(\{ kind: "takeDown"/);
   assert.match(moderationRoute, /Publish this feature\? It will become visible on the public site and may appear in the current issue strip\./);
@@ -469,13 +469,50 @@ test("publish and takedown require explicit confirmation", () => {
   assert.match(moderationRoute, /CONFIRM PUBLISH/);
   assert.match(moderationRoute, /CONFIRM TAKE DOWN/);
   assert.match(moderationRoute, /CANCEL/);
-  assert.match(moderationRoute, /value=\{confirmation\.kind === "publish" \? "publishFeature" : "takeDownFeature"\}/);
+  assert.match(moderationRoute, /value=\{confirmation\.kind === "publish" \? "publishFeature" : confirmation\.kind === "archive" \? "archiveFeature" : "takeDownFeature"\}/);
 });
 
 test("publish and takedown server-side permission checks still apply", () => {
-  assert.match(moderationRoute, /if \(intent === "publishFeature" \|\| intent === "takeDownFeature"\)/);
+  assert.match(moderationRoute, /if \(intent === "publishFeature" \|\| intent === "takeDownFeature" \|\| intent === "archiveFeature"\)/);
   assert.match(moderationRoute, /!context\.capabilities\.moderation/);
-  assert.match(moderationRoute, /Moderator access is required to publish or take down panels\./);
+  assert.match(moderationRoute, /Moderator access is required to publish, archive or take down panels\./);
   assert.match(moderationRoute, /publish_editorial_panel/);
   assert.match(moderationRoute, /take_down_editorial_panel/);
+});
+
+test("phase 4c archive controls are confirmation-gated and server checked", () => {
+  const archiveMigration = readFileSync("supabase/migrations/202609130009_editorial_archive_controls.sql", "utf8");
+  assert.match(archiveMigration, /create or replace function public\.archive_editorial_panel\(target uuid\)/);
+  assert.match(archiveMigration, /doc\.lifecycle_status<>'published'/);
+  assert.match(archiveMigration, /Only published panels can be archived/);
+  assert.match(archiveMigration, /set lifecycle_status='archived'/);
+  assert.match(archiveMigration, /Archived public panel/);
+  assert.match(archiveMigration, /not public\.editorial_has_access\(auth\.uid\(\),true\)/);
+  assert.match(moderationRoute, /ARCHIVE PANEL/);
+  assert.match(moderationRoute, /Archive this panel\? It will leave the current issue spaces and move to the Archive\. Public archive access will remain available\./);
+  assert.match(moderationRoute, /CONFIRM ARCHIVE/);
+  assert.match(moderationRoute, /archive_editorial_panel/);
+});
+
+test("phase 4c archived panels remain public but leave current spaces", () => {
+  const publicationServer = readFileSync("router-app/lib/publication.server.ts", "utf8");
+  const homeRoute = readFileSync("router-app/routes/home.tsx", "utf8");
+  const archiveRoute = readFileSync("router-app/routes/archive.tsx", "utf8");
+  const featureRoute = readFileSync("router-app/routes/feature.tsx", "utf8");
+  const archiveMigration = readFileSync("supabase/migrations/202609130009_editorial_archive_controls.sql", "utf8");
+  assert.match(publicationServer, /!\["draft", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
+  assert.match(homeRoute, /!\["archived", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
+  assert.match(archiveRoute, /feature\.lifecycle_status === "archived"/);
+  assert.match(archiveRoute, /No archived panels yet\./);
+  assert.match(featureRoute, /ARCHIVED PANEL/);
+  assert.match(featureRoute, /This panel is archived\. Public reading remains available/);
+  assert.match(archiveMigration, /ed\.lifecycle_status in \('published','archived'\)/);
+  assert.match(archiveMigration, /f\.lifecycle_status in \('open_panel','final_panel','archived'\)/);
+});
+
+test("phase 4c takedown works from archived state and hides public panels", () => {
+  const archiveMigration = readFileSync("supabase/migrations/202609130009_editorial_archive_controls.sql", "utf8");
+  assert.match(archiveMigration, /doc\.lifecycle_status not in \('published','archived'\)/);
+  assert.match(archiveMigration, /lifecycle_status='taken_down'/);
+  assert.match(archiveMigration, /ed\.lifecycle_status in \('approved','published','archived','taken_down'\)/);
 });

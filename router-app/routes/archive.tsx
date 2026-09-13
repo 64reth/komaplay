@@ -1,6 +1,8 @@
+import { Link } from "react-router";
 import type { Route } from "./+types/archive";
 import { catalogue } from "../lib/publication.server";
 import { archiveIssues, type DiscoveryFilters } from "../lib/publication";
+import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
 import { DiscoveryForm } from "../components/IssueFilters";
@@ -19,6 +21,21 @@ export const meta: Route.MetaFunction = () => [
 ];
 export default function Archive({ loaderData }: Route.ComponentProps) {
   const { data, filters } = loaderData;
+  const archivedPanels = data.features.filter((feature) => feature.lifecycle_status === "archived");
+  const panelRows: PanelDirectoryRow[] = archivedPanels.map((feature) => {
+    const issue = data.issues.find((item) => item.id === feature.issue_id);
+    const category = data.categories.find((item) => item.id === feature.category_id);
+    const format = data.formats.find((item) => item.id === feature.format_id);
+    return {
+      id: feature.id,
+      title: feature.title,
+      type: `${category?.name ?? "Feature"} / ${format?.name ?? "Editorial"}`,
+      status: "Archived",
+      date: feature.archived_at ? new Date(feature.archived_at).toLocaleDateString("en-GB") : new Date(feature.updated_at).toLocaleDateString("en-GB"),
+      meta: `${issue?.title ?? "Archive"} · ${feature.published_at ? `Published ${new Date(feature.published_at).toLocaleDateString("en-GB")}` : "Published panel"}`,
+      action: <Link to={`/features/${feature.slug}`}>READ →</Link>,
+    };
+  });
   return (
     <main className="editorial-page">
       <Masthead />
@@ -29,6 +46,10 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
         <p>Completed issues. Preserved panels. Every contributor credited.</p>
         {data.message && <p className="op-notice">{data.message}</p>}
         <DiscoveryForm data={data} filters={filters} archive />
+        <section>
+          <h2>Archived panels</h2>
+          <PanelDirectory label="Archived panels" rows={panelRows} empty="No archived panels yet." />
+        </section>
         <ArchiveShelf data={data} issues={archiveIssues(data, filters)} />
       </div>
     </main>

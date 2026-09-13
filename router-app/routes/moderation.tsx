@@ -49,13 +49,13 @@ export async function action({ request }: Route.ActionArgs) {
       if (result.error) throw new Error(result.error.message);
       return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
     }
-    if (intent === "publishFeature" || intent === "takeDownFeature") {
-      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish or take down panels." }, { status: 403, headers: resolved.headers });
+    if (intent === "publishFeature" || intent === "takeDownFeature" || intent === "archiveFeature") {
+      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish, archive or take down panels." }, { status: 403, headers: resolved.headers });
       const featureId = String(form.get("featureId") ?? "");
-      const rpcName = intent === "publishFeature" ? "publish_editorial_panel" : "take_down_editorial_panel";
+      const rpcName = intent === "publishFeature" ? "publish_editorial_panel" : intent === "archiveFeature" ? "archive_editorial_panel" : "take_down_editorial_panel";
       const result = await resolved.client.rpc(rpcName, { target: featureId });
       if (result.error) throw new Error(result.error.message);
-      return data({ success: intent === "publishFeature" ? "Feature published." : "Feature taken down." }, { headers: resolved.headers });
+      return data({ success: intent === "publishFeature" ? "Feature published." : intent === "archiveFeature" ? "Panel archived." : "Feature taken down." }, { headers: resolved.headers });
     }
     if (intent === "approveDraft" || intent === "changesDraft") {
       if (!context.capabilities.moderation) return data({ error: "Moderator access is required to approve or request changes." }, { status: 403, headers: resolved.headers });
@@ -81,7 +81,7 @@ export default function Moderation() {
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
-  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown"; featureId: string; title: string; slug: string }>(null);
+  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown" | "archive"; featureId: string; title: string; slug: string }>(null);
   if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
   const selectedReviewId = searchParams.get("review") ?? "";
   const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
@@ -95,6 +95,11 @@ export default function Moderation() {
     action: draft.lifecycle_status === "publish_ready" ? (
       <button className="op-button action-primary" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "publish", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>PUBLISH FEATURE</button>
     ) : draft.lifecycle_status === "published" ? (
+      <span className="profile-actions">
+        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "archive", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>ARCHIVE PANEL</button>
+        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>TAKE DOWN</button>
+      </span>
+    ) : draft.lifecycle_status === "archived" ? (
       <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>TAKE DOWN</button>
     ) : <span>{draft.lifecycle_status === "taken_down" ? "TAKEN DOWN" : "NO PUBLIC ACTION"}</span>,
   }));
@@ -144,19 +149,19 @@ export default function Moderation() {
               aria-labelledby="publication-confirmation-title"
             >
               <p className="editorial-marker">PUBLICATION CHECK</p>
-              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : "Take down this feature?"}</h2>
+              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : confirmation.kind === "archive" ? "Archive this panel?" : "Take down this feature?"}</h2>
               <p><strong>{confirmation.title}</strong></p>
               {confirmation.slug && <p className="field-help">Public URL: /features/{confirmation.slug}</p>}
-              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
+              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : confirmation.kind === "archive" ? "Archive this panel? It will leave the current issue spaces and move to the Archive. Public archive access will remain available." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
               <Form method="post" className="profile-actions">
                 <input type="hidden" name="featureId" value={confirmation.featureId} />
                 <button
                   className={confirmation.kind === "publish" ? "op-button action-primary" : "op-button"}
                   name="intent"
-                  value={confirmation.kind === "publish" ? "publishFeature" : "takeDownFeature"}
+                  value={confirmation.kind === "publish" ? "publishFeature" : confirmation.kind === "archive" ? "archiveFeature" : "takeDownFeature"}
                   disabled={navigation.state !== "idle"}
                 >
-                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : "CONFIRM TAKE DOWN"}
+                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : confirmation.kind === "archive" ? "CONFIRM ARCHIVE" : "CONFIRM TAKE DOWN"}
                 </button>
                 <button className="op-button" type="button" onClick={() => setConfirmation(null)} disabled={navigation.state !== "idle"}>CANCEL</button>
               </Form>
