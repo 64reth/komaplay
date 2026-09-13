@@ -173,6 +173,18 @@ test("submit existing editorial draft rpc moves saved drafts to review", () => {
   assert.match(submitMigration, /Submitted for review/);
   assert.match(submitMigration, /doc\.author_id<>auth\.uid\(\) and not can_review/);
   assert.match(editorialRoute, /intent === "submitExisting"/);
+  assert.match(editorialRoute, /intent === "submit" && !form\.has\("title"\)/);
   assert.match(editorialRoute, /rpc\("submit_editorial_draft"/);
   assert.match(editorialRoute, /name="intent" value="submitExisting"/);
+});
+
+
+test("shared review inbox is editor visible and keeps drafts private", () => {
+  const sharedInboxMigration = readFileSync("supabase/migrations/202609130001_shared_editorial_review_inbox.sql", "utf8");
+  assert.match(sharedInboxMigration, /public\.editorial_has_access\(auth\.uid\(\),false\)/);
+  assert.match(sharedInboxMigration, /ed\.lifecycle_status in \('submitted','approved','changes_requested'\)/);
+  assert.doesNotMatch(sharedInboxMigration, /ed\.lifecycle_status in \('draft'/);
+  assert.match(sharedInboxMigration, /left join public\.profiles/);
+  assert.match(moderationRoute, /capabilities\.editorial \|\| capabilities\.moderation/);
+  assert.match(moderationRoute, /Moderator access is required to approve or request changes/);
 });

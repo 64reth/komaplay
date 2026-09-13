@@ -55,7 +55,7 @@ export async function action({ request }: Route.ActionArgs) {
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
-    if (intent === "submitExisting") {
+    if (intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
       const featureId = String(form.get("featureId") ?? "");
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
       if (saved.error) throw new Error(saved.error.message);
@@ -186,7 +186,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <button className="op-button" type="button" onClick={() => loadDraft(item)}>
           {item.lifecycle_status === "changes_requested" ? "REVISE" : "CONTINUE"}
         </button>
-        <fetcher.Form method="post">
+        <Form method="post">
           <input type="hidden" name="featureId" value={item.feature_id} />
           <input type="hidden" name="title" value={item.title ?? "Untitled draft"} />
           <input type="hidden" name="slug" value={item.slug} />
@@ -196,7 +196,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input type="hidden" name="imageAlt" value={item.image_alt ?? ""} />
           <input type="hidden" name="sections" value={documentBodyText(composerFromWorkItem(item).sections)} />
           <button className="op-button action-primary" name="intent" value="submitExisting" onClick={() => setSubmitIntent("submit")} disabled={pending}>{pending && submitIntent === "submit" ? "SUBMITTING…" : item.lifecycle_status === "changes_requested" ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}</button>
-        </fetcher.Form>
+        </Form>
       </div>
     ),
   };

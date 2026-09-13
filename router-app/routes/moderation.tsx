@@ -14,8 +14,8 @@ async function moderationContext(request: Request) {
   const handbook = await membershipState(resolved.client, resolved.user.id);
   if (handbook.status !== "accepted") return { resolved, state: "verifying" as const, capabilities: { editorial: false, moderation: false } };
   const capabilities = await memberCapabilities(resolved.client, resolved.auth.member);
-  const review = await resolved.client.rpc("editorial_has_access", { target: resolved.user.id, review: true });
-  const allowed = capabilities.moderation || (!review.error && review.data === true);
+  const review = await resolved.client.rpc("editorial_has_access", { target: resolved.user.id, review: false });
+  const allowed = capabilities.editorial || capabilities.moderation || (!review.error && review.data === true);
   return { resolved, state: allowed ? "accepted" as const : "denied" as const, capabilities };
 }
 
@@ -47,6 +47,7 @@ export async function action({ request }: Route.ActionArgs) {
       return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
     }
     if (intent === "approveDraft" || intent === "changesDraft") {
+      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to approve or request changes." }, { status: 403, headers: resolved.headers });
       const note = String(form.get("note") ?? "").trim();
       if (intent === "changesDraft" && note.length < 4) throw new Error("Add a reviewer note before requesting changes.");
       const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: note });
@@ -116,14 +117,16 @@ export default function Moderation() {
               <p>{draft.author_display_name ?? "Panelist"} · {draft.lifecycle_status === "submitted" ? "Submitted for review" : draft.lifecycle_status} · {new Date(draft.updated_at).toLocaleDateString("en-GB")}</p>
               <p>{draft.summary}</p>
               <ArticleRenderer document={draft.working_document as any} />
-              <Form method="post" className="op-form">
-                <input type="hidden" name="featureId" value={draft.feature_id} />
-                <label>Review note<input name="note" maxLength={240} /></label>
-                <div className="profile-actions">
-                  {draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
-                  <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
-                </div>
-              </Form>
+              {result.capabilities.moderation ? (
+                <Form method="post" className="op-form">
+                  <input type="hidden" name="featureId" value={draft.feature_id} />
+                  <label>Review note<input name="note" maxLength={240} /></label>
+                  <div className="profile-actions">
+                    {draft.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
+                    <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
+                  </div>
+                </Form>
+              ) : <p>Editors can view the shared Review Inbox. Moderator access is required to approve or request changes.</p>}
             </article>
           )) : null}
         </section>
