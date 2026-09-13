@@ -1,4 +1,5 @@
 import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
+import { useState } from "react";
 import type { Route } from "./+types/moderation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
@@ -80,6 +81,7 @@ export default function Moderation() {
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
+  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown"; featureId: string; title: string; slug: string }>(null);
   if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
   const selectedReviewId = searchParams.get("review") ?? "";
   const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
@@ -91,15 +93,9 @@ export default function Moderation() {
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.slug ?? ""}`,
     action: draft.lifecycle_status === "publish_ready" ? (
-      <Form method="post">
-        <input type="hidden" name="featureId" value={draft.feature_id} />
-        <button className="op-button action-primary" name="intent" value="publishFeature" disabled={navigation.state !== "idle"}>PUBLISH FEATURE</button>
-      </Form>
+      <button className="op-button action-primary" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "publish", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>PUBLISH FEATURE</button>
     ) : draft.lifecycle_status === "published" ? (
-      <Form method="post">
-        <input type="hidden" name="featureId" value={draft.feature_id} />
-        <button className="op-button" name="intent" value="takeDownFeature" disabled={navigation.state !== "idle"}>TAKE DOWN</button>
-      </Form>
+      <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>TAKE DOWN</button>
     ) : <span>{draft.lifecycle_status === "taken_down" ? "TAKEN DOWN" : "NO PUBLIC ACTION"}</span>,
   }));
   const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
@@ -138,6 +134,35 @@ export default function Moderation() {
         )}
         {actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}
         {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
+
+        {confirmation && (
+          <div className="auth-dialog-backdrop" role="presentation">
+            <section
+              className="auth-dialog publication-confirmation"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="publication-confirmation-title"
+            >
+              <p className="editorial-marker">PUBLICATION CHECK</p>
+              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : "Take down this feature?"}</h2>
+              <p><strong>{confirmation.title}</strong></p>
+              {confirmation.slug && <p className="field-help">Public URL: /features/{confirmation.slug}</p>}
+              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
+              <Form method="post" className="profile-actions">
+                <input type="hidden" name="featureId" value={confirmation.featureId} />
+                <button
+                  className={confirmation.kind === "publish" ? "op-button action-primary" : "op-button"}
+                  name="intent"
+                  value={confirmation.kind === "publish" ? "publishFeature" : "takeDownFeature"}
+                  disabled={navigation.state !== "idle"}
+                >
+                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : "CONFIRM TAKE DOWN"}
+                </button>
+                <button className="op-button" type="button" onClick={() => setConfirmation(null)} disabled={navigation.state !== "idle"}>CANCEL</button>
+              </Form>
+            </section>
+          </div>
+        )}
         <section>
           <h2>REVIEW INBOX</h2>
           <p>Publishing to the live strip is next. Publish-ready panels are not public yet.</p>

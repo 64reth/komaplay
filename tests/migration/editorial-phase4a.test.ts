@@ -458,3 +458,24 @@ test("phase 4b placeholder repair normalizes current editorial documents", () =>
   assert.match(repair, /update public\.editorial_documents ed/);
   assert.match(repair, /replace\(ed\.working_document::text,'\/assets\/koma-vhs-v2\.svg','\/assets\/koma-feature-placeholder\.svg'\)::jsonb/);
 });
+
+test("publish and takedown require explicit confirmation", () => {
+  assert.match(moderationRoute, /useState<null \| \{ kind: "publish" \| "takeDown"/);
+  assert.match(moderationRoute, /setConfirmation\(\{ kind: "publish"/);
+  assert.match(moderationRoute, /setConfirmation\(\{ kind: "takeDown"/);
+  assert.match(moderationRoute, /Publish this feature\? It will become visible on the public site and may appear in the current issue strip\./);
+  assert.match(moderationRoute, /Take down this feature\? It will be removed from public feature pages and live issue listings, but its history will be kept\./);
+  assert.match(moderationRoute, /Public URL: \/features\/\{confirmation\.slug\}/);
+  assert.match(moderationRoute, /CONFIRM PUBLISH/);
+  assert.match(moderationRoute, /CONFIRM TAKE DOWN/);
+  assert.match(moderationRoute, /CANCEL/);
+  assert.match(moderationRoute, /value=\{confirmation\.kind === "publish" \? "publishFeature" : "takeDownFeature"\}/);
+});
+
+test("publish and takedown server-side permission checks still apply", () => {
+  assert.match(moderationRoute, /if \(intent === "publishFeature" \|\| intent === "takeDownFeature"\)/);
+  assert.match(moderationRoute, /!context\.capabilities\.moderation/);
+  assert.match(moderationRoute, /Moderator access is required to publish or take down panels\./);
+  assert.match(moderationRoute, /publish_editorial_panel/);
+  assert.match(moderationRoute, /take_down_editorial_panel/);
+});
