@@ -49,19 +49,39 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const context = await editorialContext(request);
   const { resolved } = context;
-  if (context.state !== "accepted" || !resolved.client) return data({ error: "Editorial access is required." }, { status: 403, headers: resolved.headers });
+  const trace: Record<string, unknown> = {
+    actionReached: true,
+    method: request.method,
+    authenticatedUserPresent: Boolean(resolved.user),
+    profileIdPresent: Boolean(resolved.auth.state === "authenticated" ? resolved.auth.member.id : ""),
+    accountActive: resolved.auth.state === "authenticated" ? resolved.auth.member.accountStatus === "active" : false,
+    handbookAccepted: context.state === "accepted",
+    editorialAccess: context.state === "accepted",
+  };
+  if (context.state !== "accepted" || !resolved.client) return data({ error: "Editorial access is required.", debugTrace: trace }, { status: 403, headers: resolved.headers });
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return data({ error: "Same-origin request required." }, { status: 403, headers: resolved.headers });
+  if (origin && origin !== new URL(request.url).origin) return data({ error: "Same-origin request required.", debugTrace: { ...trace, branch: "origin-blocked" } }, { status: 403, headers: resolved.headers });
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
+    Object.assign(trace, {
+      intent,
+      titlePresent: Boolean(String(form.get("title") ?? "").trim()),
+      slugPresent: Boolean(String(form.get("slug") ?? "").trim()),
+      featureIdPresent: Boolean(String(form.get("featureId") ?? "").trim()),
+    });
     if (intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
       const featureId = String(form.get("featureId") ?? "");
+      Object.assign(trace, { branch: "submit-existing", rpcCalledName: "submit_editorial_draft" });
       if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
+      Object.assign(trace, { rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", returnedFeatureIdPresent: Boolean(saved.data) });
       if (saved.error) throw new Error(saved.error.message);
-      return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
+      const status = await resolved.client.from("editorial_documents").select("lifecycle_status").eq("feature_id", saved.data).maybeSingle();
+      Object.assign(trace, { resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
+      return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted", debugTrace: trace }, { headers: resolved.headers });
     }
+    Object.assign(trace, { branch: intent === "submit" ? "submit" : intent === "save" ? "save" : "unknown", rpcCalledName: "save_editorial_draft" });
     const value = draftSchema.parse({
       featureId: form.get("featureId") ?? "",
       title: form.get("title"),
@@ -79,10 +99,13 @@ export async function action({ request }: Route.ActionArgs) {
     const saved = await resolved.client.rpc("save_editorial_draft", {
       payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections), status: value.status, document },
     });
+    Object.assign(trace, { rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", returnedFeatureIdPresent: Boolean(saved.data) });
     if (saved.error) throw new Error(saved.error.message);
-    return data({ success: intent === "submit" ? "Submitted for review." : "Draft saved.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
+    const status = await resolved.client.from("editorial_documents").select("lifecycle_status").eq("feature_id", saved.data).maybeSingle();
+    Object.assign(trace, { resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
+    return data({ success: intent === "submit" ? "Submitted for review." : "Draft saved.", featureId: saved.data, status: value.status, debugTrace: trace }, { headers: resolved.headers });
   } catch (error) {
-    return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." }, { status: 400, headers: resolved.headers });
+    return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved.", debugTrace: trace }, { status: 400, headers: resolved.headers });
   }
 }
 
@@ -225,6 +248,12 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <p className="profile-contribution" role="alert">
           {response.error}
         </p>
+      )}
+      {response && "debugTrace" in response && response.debugTrace && (
+        <section className="profile-contribution" aria-label="Editorial action debug trace">
+          <p className="editorial-marker">TEMP EDITORIAL TRACE</p>
+          <pre>{JSON.stringify(response.debugTrace, null, 2)}</pre>
+        </section>
       )}
       {response && "success" in response && "featureId" in response && (
         <article className="profile-contribution" aria-label="Latest saved draft">

@@ -235,3 +235,18 @@ test("composer persistence uses the route action result", () => {
   assert.match(editorialRoute, /Draft saved\./);
   assert.match(editorialRoute, /Submitted for review\./);
 });
+
+
+test("temporary editorial action trace exposes safe action details", () => {
+  assert.match(editorialRoute, /debugTrace/);
+  assert.match(editorialRoute, /actionReached/);
+  assert.match(editorialRoute, /titlePresent/);
+  assert.match(editorialRoute, /slugPresent/);
+  assert.match(editorialRoute, /featureIdPresent/);
+  assert.match(editorialRoute, /rpcCalledName/);
+  assert.match(editorialRoute, /rpcSuccess/);
+  assert.match(editorialRoute, /resultingLifecycleStatus/);
+  assert.match(editorialRoute, /TEMP EDITORIAL TRACE/);
+  assert.doesNotMatch(editorialRoute, /cookie/i);
+  assert.doesNotMatch(editorialRoute, /email/i);
+});
