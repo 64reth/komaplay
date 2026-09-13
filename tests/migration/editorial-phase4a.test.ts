@@ -250,3 +250,29 @@ test("temporary editorial action trace exposes safe action details", () => {
   assert.doesNotMatch(editorialRoute, /cookie/i);
   assert.doesNotMatch(editorialRoute, /email/i);
 });
+
+
+test("save editorial draft avoids ambiguous status references", () => {
+  const statusFixMigration = readFileSync("supabase/migrations/202609130003_fix_save_editorial_draft_status_ambiguity.sql", "utf8");
+  assert.match(statusFixMigration, /requested_status text:=coalesce/);
+  assert.doesNotMatch(statusFixMigration, /doc jsonb;\n status text/);
+  assert.match(statusFixMigration, /where i\.status='current'/);
+  assert.match(statusFixMigration, /update public\.features f set/);
+  assert.match(statusFixMigration, /coalesce\(nullif\(payload->>'image',''\),f\.image\)/);
+  assert.match(statusFixMigration, /select \* into actor from public\.profiles p where p\.id=auth\.uid\(\)/);
+});
+
+
+test("temporary editorial trace wraps validation rpc and exceptions", () => {
+  assert.match(editorialRoute, /beforeValidation/);
+  assert.match(editorialRoute, /afterValidation/);
+  assert.match(editorialRoute, /beforeDocumentBuild/);
+  assert.match(editorialRoute, /afterDocumentBuild/);
+  assert.match(editorialRoute, /beforeRpc/);
+  assert.match(editorialRoute, /afterRpc/);
+  assert.match(editorialRoute, /rawRpcDataKind/);
+  assert.match(editorialRoute, /rawRpcDataKeys/);
+  assert.match(editorialRoute, /exceptionCaught/);
+  assert.match(editorialRoute, /exceptionName/);
+  assert.match(editorialRoute, /exceptionMessage/);
+});

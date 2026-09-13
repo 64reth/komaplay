@@ -65,6 +65,7 @@ export async function action({ request }: Route.ActionArgs) {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
     Object.assign(trace, {
+      formParsed: true,
       intent,
       titlePresent: Boolean(String(form.get("title") ?? "").trim()),
       slugPresent: Boolean(String(form.get("slug") ?? "").trim()),
@@ -72,16 +73,17 @@ export async function action({ request }: Route.ActionArgs) {
     });
     if (intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
       const featureId = String(form.get("featureId") ?? "");
-      Object.assign(trace, { branch: "submit-existing", rpcCalledName: "submit_editorial_draft" });
+      Object.assign(trace, { branch: "submit-existing", rpcCalledName: "submit_editorial_draft", beforeRpc: new Date().toISOString() });
       if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
-      Object.assign(trace, { rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", returnedFeatureIdPresent: Boolean(saved.data) });
+      Object.assign(trace, { afterRpc: new Date().toISOString(), rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", rawRpcDataKind: Array.isArray(saved.data) ? "array" : saved.data === null ? "null" : typeof saved.data, rawRpcDataKeys: saved.data && typeof saved.data === "object" && !Array.isArray(saved.data) ? Object.keys(saved.data as Record<string, unknown>) : [], returnedFeatureIdPresent: Boolean(saved.data) });
       if (saved.error) throw new Error(saved.error.message);
+      Object.assign(trace, { beforeStatusLookup: new Date().toISOString() });
       const status = await resolved.client.from("editorial_documents").select("lifecycle_status").eq("feature_id", saved.data).maybeSingle();
-      Object.assign(trace, { resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
+      Object.assign(trace, { afterStatusLookup: new Date().toISOString(), statusLookupSuccess: !status.error, statusLookupErrorCode: status.error?.code ?? "", statusLookupErrorMessage: status.error?.message ?? "", resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
       return data({ success: "Submitted for review.", featureId: saved.data, status: "submitted", debugTrace: trace }, { headers: resolved.headers });
     }
-    Object.assign(trace, { branch: intent === "submit" ? "submit" : intent === "save" ? "save" : "unknown", rpcCalledName: "save_editorial_draft" });
+    Object.assign(trace, { branch: intent === "submit" ? "submit" : intent === "save" ? "save" : "unknown", rpcCalledName: "save_editorial_draft", beforeValidation: new Date().toISOString() });
     const value = draftSchema.parse({
       featureId: form.get("featureId") ?? "",
       title: form.get("title"),
@@ -94,17 +96,22 @@ export async function action({ request }: Route.ActionArgs) {
       videoUrl: form.get("videoUrl") ?? "",
       status: intent === "submit" ? "submitted" : String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft",
     });
+    Object.assign(trace, { afterValidation: new Date().toISOString(), parsedStatus: value.status, parsedFeatureIdPresent: Boolean(value.featureId) });
     if (value.image && !value.imageAlt) throw new Error("Image alt text is required when an image is provided.");
+    Object.assign(trace, { beforeDocumentBuild: new Date().toISOString() });
     const document = draftDocument(value);
+    Object.assign(trace, { afterDocumentBuild: new Date().toISOString(), beforeRpc: new Date().toISOString() });
     const saved = await resolved.client.rpc("save_editorial_draft", {
       payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections), status: value.status, document },
     });
-    Object.assign(trace, { rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", returnedFeatureIdPresent: Boolean(saved.data) });
+    Object.assign(trace, { afterRpc: new Date().toISOString(), rpcSuccess: !saved.error, rpcErrorCode: saved.error?.code ?? "", rpcErrorMessage: saved.error?.message ?? "", rawRpcDataKind: Array.isArray(saved.data) ? "array" : saved.data === null ? "null" : typeof saved.data, rawRpcDataKeys: saved.data && typeof saved.data === "object" && !Array.isArray(saved.data) ? Object.keys(saved.data as Record<string, unknown>) : [], returnedFeatureIdPresent: Boolean(saved.data) });
     if (saved.error) throw new Error(saved.error.message);
+    Object.assign(trace, { beforeStatusLookup: new Date().toISOString() });
     const status = await resolved.client.from("editorial_documents").select("lifecycle_status").eq("feature_id", saved.data).maybeSingle();
-    Object.assign(trace, { resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
+    Object.assign(trace, { afterStatusLookup: new Date().toISOString(), statusLookupSuccess: !status.error, statusLookupErrorCode: status.error?.code ?? "", statusLookupErrorMessage: status.error?.message ?? "", resultingLifecycleStatus: status.data?.lifecycle_status ?? "" });
     return data({ success: intent === "submit" ? "Submitted for review." : "Draft saved.", featureId: saved.data, status: value.status, debugTrace: trace }, { headers: resolved.headers });
   } catch (error) {
+    Object.assign(trace, { exceptionCaught: true, exceptionName: error instanceof Error ? error.name : typeof error, exceptionMessage: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." });
     return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved.", debugTrace: trace }, { status: 400, headers: resolved.headers });
   }
 }
