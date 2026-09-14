@@ -187,7 +187,7 @@ export default function Moderation() {
               <section className="review-decision-desk" aria-label="Issue close controls">
                 <p className="editorial-marker">MONTHLY RESET</p>
                 <h3>CLOSE CURRENT ISSUE</h3>
-                <p>{result.closePreview?.status === "ready" ? `${result.closePreview.eligiblePanelCount ?? 0} published or already archived panels are eligible for ${result.closePreview.issueTitle ?? "the current issue"}.` : result.closePreview?.message ?? "No published panels are ready to close for this issue."}</p>
+                <p>{result.closePreview?.status === "ready" ? `${result.closePreview.includedPanelCount ?? result.closePreview.eligiblePanelCount ?? 0} total public panels will be included in ${result.closePreview.issueTitle ?? "the current issue"}. ${result.closePreview.editorialPanelCount ?? result.closePreview.publishedPanelCount ?? 0} editorial panels are ready to archive. ${result.closePreview.staticPanelCount ?? 0} static/seeded panels are already part of this issue and will remain read-only.` : result.closePreview?.message ?? "No published panels are ready to close for this issue."}</p>
                 <button
                   className="op-button"
                   type="button"

@@ -566,6 +566,26 @@ test("phase 4d close selection can derive or create the month issue", () => {
   assert.match(repair, /coalesce\(ed\.lifecycle_status,f\.lifecycle_status\) in \('published','archived'\)/);
 });
 
+
+test("phase 4d issue close preview distinguishes editorial and static issue panels", () => {
+  const staticMembership = readFileSync("supabase/migrations/202609130012_issue_close_static_membership.sql", "utf8");
+  assert.match(staticMembership, /staticPanelCount/);
+  assert.match(staticMembership, /editorialPanelCount/);
+  assert.match(staticMembership, /includedPanelCount/);
+  assert.match(moderationRoute, /total public panels will be included/);
+  assert.match(moderationRoute, /editorial panels are ready to archive/);
+  assert.match(moderationRoute, /static\/seeded panels are already part of this issue and will remain read-only/);
+});
+
+test("phase 4d close includes static panels without destructive lifecycle mutation", () => {
+  const staticMembership = readFileSync("supabase/migrations/202609130012_issue_close_static_membership.sql", "utf8");
+  assert.match(staticMembership, /ed\.feature_id is null/);
+  assert.match(staticMembership, /lifecycle_status=case when m\.is_editorial then 'archived' else f\.lifecycle_status end/);
+  assert.match(staticMembership, /archived_at=case when m\.is_editorial then coalesce\(f\.archived_at,now\(\)\) else f\.archived_at end/);
+  assert.match(staticMembership, /update public\.editorial_documents ed[\s\S]*where ed\.feature_id in \(select id from issue_members where is_editorial\)/);
+  assert.match(staticMembership, /update public\.issues i set status='archived'/);
+});
+
 test("phase 4d archive page prefers issue grouping over loose fallback", () => {
   const archiveRoute = readFileSync("router-app/routes/archive.tsx", "utf8");
   assert.match(archiveRoute, /<ArchiveShelf data=\{data\} issues=\{archiveIssues\(data, filters\)\} \/>/);
