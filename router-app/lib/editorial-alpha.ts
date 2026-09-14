@@ -18,7 +18,11 @@ export const draftSchema = z.object({
 
 export function bodyModules(sections: string, videoUrl = ""): ArticleModule[] {
   const modules: ArticleModule[] = sections.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).map((part, index) => {
+    if (part === "---") return { id: "divider-" + (index + 1), type: "divider", version: 1, content: {} };
     if (part.startsWith("## ")) return { id: "section-" + (index + 1), type: "heading", version: 1, content: { text: part.slice(3).trim() } };
+    if (/^(?:- |\* )/m.test(part)) return { id: "list-" + (index + 1), type: "unordered-list", version: 1, content: { items: part.split("\n").map((line) => line.replace(/^(?:- |\* )/, "").trim()).filter(Boolean) } };
+    if (/^\d+\. /m.test(part)) return { id: "ordered-list-" + (index + 1), type: "ordered-list", version: 1, content: { items: part.split("\n").map((line) => line.replace(/^\d+\. /, "").trim()).filter(Boolean) } };
+    if (part.startsWith("> ")) return { id: "quote-" + (index + 1), type: "pull-quote", version: 1, content: { text: part.split("\n").map((line) => line.replace(/^> ?/, "")).join("\n").trim() } };
     return { id: "paragraph-" + (index + 1), type: "paragraph", version: 1, content: { text: part } };
   });
   if (videoUrl) {

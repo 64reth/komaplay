@@ -7,6 +7,8 @@ import {
   types,
   type Contribution,
 } from "../../lib/open-panel";
+import { MarkdownText } from "../MarkdownText";
+import { WritingToolbar } from "../WritingToolbar";
 
 type Activity = {
   public_credit: string;
@@ -48,6 +50,8 @@ export function WorkshopClient({
   const [screenshot, setScreenshot] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [bodyText, setBodyText] = useState("");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   function chooseSection(section: string) {
     if (!sectionRef.current || readOnly) return;
@@ -110,6 +114,7 @@ export function WorkshopClient({
         }),
       );
       form.reset();
+      setBodyText("");
       setScreenshot("");
       setMessage(
         result.duplicate
@@ -243,12 +248,17 @@ export function WorkshopClient({
           </label>
           <label>
             Contribution
+            <span className="field-help">Use the writing tools for simple Markdown-style formatting. Raw text stays editable.</span>
+            <WritingToolbar textareaRef={bodyRef} value={bodyText} onChange={setBodyText} label="Workshop contribution writing tools" />
             <textarea
+              ref={bodyRef}
               name="body"
               required
               minLength={20}
               maxLength={8000}
               rows={7}
+              value={bodyText}
+              onChange={(event) => setBodyText(event.target.value)}
             />
           </label>
           <label>
@@ -315,7 +325,7 @@ export function WorkshopClient({
                 {item.type} · {item.target_section}
               </p>
               <h3>{item.title}</h3>
-              <p>{item.body}</p>
+              <p><MarkdownText text={item.body} /></p>
               <p>
                 <b>{item.status.toUpperCase()}</b> ·{" "}
                 {new Date(item.updated_at).toLocaleDateString("en-GB")}

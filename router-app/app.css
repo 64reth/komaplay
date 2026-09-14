@@ -2949,3 +2949,47 @@ html {
     grid-template-columns: 1fr;
   }
 }
+
+.writing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid var(--ink);
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--paper) 86%, white);
+  padding: 8px;
+}
+.writing-toolbar button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--ink) 75%, transparent);
+  background: transparent;
+  color: var(--ink);
+  font: 700 0.65rem/1 monospace;
+  letter-spacing: 0.05em;
+}
+.writing-toolbar button:hover,
+.writing-toolbar button:focus-visible {
+  border-color: var(--color-accent, var(--red));
+  color: var(--color-accent, var(--red));
+  background: transparent;
+  outline: 2px solid var(--color-accent, var(--red));
+  outline-offset: 2px;
+}
+.writing-toolbar + textarea {
+  border-top-color: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.editorial-document blockquote,
+.op-prose blockquote {
+  border-left: 4px solid var(--color-accent, var(--red));
+  margin-inline: 0;
+  padding-inline-start: 18px;
+  font-style: italic;
+}
+.editorial-document a,
+.op-prose a,
+.contribution-card a {
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-accent, var(--red));
+}

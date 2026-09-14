@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useState } from "react";
 import { Gallery } from "./Gallery";
+import { MarkdownText } from "./MarkdownText";
 import { trustedVideo } from "../lib/media";
 import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import type {
@@ -65,12 +66,12 @@ function Module({ module }: { module: ArticleModule }) {
     case "subheading":
       return <h3>{text}</h3>;
     case "paragraph":
-      return <p className="op-prose">{text}</p>;
+      return <p className="op-prose"><MarkdownText text={text} /></p>;
     case "ordered-list":
       return (
         <ol>
           {((c.items as string[]) ?? []).map((x, i) => (
-            <li key={i}>{x}</li>
+            <li key={i}><MarkdownText text={x} /></li>
           ))}
         </ol>
       );
@@ -78,12 +79,12 @@ function Module({ module }: { module: ArticleModule }) {
       return (
         <ul>
           {((c.items as string[]) ?? []).map((x, i) => (
-            <li key={i}>{x}</li>
+            <li key={i}><MarkdownText text={x} /></li>
           ))}
         </ul>
       );
     case "pull-quote":
-      return <blockquote>{text}</blockquote>;
+      return <blockquote><MarkdownText text={text} /></blockquote>;
     case "callout":
     case "strategy":
       return (
@@ -97,7 +98,7 @@ function Module({ module }: { module: ArticleModule }) {
             )}
           </p>
           <h3>{String(c.title ?? "")}</h3>
-          <p>{text}</p>
+          <p><MarkdownText text={text} /></p>
         </aside>
       );
     case "image":
@@ -127,14 +128,14 @@ function Module({ module }: { module: ArticleModule }) {
       return module.type === "video-text" ? (
         <div className="video-with-text">
           {embed}
-          <p>{text}</p>
+          <p><MarkdownText text={text} /></p>
         </div>
       ) : (
         embed
       );
     }
     case "caption":
-      return <p className="editorial-caption">{text}</p>;
+      return <p className="editorial-caption"><MarkdownText text={text} /></p>;
     case "comparison": {
       const images = (
         (c.images as Record<string, unknown>[] | undefined) ?? [
@@ -166,7 +167,7 @@ function Module({ module }: { module: ArticleModule }) {
       return (
         <details className="editorial-spoiler">
           <summary>SPOILER: {String(c.title ?? "Open disclosure")}</summary>
-          <p>{text}</p>
+          <p><MarkdownText text={text} /></p>
         </details>
       );
     case "fact-box":
@@ -201,7 +202,7 @@ function Module({ module }: { module: ArticleModule }) {
     case "closing-cta":
       return (
         <aside className="editorial-closing">
-          <p>{text}</p>
+          <p><MarkdownText text={text} /></p>
           <Link to={String(c.href ?? "#workshop-link")}>
             {String(c.label ?? "ADD TO THIS EDITORIAL →")}
           </Link>

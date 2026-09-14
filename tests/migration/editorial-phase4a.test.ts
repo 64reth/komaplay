@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { bodyModules, draftDocument, draftSchema, editorialStatusLabel } from "../../router-app/lib/editorial-alpha";
+import { applyWritingTool } from "../../router-app/components/WritingToolbar";
 
 const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha_rpc.sql", "utf8");
 const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
@@ -592,4 +593,44 @@ test("phase 4d archive page prefers issue grouping over loose fallback", () => {
   assert.match(archiveRoute, /feature\.lifecycle_status === "archived" && !feature\.issue_id/);
   assert.match(archiveRoute, /Loose archived panels/);
   assert.match(archiveRoute, /No archived panels yet\./);
+});
+
+
+test("phase 4e writing toolbar inserts markdown around selections", () => {
+  assert.equal(applyWritingTool("make this strong", 5, 9, "bold").value, "make **this** strong");
+  assert.equal(applyWritingTool("make this lean", 5, 9, "italic").value, "make *this* lean");
+  assert.equal(applyWritingTool("Opening", 0, 7, "heading").value, "## Opening");
+  assert.equal(applyWritingTool("first\nsecond", 0, 12, "bullet").value, "- first\n- second");
+  assert.equal(applyWritingTool("first", 0, 5, "numbered").value, "1. first");
+  assert.equal(applyWritingTool("pull this", 0, 9, "quote").value, "> pull this");
+  assert.equal(applyWritingTool("source", 0, 6, "link").value, "[source](https://example.com)");
+  assert.equal(applyWritingTool("", 0, 0, "divider").value, "---");
+});
+
+test("phase 4e editorial preview parses basic markdown writing patterns", () => {
+  const modules = bodyModules("## Opening\n\nParagraph with **bold**, *italic* and [source](https://example.com).\n\n- one\n- two\n\n1. first\n2. second\n\n> quoted evidence\n\n---");
+  assert.equal(modules[0].type, "heading");
+  assert.equal(modules[1].type, "paragraph");
+  assert.equal(modules[2].type, "unordered-list");
+  assert.deepEqual(modules[2].content.items, ["one", "two"]);
+  assert.equal(modules[3].type, "ordered-list");
+  assert.deepEqual(modules[3].content.items, ["first", "second"]);
+  assert.equal(modules[4].type, "pull-quote");
+  assert.equal(modules[5].type, "divider");
+});
+
+test("phase 4e writing tools are shared by editorial and workshop contribution fields", () => {
+  const toolbar = readFileSync("router-app/components/WritingToolbar.tsx", "utf8");
+  const markdownText = readFileSync("router-app/components/MarkdownText.tsx", "utf8");
+  const workshopClient = readFileSync("router-app/components/open-panel/WorkshopClient.tsx", "utf8");
+  const articleRenderer = readFileSync("router-app/components/ArticleRenderer.tsx", "utf8");
+  const publishedPanel = readFileSync("router-app/components/open-panel/PublishedPanel.tsx", "utf8");
+  assert.match(toolbar, /role="toolbar"/);
+  assert.match(toolbar, /Insert bold Markdown/);
+  assert.match(editorialRoute, /Editorial body writing tools/);
+  assert.match(workshopClient, /Workshop contribution writing tools/);
+  assert.match(articleRenderer, /<MarkdownText text=\{text\} \/>/);
+  assert.match(publishedPanel, /<MarkdownText text=\{a\.body\} \/>/);
+  assert.match(markdownText, /url\.protocol === "http:" \|\| url\.protocol === "https:"/);
+  assert.doesNotMatch(markdownText, /dangerouslySetInnerHTML/);
 });

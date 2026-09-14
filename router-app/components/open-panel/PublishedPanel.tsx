@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { MarkdownText } from "../MarkdownText";
 import {
   splitCredits,
   safeMedia,
@@ -109,7 +110,7 @@ export function CommunityAdditions({
               )}
             </p>
             <h3>{a.heading}</h3>
-            <p className="op-prose">{a.body}</p>
+            <p className="op-prose"><MarkdownText text={a.body} /></p>
             {a.screenshot_path && (
               <figure>
                 <img

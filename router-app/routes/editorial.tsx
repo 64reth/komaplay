@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
 import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
+import { WritingToolbar } from "../components/WritingToolbar";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
@@ -129,6 +130,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
+  const sectionsRef = useRef<HTMLTextAreaElement>(null);
   const [slugEdited, setSlugEdited] = useState(Boolean(selectedFeatureId));
   const pending = navigation.state !== "idle";
   const response = routeActionData;
@@ -303,8 +305,9 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         {imageAltError ? <p id="image-alt-help" className="field-error" role="alert">Image alt text is required when an image is provided.</p> : <p id="image-alt-help" className="field-help">Placeholder fallback uses default alt text: KOMA://PLAY editorial placeholder.</p>}
         <label>
           Body sections
-          <span className="field-help">Use section headings like ## Opening read, followed by paragraphs for the article body.</span>
-          <textarea name="sections" required minLength={20} rows={10} value={draft.sections} onChange={update("sections")} />
+          <span className="field-help">Use the writing tools for Markdown-style headings, lists, quotes, links, bold and italic text. Raw text remains editable.</span>
+          <WritingToolbar textareaRef={sectionsRef} value={draft.sections} onChange={(sections) => setDraft((current) => ({ ...current, sections, status: current.status === "submitted" ? "draft" : current.status }))} label="Editorial body writing tools" />
+          <textarea ref={sectionsRef} name="sections" required minLength={20} rows={10} value={draft.sections} onChange={update("sections")} />
         </label>
         <label>
           YouTube/Twitch video URL
