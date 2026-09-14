@@ -84,7 +84,7 @@ function Module({ module }: { module: ArticleModule }) {
         </ul>
       );
     case "pull-quote":
-      return <blockquote><MarkdownText text={text} /></blockquote>;
+      return <blockquote><MarkdownText text={text} />{c.attribution ? <cite>— {String(c.attribution)}</cite> : null}</blockquote>;
     case "callout":
     case "strategy":
       return (
@@ -116,7 +116,7 @@ function Module({ module }: { module: ArticleModule }) {
       if (!video)
         return (
           <aside className="editorial-unavailable">
-            Video unavailable. <a href={String(c.url ?? "#")}>View source</a>
+            Video unavailable. Use a supported YouTube or Twitch URL.
           </aside>
         );
       const embed = (

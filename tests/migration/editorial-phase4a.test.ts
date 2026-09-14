@@ -91,7 +91,7 @@ test("editorial composer preview is driven by live client state", () => {
   assert.match(editorialRoute, /draftDocument\(draft\)/);
   assert.match(editorialRoute, /onChange=\{update\("title"\)\}/);
   assert.match(editorialRoute, /onChange=\{update\("summary"\)\}/);
-  assert.match(editorialRoute, /onChange=\{update\("sections"\)\}/);
+  assert.match(editorialRoute, /<ArticleSectionBuilder sections=\{sections\} onChange=\{changeSections\}/);
   assert.doesNotMatch(editorialRoute, /ArticleRenderer document=\{emptyPreview\}/);
 });
 
@@ -628,7 +628,7 @@ test("phase 4e writing tools are shared by editorial and workshop contribution f
   const publishedPanel = readFileSync("router-app/components/open-panel/PublishedPanel.tsx", "utf8");
   assert.match(toolbar, /role="toolbar"/);
   assert.match(toolbar, /Insert bold Markdown/);
-  assert.match(editorialRoute, /Editorial body writing tools/);
+  assert.match(readFileSync("router-app/components/ArticleSectionBuilder.tsx", "utf8"), /Paragraph writing tools/);
   assert.match(workshopClient, /Workshop contribution writing tools/);
   assert.match(articleRenderer, /<MarkdownText text=\{text\} \/>/);
   assert.match(publishedPanel, /<MarkdownText text=\{a\.body\} \/>/);

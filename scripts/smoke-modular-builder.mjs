@@ -1,0 +1,58 @@
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { mkdir, readFile } from 'node:fs/promises';
+const root = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(root + '/package.json');
+const { build } = createRequire(require.resolve('wrangler/package.json'))('esbuild');
+const { chromium } = require('@playwright/test');
+const bundle = await build({ stdin: { contents: `
+import React, {useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {ArticleSectionBuilder} from './router-app/components/ArticleSectionBuilder';
+import {ArticleRenderer} from './router-app/components/ArticleRenderer';
+import {draftDocument,draftSchema,serializeComposerSections,composerFromWorkItem,parseComposerSections,validateComposerSections} from './router-app/lib/editorial-alpha';
+function App(){
+ const [sections,setSections]=useState([]); const [saved,setSaved]=useState(null); const [message,setMessage]=useState('');
+ const doc=draftDocument(draftSchema.parse({title:'Smoke article',slug:'smoke-article',summary:'Smoke article summary',sectionsJson:serializeComposerSections(sections)}));
+ return <><ArticleSectionBuilder sections={sections} onChange={setSections} upload={()=>{}}/><button onClick={()=>{setSaved(JSON.parse(JSON.stringify(doc)));setMessage('Saved')}}>Save test draft</button><button onClick={()=>{setSections(parseComposerSections(composerFromWorkItem({feature_id:'00000000-0000-4000-8000-000000000001',title:'Smoke article',slug:'smoke-article',summary:'Smoke article summary',lifecycle_status:'draft',working_document:saved}).sectionsJson));setMessage('Reopened')}}>Reopen test draft</button><button onClick={()=>setMessage(validateComposerSections(sections,true).join(' ')||'Valid for submission')}>Validate submission</button><p role="status">{message}</p><article aria-label="Preview"><ArticleRenderer document={doc}/></article></>;
+} createRoot(document.getElementById('root')).render(<App/>);`, resolveDir: root, loader: 'tsx' }, bundle: true, write: false, format: 'iife', jsx: 'automatic', define: {'process.env.NODE_ENV':'"production"'} });
+const browser = await chromium.launch({headless:true});
+try {
+ const page=await browser.newPage({viewport:{width:1100,height:900}});
+ await page.setContent('<div id="root"></div>');
+ await page.addStyleTag({content:await readFile(root + '/router-app/app.css','utf8')});
+ await page.addScriptTag({content:bundle.outputFiles[0].text});
+ const types=['heading','paragraph','image','paragraph','quote','video','divider','bullet-list','numbered-list'];
+ for(const type of types) await page.getByLabel('ADD SECTION').selectOption(type);
+ const fields=page.locator('fieldset');
+ if(await fields.count()!==9) throw Error('Add failed');
+ await fields.nth(0).getByLabel('Heading text').fill('Opening heading');
+ await fields.nth(1).getByLabel('Paragraph text').fill('First paragraph');
+ await fields.nth(2).getByLabel('Image URL or path').fill('/body.png');
+ await fields.nth(3).getByLabel('Paragraph text').fill('Second paragraph');
+ await fields.nth(4).getByLabel('Quote text').fill('Quoted words');
+ await fields.nth(4).getByLabel('Attribution').fill('An editor');
+ await fields.nth(5).getByLabel('YouTube/Twitch URL').fill('https://youtu.be/dQw4w9WgXcQ');
+ await fields.nth(7).getByLabel('Items').fill('One\nTwo');
+ await fields.nth(8).getByLabel('Items').fill('First\nSecond');
+ await page.getByText('Validate submission',{exact:true}).click();
+ if(!(await page.getByRole('status').innerText()).includes('alt text')) throw Error('Alt validation failed');
+ await fields.nth(2).getByLabel('Alt text').fill('Body image');
+ await page.getByLabel('Move section 3 up',{exact:true}).click();
+ if(!(await fields.nth(1).innerText()).includes('IMAGE')) throw Error('Move up failed');
+ await page.getByLabel('Move section 2 down',{exact:true}).click();
+ await page.getByLabel('Remove section 9',{exact:true}).click();
+ await page.getByLabel('Remove section 8',{exact:true}).click();
+ await page.getByText('Save test draft',{exact:true}).click();
+ await page.getByLabel('Remove section 1',{exact:true}).click();
+ await page.getByText('Reopen test draft',{exact:true}).click();
+ if(await fields.count()!==7) throw Error('Reopen failed');
+ await page.getByText('Validate submission',{exact:true}).click();
+ if(await page.getByRole('status').innerText()!=='Valid for submission') throw Error('Valid submit rejected');
+ const order=await page.locator('article .editorial-document').evaluate(el=>Array.from(el.children).map(c=>c.tagName));
+ if(JSON.stringify(order)!==JSON.stringify(['H2','P','FIGURE','P','BLOCKQUOTE','DIV','HR'])) throw Error('Order mismatch '+order);
+ await page.setViewportSize({width:375,height:812});
+ await mkdir(root + '/test-results', {recursive:true});
+ await page.screenshot({path:root + '/test-results/modular-builder-mobile.png',fullPage:true});
+ console.log('Browser smoke passed: add all eight types, edit, move, remove, alt validation, save/reopen JSON round-trip and preview order. Persistence used an isolated in-memory harness.');
+} finally {await browser.close();}

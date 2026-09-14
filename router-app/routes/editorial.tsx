@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
 import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
-import { WritingToolbar } from "../components/WritingToolbar";
+import { ArticleSectionBuilder } from "../components/ArticleSectionBuilder";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
-import { composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
+import { parseComposerSections, serializeComposerSections, composerSectionsToText, updateComposerSection, validateComposerSections, type ComposerSection, composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 
@@ -59,6 +59,14 @@ export async function action({ request }: Route.ActionArgs) {
     if (intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
       const featureId = String(form.get("featureId") ?? "");
       if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
+      const work = await resolved.client.rpc("editorial_my_work");
+      if (work.error) throw new Error(work.error.message);
+      const item = (work.data as EditorialWorkItem[]).find(item => item.feature_id === featureId);
+      if (!item) throw new Error("Saved draft was not found.");
+      const existing = draftSchema.parse(composerFromWorkItem(item));
+      const issues = validateComposerSections(parseComposerSections(existing.sectionsJson, existing.sections), true);
+      if (existing.image && !existing.imageAlt.trim()) issues.push("Feature image needs alt text.");
+      if (issues.length) throw new Error(issues.join(" "));
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
       if (saved.error) throw new Error(saved.error.message);
       return data({ success: "Submitted for review. Editors can now see this in the Review Inbox.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
@@ -71,14 +79,30 @@ export async function action({ request }: Route.ActionArgs) {
       categoryId: form.get("categoryId") ?? "",
       image: form.get("image") ?? "",
       imageAlt: form.get("imageAlt") ?? "",
-      sections: form.get("sections"),
+      sections: form.get("sections") ?? "",
+      sectionsJson: form.get("sectionsJson") ?? "",
       videoUrl: form.get("videoUrl") ?? "",
       status: intent === "submit" ? "submitted" : String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft",
     });
     if (value.image && !value.imageAlt) throw new Error("Image alt text is required when an image is provided.");
+    const submittedSections = parseComposerSections(value.sectionsJson, value.sections, value.videoUrl);
+    const preserved = submittedSections.filter(section => section.type === "legacy");
+    if (preserved.length) {
+      const work = await resolved.client.rpc("editorial_my_work");
+      if (work.error) throw new Error(work.error.message);
+      const original = (work.data as EditorialWorkItem[]).find(item => item.feature_id === value.featureId);
+      for (const section of preserved) {
+        const savedModule = original?.working_document.modules.find(module => module.id === section.id);
+        if (!savedModule) throw new Error("Existing section was not found in the saved draft.");
+        section.module = savedModule;
+      }
+      value.sectionsJson = serializeComposerSections(submittedSections);
+    }
+    const issues = validateComposerSections(submittedSections, intent === "submit");
+    if (issues.length) throw new Error(issues.join(" "));
     const document = draftDocument(value);
     const saved = await resolved.client.rpc("save_editorial_draft", {
-      payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections), status: value.status, document },
+      payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections, value.sectionsJson), status: value.status, document },
     });
     if (saved.error) throw new Error(saved.error.message);
     return data({ success: intent === "submit" ? "Submitted for review. Editors can now see this in the Review Inbox." : "Draft saved. You can leave and return from MY PANELS.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
@@ -118,6 +142,7 @@ const initialComposer: ComposerState = {
   image: "",
   imageAlt: "",
   sections: "",
+  sectionsJson: "[]",
   videoUrl: "",
   status: "draft",
 };
@@ -130,7 +155,8 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
-  const sectionsRef = useRef<HTMLTextAreaElement>(null);
+  const sections = useMemo(() => parseComposerSections(draft.sectionsJson, draft.sections, draft.videoUrl), [draft.sectionsJson, draft.sections, draft.videoUrl]);
+  const changeSections = (sections: ComposerSection[]) => setDraft(current => ({ ...current, sectionsJson: serializeComposerSections(sections), sections: composerSectionsToText(sections), status: current.status === "submitted" ? "draft" : current.status }));
   const [slugEdited, setSlugEdited] = useState(Boolean(selectedFeatureId));
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageMessage, setImageMessage] = useState("");
@@ -197,7 +223,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     setDraft(composerFromWorkItem(item));
     setSlugEdited(true);
   };
-  async function uploadFeatureImage(event: ChangeEvent<HTMLInputElement>) {
+  async function uploadFeatureImage(event: ChangeEvent<HTMLInputElement>, sectionId?: string) {
     const file = event.target.files?.[0];
     if (!file) return;
     setImageMessage("");
@@ -225,7 +251,13 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       const response = await fetch("/member/editorial/upload", { method: "POST", body });
       const payload = await response.json() as { url?: string; error?: string };
       if (!response.ok || !payload.url) throw new Error(payload.error ?? "The image could not be uploaded.");
-      setDraft((current) => ({ ...current, image: payload.url ?? current.image, status: current.status === "submitted" ? "draft" : current.status }));
+      setDraft((current) => {
+        if (sectionId) {
+          const next = updateComposerSection(parseComposerSections(current.sectionsJson, current.sections), sectionId, { url: payload.url });
+          return { ...current, sectionsJson: serializeComposerSections(next), sections: composerSectionsToText(next) };
+        }
+        return { ...current, image: payload.url ?? current.image, status: current.status === "submitted" ? "draft" : current.status };
+      });
       setImageMessage("Image uploaded.");
     } catch (cause) {
       setImageErrorMessage(cause instanceof Error ? cause.message : "The image could not be uploaded.");
@@ -322,6 +354,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           Standfirst / summary
           <textarea name="summary" required minLength={8} maxLength={1000} value={draft.summary} onChange={update("summary")} />
         </label>
+        <label>Content format<input value="Essay" readOnly aria-label="Content format" /><span className="field-help">Editorial features use the Essay format for alpha.</span></label>
         <label>
           Category
           <select name="categoryId" value={draft.categoryId ?? ""} onChange={update("categoryId")}>
@@ -352,26 +385,19 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <input name="imageAlt" maxLength={400} value={draft.imageAlt ?? ""} onChange={update("imageAlt")} aria-describedby="image-alt-help" />
         </label>
         {imageAltError ? <p id="image-alt-help" className="field-error" role="alert">Image alt text is required when an image is provided.</p> : <p id="image-alt-help" className="field-help">Placeholder fallback uses default alt text: KOMA://PLAY editorial placeholder.</p>}
-        <label>
-          Body sections
-          <span className="field-help">Use the writing tools for Markdown-style headings, lists, quotes, links, bold and italic text. Raw text remains editable.</span>
-          <WritingToolbar textareaRef={sectionsRef} value={draft.sections} onChange={(sections) => setDraft((current) => ({ ...current, sections, status: current.status === "submitted" ? "draft" : current.status }))} label="Editorial body writing tools" />
-          <textarea ref={sectionsRef} name="sections" required minLength={20} rows={10} value={draft.sections} onChange={update("sections")} />
-        </label>
-        <label>
-          YouTube/Twitch video URL
-          <input name="videoUrl" type="url" value={draft.videoUrl ?? ""} onChange={update("videoUrl")} />
-        </label>
+        <input type="hidden" name="sections" value={draft.sections} />
+        <input type="hidden" name="sectionsJson" value={draft.sectionsJson} />
+        <ArticleSectionBuilder sections={sections} onChange={changeSections} upload={uploadFeatureImage} />
         <div className="composer-action-help">
           <p>Save keeps this private in MY PANELS.</p>
           <p>Submit sends it to the shared Review Inbox for editors and moderators.</p>
           <p>Drafts are private until submitted.</p>
         </div>
         <div className="profile-actions">
-          <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending || isPublishReady}>
+          <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending || uploadingImage || isPublishReady}>
             {pending && submitIntent === "save" ? "SAVING…" : isChangesRequested ? "SAVE REVISION" : "SAVE DRAFT"}
           </button>
-          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending || isSubmitted || isPublishReady}>
+          <button className="op-button action-primary" name="intent" value="submit" onClick={() => setSubmitIntent("submit")} disabled={pending || uploadingImage || isSubmitted || isPublishReady}>
             {pending && submitIntent === "submit" ? "SUBMITTING…" : isSubmitted ? "SUBMITTED" : isPublishReady ? "PUBLISH-READY" : isChangesRequested ? "RESUBMIT FOR REVIEW" : "SUBMIT FOR REVIEW"}
           </button>
         </div>

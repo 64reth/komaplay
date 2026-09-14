@@ -38,7 +38,7 @@ export function applyWritingTool(value: string, start: number, end: number, tool
   return { value: before + inserted + after, selectionStart: start, selectionEnd: start + inserted.length };
 }
 
-export function WritingToolbar({ textareaRef, value, onChange, label = "Writing tools" }: { textareaRef: RefObject<HTMLTextAreaElement | null>; value: string; onChange: (value: string) => void; label?: string }) {
+export function WritingToolbar({ textareaRef, value, onChange, label = "Writing tools", inlineOnly = false }: { textareaRef: RefObject<HTMLTextAreaElement | null>; value: string; onChange: (value: string) => void; label?: string; inlineOnly?: boolean }) {
   const apply = (tool: Tool) => {
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? value.length;
@@ -52,7 +52,7 @@ export function WritingToolbar({ textareaRef, value, onChange, label = "Writing 
   };
   return (
     <div className="writing-toolbar" role="toolbar" aria-label={label}>
-      {tools.map((tool) => (
+      {tools.filter(tool => !inlineOnly || ["bold", "italic", "link"].includes(tool.id)).map((tool) => (
         <button key={tool.id} type="button" title={tool.title} aria-label={tool.title} onClick={() => apply(tool.id)}>
           {tool.label}
         </button>
