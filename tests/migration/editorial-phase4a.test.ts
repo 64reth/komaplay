@@ -314,7 +314,8 @@ test("guided editorial form explains slug format and auto-suggest behaviour", ()
 });
 
 test("guided image fields explain alt text and show inline validation", () => {
-  assert.match(editorialRoute, /Optional\. Add an image URL or uploaded image path for the feature card and article preview\./);
+  assert.match(editorialRoute, /Upload a feature image/);
+  assert.match(editorialRoute, /Optional fallback\. Upload is preferred; the KOMA placeholder appears when no image is provided\./);
   assert.match(editorialRoute, /Required when you add an image\. Describe the image for readers using assistive technology\./);
   assert.match(editorialRoute, /Image alt text is required when an image is provided\./);
   assert.match(editorialRoute, /Placeholder fallback uses default alt text: KOMA:\/\/PLAY editorial placeholder\./);
@@ -633,4 +634,49 @@ test("phase 4e writing tools are shared by editorial and workshop contribution f
   assert.match(publishedPanel, /<MarkdownText text=\{a\.body\} \/>/);
   assert.match(markdownText, /url\.protocol === "http:" \|\| url\.protocol === "https:"/);
   assert.doesNotMatch(markdownText, /dangerouslySetInnerHTML/);
+});
+
+
+test("phase 4f editorial image upload uses a strict private storage bucket", () => {
+  const migration = readFileSync("supabase/migrations/202609140001_editorial_feature_image_upload.sql", "utf8");
+  assert.match(migration, /editorial-feature-images/);
+  assert.match(migration, /file_size_limit,allowed_mime_types/);
+  assert.match(migration, /5242880/);
+  assert.match(migration, /image\/png/);
+  assert.match(migration, /image\/jpeg/);
+  assert.match(migration, /image\/webp/);
+  assert.match(migration, /public\.has_current_handbook_acceptance\(\)/);
+  assert.match(migration, /public\.editorial_has_access\(auth\.uid\(\),false\)/);
+  assert.match(migration, /\^editorial\/\[0-9a-f-\]\{36\}/);
+});
+
+test("phase 4f editorial image upload route validates auth type size and file contents", () => {
+  const uploadRoute = readFileSync("router-app/routes/editorial-upload.tsx", "utf8");
+  const imageRoute = readFileSync("router-app/routes/editorial-image.tsx", "utf8");
+  const mediaServer = readFileSync("router-app/lib/editorial-media.server.ts", "utf8");
+  const routes = readFileSync("router-app/routes.ts", "utf8");
+  assert.match(routes, /member\/editorial\/upload/);
+  assert.match(routes, /api\/editorial\/image/);
+  assert.match(uploadRoute, /Sign in to upload editorial images/);
+  assert.match(uploadRoute, /Editorial access is required/);
+  assert.match(uploadRoute, /Images must be 5 MB or smaller\./);
+  assert.match(uploadRoute, /Use PNG, JPEG or WebP\./);
+  assert.match(mediaServer, /validateImageBytes/);
+  assert.match(uploadRoute, /storage\.from\(editorialImageBucket\)\.upload/);
+  assert.match(imageRoute, /createSignedUrl/);
+  assert.doesNotMatch(uploadRoute + imageRoute + mediaServer, /service_role|SERVICE_ROLE/i);
+});
+
+test("phase 4f editorial composer upload populates image path and keeps placeholder fallback", () => {
+  assert.match(editorialRoute, /Upload a feature image/);
+  assert.match(editorialRoute, /PNG, JPEG or WebP\. 5 MB max\./);
+  assert.match(editorialRoute, /fetch\("\/member\/editorial\/upload"/);
+  assert.match(editorialRoute, /setImageMessage\("Image uploaded\."\)/);
+  assert.match(editorialRoute, /payload\.url/);
+  assert.match(editorialRoute, /className="editorial-image-preview"/);
+  assert.match(editorialRoute, /Image alt text is required when an image is provided\./);
+  const parsed = draftSchema.parse({ title: "Upload preview", slug: "upload-preview", summary: "A draft with uploaded media.", sections: "## Body\n\nThis draft has an uploaded image.", image: "/api/editorial/image?path=editorial/00000000-0000-0000-0000-000000000000/upload-preview/00000000-0000-0000-0000-000000000001.png", imageAlt: "Uploaded screenshot." });
+  const doc = draftDocument(parsed);
+  assert.equal(doc.header.hero?.src, parsed.image);
+  assert.equal(doc.header.hero?.alt, "Uploaded screenshot.");
 });

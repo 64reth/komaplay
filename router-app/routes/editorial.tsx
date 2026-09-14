@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
@@ -132,6 +132,9 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
   const sectionsRef = useRef<HTMLTextAreaElement>(null);
   const [slugEdited, setSlugEdited] = useState(Boolean(selectedFeatureId));
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageMessage, setImageMessage] = useState("");
+  const [imageErrorMessage, setImageErrorMessage] = useState("");
   const pending = navigation.state !== "idle";
   const response = routeActionData;
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
@@ -194,6 +197,44 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
     setDraft(composerFromWorkItem(item));
     setSlugEdited(true);
   };
+  async function uploadFeatureImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImageMessage("");
+    setImageErrorMessage("");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setImageErrorMessage("Use PNG, JPEG or WebP.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageErrorMessage("Images must be 5 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+    if (!draft.slug.trim()) {
+      setImageErrorMessage("Add a slug before uploading an image.");
+      event.target.value = "";
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      body.set("slug", draft.slug);
+      const response = await fetch("/member/editorial/upload", { method: "POST", body });
+      const payload = await response.json() as { url?: string; error?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error ?? "The image could not be uploaded.");
+      setDraft((current) => ({ ...current, image: payload.url ?? current.image, status: current.status === "submitted" ? "draft" : current.status }));
+      setImageMessage("Image uploaded.");
+    } catch (cause) {
+      setImageErrorMessage(cause instanceof Error ? cause.message : "The image could not be uploaded.");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
+  }
+
 
   const draftRows: PanelDirectoryRow[] = result.drafts.map((item) => {
     const rowStatus = actionFeatureId === item.feature_id && response && "status" in response && typeof response.status === "string" ? response.status : item.lifecycle_status;
@@ -293,9 +334,17 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           </select>
         </label>
         <label>
+          Upload a feature image
+          <span className="field-help">PNG, JPEG or WebP. 5 MB max.</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadFeatureImage} disabled={uploadingImage || pending || isPublishReady} />
+        </label>
+        {imageMessage && <p className="field-help" role="status">{imageMessage}</p>}
+        {imageErrorMessage && <p className="field-error" role="alert">{imageErrorMessage}</p>}
+        {draft.image && <img className="editorial-image-preview" src={draft.image} alt={draft.imageAlt || "Uploaded editorial image preview"} />}
+        <label>
           Image URL or existing asset path
-          <span className="field-help">Optional. Add an image URL or uploaded image path for the feature card and article preview.</span>
-          <input name="image" placeholder="/assets/koma-vhs-v2.svg" value={draft.image ?? ""} onChange={update("image")} />
+          <span className="field-help">Optional fallback. Upload is preferred; the KOMA placeholder appears when no image is provided.</span>
+          <input name="image" placeholder="/assets/koma-feature-placeholder.svg" value={draft.image ?? ""} onChange={update("image")} />
         </label>
         <label>
           Image alt text

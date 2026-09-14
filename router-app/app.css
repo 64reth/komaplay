@@ -2993,3 +2993,12 @@ html {
   text-decoration-thickness: 1px;
   text-decoration-color: var(--color-accent, var(--red));
 }
+
+.editorial-image-preview {
+  display: block;
+  width: min(100%, 320px);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}

@@ -19,5 +19,7 @@ export default [
   route("editorial", "routes/editorial.tsx"),
   route("moderation", "routes/moderation.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
+  route("api/editorial/image", "routes/editorial-image.tsx"),
+  route("member/editorial/upload", "routes/editorial-upload.tsx"),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;
