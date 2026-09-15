@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateSections } from "./editorial-validation";
 import { trustedVideo } from "./media";
 import type { EditorialDocument, ArticleModule } from "./document";
 import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT } from "./publication-media";
@@ -26,8 +27,14 @@ export const draftSchema = z.object({
   sections: z.string().trim().max(60000).default(""),
   sectionsJson: z.string().trim().max(60000).optional().default(""),
   videoUrl: z.string().trim().max(2000).optional().default(""),
+  format: z.string().default("essay"),
   status: z.enum(["draft", "submitted", "changes_requested", "publish_ready", "published", "archived", "taken_down"]).default("draft"),
 });
+
+// Draft transport limits protect storage; submission requirements live in editorial-validation.
+export const composerDraftSchema = draftSchema.extend(Object.fromEntries(
+  ["title", "slug", "summary", "categoryId", "image", "imageAlt", "sections", "sectionsJson", "videoUrl"].map(field => [field, z.string().max(1_000_000).default("")])
+) as Record<"title" | "slug" | "summary" | "categoryId" | "image" | "imageAlt" | "sections" | "sectionsJson" | "videoUrl", z.ZodDefault<z.ZodString>>);
 
 export function createComposerSection(type: ComposerSectionType, index = Date.now()): ComposerSection {
   const id = `${type}-${index}-${Math.random().toString(36).slice(2, 7)}`;
@@ -83,15 +90,15 @@ export function legacyBodyToComposerSections(sections: string, videoUrl = ""): C
 const sectionSchema = z.object({
   id: z.string().min(1).max(100),
   type: z.enum([...composerSectionTypes, "legacy"]),
-  text: z.string().max(20000).optional(),
-  url: z.string().max(2000).optional(),
-  alt: z.string().max(400).optional(),
-  attribution: z.string().max(400).optional(),
+  text: z.string().max(1000000).optional(),
+  url: z.string().max(1000000).optional(),
+  alt: z.string().max(1000000).optional(),
+  attribution: z.string().max(1000000).optional(),
   module: z.object({ id: z.string(), type: z.string(), version: z.number(), content: z.record(z.unknown()), presentation: z.string().optional() }).optional(),
 });
 export function parseComposerSections(sectionsJson = "", fallbackSections = "", videoUrl = ""): ComposerSection[] {
   if (!sectionsJson) return legacyBodyToComposerSections(fallbackSections, videoUrl);
-  const sections = z.array(sectionSchema).max(120).parse(JSON.parse(sectionsJson));
+  const sections = z.array(sectionSchema).max(500).parse(JSON.parse(sectionsJson));
   if (new Set(sections.map(s => s.id)).size !== sections.length) throw new Error("Section IDs must be unique.");
   if (sections.some(s => s.type === "legacy" && !s.module)) throw new Error("Existing section content is missing.");
   return sections;
@@ -150,37 +157,7 @@ export function composerSectionsToModules(sections: ComposerSection[]): ArticleM
 }
 
 export function validateComposerSections(sections: ComposerSection[], strict = false) {
-  const errors: string[] = [];
-  if (strict && !sections.length) errors.push("Add at least one article section before submitting.");
-  sections.forEach((section, index) => {
-    const label = `${section.type.replace("-", " ")} section ${index + 1}`;
-    if (!strict) return;
-    if (["paragraph", "heading", "quote", "bullet-list", "numbered-list"].includes(section.type) && !(section.text ?? "").trim()) errors.push(`${label} is empty.`);
-    if (section.type === "bullet-list" || section.type === "numbered-list") {
-      if (!(section.text ?? "").split("\n").some(item => item.replace(/^(?:- |\* |\d+\. )/, "").trim())) errors.push(`${label} needs at least one item.`);
-    }
-    if (section.type === "image") {
-      if (section.url && !/^(?:https?:\/\/|\/(?!\/))/.test(section.url)) errors.push(`Image section ${index + 1} needs an HTTP URL or local path.`);
-      if (!(section.url ?? "").trim()) errors.push(`Image section ${index + 1} needs an image URL or path.`);
-      if (!(section.alt ?? "").trim()) errors.push(`Image section ${index + 1} needs alt text.`);
-    }
-    if (section.type === "video") {
-      if (!(section.url ?? "").trim()) errors.push(`Video section ${index + 1} needs a YouTube or Twitch URL.`);
-      else if (!trustedVideo(section.url ?? "")) errors.push(`Video section ${index + 1} must use a supported YouTube or Twitch URL.`);
-    }
-  });
-  return errors;
-}
-
-export function submissionBlocker(sections: ComposerSection[]) {
-  const index = sections.findIndex(section => validateComposerSections([section], true).length > 0);
-  const section = sections[index];
-  const missingAlt = section?.type === "image" && !(section.alt ?? "").trim();
-  return {
-    error: `Draft saved, but not submitted. ${missingAlt ? `Add alt text to image section ${index + 1}.` : validateComposerSections(sections, true).join(" ")}`,
-    focusSectionId: section?.id ?? "",
-    focusField: missingAlt ? "alt" : "section",
-  };
+  return strict ? validateSections(sections).map(issue => issue.message) : [];
 }
 
 export function articleModulesFromDraft(input: z.infer<typeof draftSchema>) {
@@ -208,7 +185,7 @@ export type EditorialWorkItem = {
   summary: string;
   lifecycle_status: string;
   updated_at: string;
-  working_document: EditorialDocument & { body?: string };
+  working_document: EditorialDocument & { body?: string; composer?: Partial<z.infer<typeof composerDraftSchema>> };
   editorial_body?: string;
   category_id?: string | null;
   image?: string | null;
@@ -237,16 +214,18 @@ export function composerFromWorkItem(item: EditorialWorkItem): z.infer<typeof dr
   const sectionsJson = serializeComposerSections(modularSections);
   const sections = composerSectionsToText(parseComposerSections(sectionsJson));
   return {
-    featureId: item.feature_id,
-    title: item.working_document?.header?.title || item.title,
+    title: item.working_document?.header?.title ?? item.title,
     slug: item.slug,
-    summary: item.working_document?.header?.standfirst || item.summary,
+    summary: item.working_document?.header?.standfirst ?? item.summary,
     categoryId: item.category_id ?? "",
     image: String(imageModule?.content?.src ?? item.working_document?.header?.hero?.src ?? item.image ?? ""),
     imageAlt: String(imageModule?.content?.alt ?? item.working_document?.header?.hero?.alt ?? item.image_alt ?? ""),
     sections,
     sectionsJson,
     videoUrl: "",
+    format: "essay",
+    ...item.working_document?.composer,
+    featureId: item.feature_id,
     status: ["submitted", "changes_requested", "publish_ready", "published", "archived", "taken_down"].includes(item.lifecycle_status) ? item.lifecycle_status as any : "draft",
   };
 }

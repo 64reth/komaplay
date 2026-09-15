@@ -8,9 +8,11 @@ import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirec
 import { ArticleSectionBuilder } from "../components/ArticleSectionBuilder";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
-import { parseComposerSections, serializeComposerSections, composerSectionsToText, updateComposerSection, validateComposerSections, type ComposerSection, composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
+import { parseComposerSections, serializeComposerSections, composerSectionsToText, updateComposerSection, type ComposerSection, composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
-import { submissionBlocker } from "../lib/editorial-alpha";
+import { FieldErrors, RequirementList } from "../components/EditorialErrors";
+import { composerDraftSchema } from "../lib/editorial-alpha";
+import { validateEditorialSubmission, orderIssues, issueTarget, fieldAttributes, requirementsMessage, submissionCopy, type DocumentIssue } from "../lib/editorial-validation";
 
 
 async function editorialContext(request: Request, review = false) {
@@ -54,67 +56,86 @@ export async function action({ request }: Route.ActionArgs) {
   if (context.state !== "accepted" || !resolved.client) return data({ error: "Editorial access is required." }, { status: 403, headers: resolved.headers });
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return data({ error: "Same-origin request required." }, { status: 403, headers: resolved.headers });
+  let submitting = false;
+  let safelySaved = false;
+  let savedFeatureId = "";
+  let savedStatus = "draft";
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
-    if (intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"))) {
+    submitting = ["submit", "submit-existing", "submitExisting"].includes(intent);
+    const savedOnly = intent === "submit-existing" || intent === "submitExisting" || (intent === "submit" && !form.has("title"));
+    if (savedOnly) {
       const featureId = String(form.get("featureId") ?? "");
-      if (!featureId) throw new Error("Saved panel id is missing. Reload and try again.");
       const work = await resolved.client.rpc("editorial_my_work");
-      if (work.error) throw new Error(work.error.message);
+      if (work.error) throw new Error("work-load");
       const item = (work.data as EditorialWorkItem[]).find(item => item.feature_id === featureId);
-      if (!item) throw new Error("Saved draft was not found.");
-      const existing = draftSchema.parse(composerFromWorkItem(item));
-      const sections = parseComposerSections(existing.sectionsJson, existing.sections);
-      const issues = validateComposerSections(sections, true);
-      if (existing.image && !existing.imageAlt.trim()) issues.push("Feature image needs alt text.");
-      if (issues.length) {
-        const blocker = submissionBlocker(sections);
-        if (!validateComposerSections(sections, true).length) blocker.error = `Draft saved, but not submitted. ${issues.join(" ")}`;
-        return data({ ...blocker, featureId, status: item.lifecycle_status }, { status: 400, headers: resolved.headers });
+      if (!item) throw new Error("missing-draft");
+      safelySaved = true;
+      savedFeatureId = featureId;
+      savedStatus = item.lifecycle_status;
+      const existing = composerDraftSchema.parse(composerFromWorkItem(item));
+      const categories = await resolved.client.from("categories").select("id");
+      if (categories.error) throw new Error("categories");
+      const issues = validateEditorialSubmission(existing, parseComposerSections(existing.sectionsJson, existing.sections), (categories.data ?? []).map(category=>category.id));
+      if (!issues.some(issue=>issue.field === "slug") && existing.slug.trim() !== item.slug) {
+        issues.unshift({key:"panel:slug:unavailable",sectionId:null,field:"slug",code:"unavailable",value:existing.slug,message:"That panel address is already in use. Choose a different address before submitting."});
       }
-      const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
-      if (saved.error) throw new Error(saved.error.message);
-      return data({ success: "Submitted for review. Editors can now see this in the Review Inbox.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
+      if (issues.length) return data({ error: submissionCopy.blocked, issues, featureId, status: item.lifecycle_status }, { status: 400, headers: resolved.headers });
+      const result = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
+      if (result.error) throw new Error("submit");
+      return data({ success: submissionCopy.submitted, featureId: result.data, status: "submitted" }, { headers: resolved.headers });
     }
-    const value = draftSchema.parse({
-      featureId: form.get("featureId") ?? "",
-      title: form.get("title"),
-      slug: form.get("slug"),
-      summary: form.get("summary"),
-      categoryId: form.get("categoryId") ?? "",
-      image: form.get("image") ?? "",
-      imageAlt: form.get("imageAlt") ?? "",
-      sections: form.get("sections") ?? "",
-      sectionsJson: form.get("sectionsJson") ?? "",
-      videoUrl: form.get("videoUrl") ?? "",
-      status: intent === "submit" ? "submitted" : String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft",
+    const value = composerDraftSchema.parse({
+      ...Object.fromEntries(["featureId", "title", "slug", "summary", "categoryId", "image", "imageAlt", "sections", "sectionsJson", "videoUrl"].map(key => [key, form.get(key) ?? ""])),
+      format: form.get("format") ?? "essay",
+      status: String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft",
     });
-    if (value.image && !value.imageAlt) throw new Error("Image alt text is required when an image is provided.");
-    const submittedSections = parseComposerSections(value.sectionsJson, value.sections, value.videoUrl);
-    const preserved = submittedSections.filter(section => section.type === "legacy");
-    if (preserved.length) {
+    const sections = parseComposerSections(value.sectionsJson, value.sections, value.videoUrl);
+    if (sections.some(section => section.type === "legacy")) {
       const work = await resolved.client.rpc("editorial_my_work");
-      if (work.error) throw new Error(work.error.message);
+      if (work.error) throw new Error("work-load");
       const original = (work.data as EditorialWorkItem[]).find(item => item.feature_id === value.featureId);
-      for (const section of preserved) {
-        const savedModule = original?.working_document.modules.find(module => module.id === section.id);
-        if (!savedModule) throw new Error("Existing section was not found in the saved draft.");
-        section.module = savedModule;
+      for (const section of sections.filter(section => section.type === "legacy")) {
+        const module = original?.working_document.modules.find(module => module.id === section.id);
+        if (!module) throw new Error("missing-section");
+        section.module = module;
       }
-      value.sectionsJson = serializeComposerSections(submittedSections);
     }
-    const issues = validateComposerSections(submittedSections, intent === "submit");
-    if (issues.length) value.status = String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft";
-    const document = draftDocument(value);
-    const saved = await resolved.client.rpc("save_editorial_draft", {
-      payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections, value.sectionsJson), status: value.status, document },
-    });
-    if (saved.error) throw new Error(saved.error.message);
-    if (issues.length) return data({ ...submissionBlocker(submittedSections), featureId: saved.data, status: value.status }, { status: 400, headers: resolved.headers });
-    return data({ success: intent === "submit" ? "Submitted for review. Editors can now see this in the Review Inbox." : "Draft saved. You can leave and return from MY PANELS.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
-  } catch (error) {
-    return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." }, { status: 400, headers: resolved.headers });
+    value.sectionsJson = serializeComposerSections(sections);
+    const issues = validateEditorialSubmission(value, sections);
+    const { featureId: _id, status: _status, ...composer } = value;
+    const document = { ...draftDocument(value), composer };
+    // Keep unfinished contributor input in the existing JSON document. Canonical
+    // metadata needs safe values for database constraints while the draft is private.
+    const payload = {
+      feature_id: value.featureId || "", title: value.title.trim().slice(0,150) || "Untitled draft",
+      slug: /^[a-z0-9-]{3,80}$/.test(value.slug.trim()) ? value.slug.trim() : `draft-${value.featureId || crypto.randomUUID()}`,
+      summary: value.summary, category_id: z.string().uuid().safeParse(value.categoryId).success ? value.categoryId : "",
+      image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections, value.sectionsJson),
+      status: value.status, document,
+    };
+    let saved = await resolved.client.rpc("save_editorial_draft", { payload });
+    if (saved.error?.code === "23505" && saved.error.message.includes("features_slug_key")) {
+      issues.push({key:"panel:slug:unavailable",sectionId:null,field:"slug",code:"unavailable",value:value.slug,message:"That panel address is already in use. Choose a different address before submitting."});
+      saved = await resolved.client.rpc("save_editorial_draft", { payload: {...payload, slug:`draft-${value.featureId || crypto.randomUUID()}`} });
+    }
+    if (saved.error) throw new Error("save");
+    safelySaved = true;
+    savedFeatureId = String(saved.data);
+    savedStatus = value.status;
+    if (!submitting) return data({ success: submissionCopy.saved, featureId: saved.data, status: value.status }, { headers: resolved.headers });
+    const categories = await resolved.client.from("categories").select("id");
+    if (categories.error) throw new Error("categories");
+    const contextualIssues = validateEditorialSubmission(value, sections, (categories.data ?? []).map(category=>category.id));
+    for (const issue of contextualIssues) if (!issues.some(existing=>existing.key===issue.key)) issues.push(issue);
+    orderIssues(issues, sections);
+    if (issues.length) return data({ error: submissionCopy.blocked, issues, featureId: saved.data, status: value.status }, { status: 400, headers: resolved.headers });
+    const submitted = await resolved.client.rpc("submit_editorial_draft", { target: saved.data });
+    if (submitted.error) throw new Error("submit");
+    return data({ success: submissionCopy.submitted, featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
+  } catch {
+    return data({ error: submitting && safelySaved ? submissionCopy.submitFailure : submissionCopy.saveFailure, ...(savedFeatureId ? {featureId: savedFeatureId, status: savedStatus} : {}) }, { status: 400, headers: resolved.headers });
   }
 }
 
@@ -152,6 +173,7 @@ const initialComposer: ComposerState = {
   sectionsJson: "[]",
   videoUrl: "",
   status: "draft",
+  format: "essay",
 };
 
 function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoaderData; selectedFeatureId: string }) {
@@ -170,14 +192,19 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const [imageErrorMessage, setImageErrorMessage] = useState("");
   const pending = navigation.state !== "idle";
   const response = routeActionData;
-  const errorSummary = useRef<HTMLParagraphElement>(null);
-  const submissionIssues = validateComposerSections(sections, true);
+  const errorSummary = useRef<HTMLDivElement>(null);
+  const submissionIssues = validateEditorialSubmission(draft, sections, result.categories.map(category=>category.id));
+  if (response && "issues" in response) for (const issue of response.issues as DocumentIssue[]) {
+    if (issue.code === "unavailable" && issue.field === "slug" && issue.value === draft.slug && !submissionIssues.some(item=>item.key===issue.key)) submissionIssues.push(issue);
+  }
+  orderIssues(submissionIssues, sections);
+  const attrs = (field: string) => fieldAttributes(submissionIssues, null, field);
+  const errors = (field: string) => <FieldErrors issues={submissionIssues} field={field} />;
   useEffect(() => {
     if (response && "error" in response) {
       if ("featureId" in response && response.featureId !== draft.featureId) return;
-      const target = "focusSectionId" in response && response.focusSectionId
-        ? document.getElementById(`body-${"focusField" in response && response.focusField === "alt" ? "alt" : "section"}-${response.focusSectionId}`)
-        : errorSummary.current;
+      const first = "issues" in response ? submissionIssues[0] : undefined;
+      const target = (first ? document.getElementById(issueTarget(first)) : null) ?? errorSummary.current;
       target?.focus();
       target?.scrollIntoView({ block: "center" });
     }
@@ -190,8 +217,6 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const isPublishReady = selectedStatus === "publish_ready" || selectedStatus === "approved";
   const isChangesRequested = selectedStatus === "changes_requested";
   const hasComposerContent = Boolean(draft.title.trim() || draft.summary.trim() || draft.sections.trim());
-  const imageAltError = Boolean(draft.image && !draft.imageAlt);
-  const slugError = Boolean(draft.slug && !/^[a-z0-9-]{3,80}$/.test(draft.slug));
 
   useEffect(() => {
     const selectedWork = result.drafts.find((item) => item.feature_id === selectedFeatureId);
@@ -199,7 +224,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       setDraft(composerFromWorkItem(selectedWork));
       setSlugEdited(true);
     }
-  }, [result.drafts, selectedFeatureId]);
+  }, [selectedFeatureId]);
 
   useEffect(() => {
     if (response && "featureId" in response && typeof response.featureId === "string") {
@@ -259,7 +284,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       return;
     }
     if (!draft.slug.trim()) {
-      setImageErrorMessage("Add a slug before uploading an image.");
+      setImageErrorMessage("Add a panel address before uploading an image.");
       event.target.value = "";
       return;
     }
@@ -280,7 +305,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
       });
       setImageMessage("Image uploaded.");
     } catch (cause) {
-      setImageErrorMessage(cause instanceof Error ? cause.message : "The image could not be uploaded.");
+      setImageErrorMessage("We couldn’t upload this image just now. Please try again.");
     } finally {
       setUploadingImage(false);
       event.target.value = "";
@@ -345,9 +370,10 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         </p>
       )}
       {response && "error" in response && (
-        <p className="profile-contribution composer-outcome composer-outcome-blocked" role="alert" tabIndex={-1} ref={errorSummary}>
-          {response.error}
-        </p>
+        <div className="profile-contribution composer-outcome composer-outcome-blocked" role="alert" tabIndex={-1} ref={errorSummary}>
+          <p>{response.error}</p>
+          {"issues" in response && <RequirementList issues={submissionIssues} />}
+        </div>
       )}
       {response && "success" in response && "featureId" in response && (
         <article className="profile-contribution" aria-label="Latest saved draft">
@@ -356,28 +382,31 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>{draft.slug}</p>
         </article>
       )}
-      <Form method="post" action="/editorial" className="op-form">
+      <Form method="post" action="/editorial" className="op-form" noValidate>
         <input type="hidden" name="featureId" value={draft.featureId ?? ""} />
         <input type="hidden" name="currentStatus" value={selectedStatus} />
         <label>
           Title
-          <input name="title" required minLength={4} maxLength={150} value={draft.title} onChange={update("title")} />
+          <input {...attrs("title")} name="title" required minLength={4} maxLength={150} value={draft.title} onChange={update("title")} />
         </label>
+        {errors("title")}
         <label>
-          Slug
+          Panel address
           <span className="field-help">The short URL name for this panel. Use lowercase letters, numbers and hyphens.</span>
-          <input name="slug" required pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={update("slug")} aria-describedby="slug-help slug-error" />
+          <input {...attrs("slug")} name="slug" required pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={update("slug")} />
           <span id="slug-help" className="field-help">Example: sucker-punch-doing-what-ubisoft-cant</span>
         </label>
-        {slugError ? <p id="slug-error" className="field-error" role="alert">Use lowercase letters, numbers and hyphens only. Do not use spaces or punctuation.</p> : null}
+        {errors("slug")}
         <label>
           Standfirst / summary
-          <textarea name="summary" required minLength={8} maxLength={1000} value={draft.summary} onChange={update("summary")} />
+          <textarea {...attrs("summary")} name="summary" required minLength={8} maxLength={1000} value={draft.summary} onChange={update("summary")} />
         </label>
-        <label>Content format<input value="Essay" readOnly aria-label="Content format" /><span className="field-help">Editorial features use the Essay format for alpha.</span></label>
+        {errors("summary")}
+        <label>Content format<select {...attrs("format")} name="format" value={draft.format ?? "essay"} onChange={update("format")} aria-label="Content format"><option value="">Choose format…</option><option value="essay">Essay</option></select><span className="field-help">Editorial features use the Essay format for alpha.</span></label>
+        {errors("format")}
         <label>
           Category
-          <select name="categoryId" value={draft.categoryId ?? ""} onChange={update("categoryId")}>
+          <select {...attrs("categoryId")} name="categoryId" value={draft.categoryId ?? ""} onChange={update("categoryId")}>
             <option value="">Use default category</option>
             {result.categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -386,6 +415,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
             ))}
           </select>
         </label>
+        {errors("categoryId")}
         <label>
           Upload a feature image
           <span className="field-help">PNG, JPEG or WebP. 5 MB max.</span>
@@ -397,14 +427,15 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         <label>
           Image URL or existing asset path
           <span className="field-help">Optional fallback. Upload is preferred; the KOMA placeholder appears when no image is provided.</span>
-          <input name="image" placeholder="/assets/koma-feature-placeholder.svg" value={draft.image ?? ""} onChange={update("image")} />
+          <input {...attrs("image")} name="image" placeholder="/assets/koma-feature-placeholder.svg" value={draft.image ?? ""} onChange={update("image")} />
         </label>
+        {errors("image")}
         <label>
           Image alt text
           <span className="field-help">Required when you add an image. Describe the image for readers using assistive technology.</span>
-          <input name="imageAlt" maxLength={400} value={draft.imageAlt ?? ""} onChange={update("imageAlt")} aria-describedby="image-alt-help" />
+          <input {...attrs("imageAlt")} name="imageAlt" maxLength={400} value={draft.imageAlt ?? ""} onChange={update("imageAlt")} />
         </label>
-        {imageAltError ? <p id="image-alt-help" className="field-error" role="alert">Image alt text is required when an image is provided.</p> : <p id="image-alt-help" className="field-help">Placeholder fallback uses default alt text: KOMA://PLAY editorial placeholder.</p>}
+        {errors("imageAlt")}
         <input type="hidden" name="sections" value={draft.sections} />
         <input type="hidden" name="sectionsJson" value={draft.sectionsJson} />
         <ArticleSectionBuilder sections={sections} onChange={changeSections} upload={uploadFeatureImage} />
@@ -413,9 +444,9 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>Submit sends it to the shared Review Inbox for editors and moderators.</p>
           <p>Drafts are private until submitted.</p>
           {submissionIssues.length > 0 && <div aria-label="Submission requirements">
-            <p><strong>{submissionIssues.length} submission requirement{submissionIssues.length === 1 ? "" : "s"} remaining</strong></p>
+            <p><strong>{requirementsMessage(submissionIssues.length)}</strong></p>
             <p>Fix these sections. You can still save this draft.</p>
-            <ul>{submissionIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+            <RequirementList issues={submissionIssues} />
           </div>}
         </div>
         <div className="profile-actions">

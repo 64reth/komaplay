@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { bodyModules, draftDocument, draftSchema, editorialStatusLabel } from "../../router-app/lib/editorial-alpha";
+import { submissionCopy, validateEditorialSubmission } from "../../router-app/lib/editorial-validation";
 import { applyWritingTool } from "../../router-app/components/WritingToolbar";
 
 const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha_rpc.sql", "utf8");
@@ -64,7 +65,7 @@ test("review actions use canonical publish-ready status rather than fake live pu
 
 
 test("editorial save and submit return visible lifecycle feedback", () => {
-  assert.match(editorialRoute, /Submitted for review/);
+  assert.match(submissionCopy.submitted, /submitted for review/);
   assert.match(editorialRoute, /role=\"status\"/);
   assert.match(editorialRoute, /role=\"alert\"/);
   assert.doesNotMatch(editorialRoute, /useFetcher/);
@@ -180,7 +181,7 @@ test("submit existing editorial draft rpc moves saved drafts to review", () => {
   assert.match(submitMigration, /doc\.author_id<>auth\.uid\(\) and not can_review/);
   assert.match(editorialRoute, /intent === "submit-existing"/);
   assert.match(editorialRoute, /intent === "submit" && !form\.has\("title"\)/);
-  assert.match(editorialRoute, /Saved panel id is missing/);
+  assert.match(editorialRoute, /if \(!item\) throw/);
   assert.match(editorialRoute, /rpc\("submit_editorial_draft"/);
   assert.match(editorialRoute, /name="intent" value="submit-existing"/);
 });
@@ -225,7 +226,7 @@ test("row submit is a minimal normal form action", () => {
 
 
 test("composer persistence uses the route action result", () => {
-  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form">/);
+  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form" noValidate>/);
   assert.match(editorialRoute, /name="title"/);
   assert.match(editorialRoute, /name="slug"/);
   assert.match(editorialRoute, /name="summary"/);
@@ -234,8 +235,8 @@ test("composer persistence uses the route action result", () => {
   assert.match(editorialRoute, /name="intent" value="submit"/);
   assert.match(editorialRoute, /rpc\("save_editorial_draft"/);
   assert.match(editorialRoute, /const response = routeActionData/);
-  assert.match(editorialRoute, /Draft saved\./);
-  assert.match(editorialRoute, /Submitted for review\./);
+  assert.equal(submissionCopy.saved, "Draft saved");
+  assert.match(submissionCopy.submitted, /submitted for review/);
 });
 
 
@@ -269,10 +270,10 @@ test("temporary editorial trace is removed from production UI", () => {
 });
 
 test("image alt validation remains visible beside the field", () => {
-  assert.match(editorialRoute, /Image alt text is required when an image is provided/);
-  assert.match(editorialRoute, /id="image-alt-help"/);
-  assert.match(editorialRoute, /aria-describedby="image-alt-help"/);
-  assert.match(editorialRoute, /Placeholder fallback uses default alt text: KOMA:\/\/PLAY editorial placeholder\./);
+  assert.ok(validateEditorialSubmission({title:"Test",slug:"test",summary:"Test summary",image:"/hero.png"},[]).some(issue=>issue.field==="imageAlt"));
+  assert.match(editorialRoute, /attrs\("imageAlt"\)/);
+  assert.match(editorialRoute, /errors\("imageAlt"\)/);
+  assert.match(editorialRoute, /KOMA placeholder appears when no image is provided/);
 });
 
 test("shared review inbox is account-wide for authorised editorial reviewers", () => {
@@ -310,20 +311,20 @@ test("guided editorial form explains slug format and auto-suggest behaviour", ()
   assert.match(editorialRoute, /Example: sucker-punch-doing-what-ubisoft-cant/);
   assert.match(editorialRoute, /const \[slugEdited, setSlugEdited\]/);
   assert.match(editorialRoute, /if \(field === "title" && !slugEdited && !current\.featureId\) next\.slug = slugify\(value\)/);
-  assert.match(editorialRoute, /Use lowercase letters, numbers and hyphens only\. Do not use spaces or punctuation\./);
+  assert.match(editorialRoute, /Use lowercase letters, numbers and hyphens/);
 });
 
 test("guided image fields explain alt text and show inline validation", () => {
   assert.match(editorialRoute, /Upload a feature image/);
   assert.match(editorialRoute, /Optional fallback\. Upload is preferred; the KOMA placeholder appears when no image is provided\./);
   assert.match(editorialRoute, /Required when you add an image\. Describe the image for readers using assistive technology\./);
-  assert.match(editorialRoute, /Image alt text is required when an image is provided\./);
-  assert.match(editorialRoute, /Placeholder fallback uses default alt text: KOMA:\/\/PLAY editorial placeholder\./);
+  assert.match(editorialRoute, /errors\("imageAlt"\)/);
+  assert.match(editorialRoute, /KOMA placeholder appears when no image is provided/);
 });
 
 test("save and submit guidance names private My Panels and shared Review Inbox", () => {
-  assert.match(editorialRoute, /Draft saved\. You can leave and return from MY PANELS\./);
-  assert.match(editorialRoute, /Submitted for review\. Editors can now see this in the Review Inbox\./);
+  assert.equal(submissionCopy.saved, "Draft saved");
+  assert.match(submissionCopy.submitted, /submitted for review/);
   assert.match(editorialRoute, /Save keeps this private in MY PANELS\./);
   assert.match(editorialRoute, /Submit sends it to the shared Review Inbox for editors and moderators\./);
   assert.match(editorialRoute, /Drafts are private until submitted\./);
@@ -674,7 +675,7 @@ test("phase 4f editorial composer upload populates image path and keeps placehol
   assert.match(editorialRoute, /setImageMessage\("Image uploaded\."\)/);
   assert.match(editorialRoute, /payload\.url/);
   assert.match(editorialRoute, /className="editorial-image-preview"/);
-  assert.match(editorialRoute, /Image alt text is required when an image is provided\./);
+  assert.match(editorialRoute, /errors\("imageAlt"\)/);
   const parsed = draftSchema.parse({ title: "Upload preview", slug: "upload-preview", summary: "A draft with uploaded media.", sections: "## Body\n\nThis draft has an uploaded image.", image: "/api/editorial/image?path=editorial/00000000-0000-0000-0000-000000000000/upload-preview/00000000-0000-0000-0000-000000000001.png", imageAlt: "Uploaded screenshot." });
   const doc = draftDocument(parsed);
   assert.equal(doc.header.hero?.src, parsed.image);

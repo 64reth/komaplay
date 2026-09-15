@@ -72,7 +72,7 @@ test("incomplete draft sections including an entirely empty body survive reopeni
   assert.ok(validateComposerSections([], true).length);
 });
 test("image alt text and trusted video are required before submit", () => {
-  assert.match(validateComposerSections([{ id: "image", type: "image", url: "/body.png", alt: " " }], true).join(), /alt text/);
+  assert.match(validateComposerSections([{ id: "image", type: "image", url: "/body.png", alt: " " }], true).join(), /screen readers/);
   for (const url of ["javascript:alert(1)", "https://youtube.com.evil.test/watch?v=abcdefghi", "https://vimeo.com/123", ""]) assert.ok(validateComposerSections([{ id: "video", type: "video", url }], true).length);
   for (const url of ["https://youtu.be/dQw4w9WgXcQ", "https://www.twitch.tv/videos/123456"]) assert.deepEqual(validateComposerSections([{ id: "video", type: "video", url }], true), []);
 });
