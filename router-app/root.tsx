@@ -1,3 +1,4 @@
+import { publicSupabaseConfig } from "./lib/supabase.server";
 import { privatePath, siteOrigin } from "./lib/seo";
 import {
   data,
@@ -20,6 +21,9 @@ import { memberCapabilities, membershipState } from "./lib/membership.server";
 import "./app.css";
 
 export async function loader({ request }: Route.LoaderArgs) {
+  // The callback owns the exchange/cookies. Do not race it with a parallel root lookup.
+  if (["/auth/callback","/auth/complete"].includes(new URL(request.url).pathname))
+    return data({auth:{state:"resolving" as const,member:null},membership:{status:"public",version:null,acceptance:null},capabilities:{editorial:false,moderation:false},supabase:publicSupabaseConfig(request)},{headers:{"Cache-Control":"private, no-store"}});
   const resolved = await resolveAuth(request);
   let membership: Record<string, unknown> = {
     status: "public",

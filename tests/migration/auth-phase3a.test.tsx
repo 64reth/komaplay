@@ -192,10 +192,11 @@ test("OAuth exchange preserves response cookies and destination; cancellation an
     assert.equal(response.status, 302);
     assert.equal(calls, outcome === "cancelled" ? 0 : 1);
     const location = response.headers.get("location")!;
-    assert.match(location, /^\/editorial\?featureId=panel-123/);
+    if (!outcome.endsWith("member")) assert.match(location, /^\/editorial\?featureId=panel-123/);
     assert.doesNotMatch(location, /private|one-use-code/);
     if (outcome.endsWith("member")) {
-      assert.equal(location, "/editorial?featureId=panel-123");
+      assert.equal(new URL(location,"https://komaplay.com").pathname,"/auth/complete");
+      assert.equal(new URL(location,"https://komaplay.com").searchParams.get("returnTo"),"/editorial?featureId=panel-123");
       assert.match(response.headers.get("set-cookie")!, /test-session/);
     } else
       assert.match(

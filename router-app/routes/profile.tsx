@@ -23,7 +23,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       { headers: resolved.headers },
     );
   if (
-    resolved.auth.state === "profile-unavailable" ||
+    (resolved.auth.state === "profile-unavailable" || resolved.auth.state === "resolving") ||
     !resolved.client ||
     !resolved.user
   )

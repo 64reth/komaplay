@@ -25,8 +25,24 @@ export async function completeAuthentication(
   if (!code || code.length > 2048) return failure("expired");
   try {
     const { error } = await context.client.auth.exchangeCodeForSession(code);
-    if (error) return failure("expired");
-    return redirect(destination, { headers: context.headers });
+    if (error) {
+      console.info(
+        JSON.stringify({
+          event: "auth_callback_exchange",
+          outcome: "rejected",
+        }),
+      );
+      return failure("expired");
+    }
+    console.info(
+      JSON.stringify({
+        event: "auth_callback_exchange",
+        outcome: "established",
+      }),
+    );
+    return redirect(withQuery("/auth/complete", "returnTo", destination), {
+      headers: context.headers,
+    });
   } catch {
     return failure("unavailable");
   }

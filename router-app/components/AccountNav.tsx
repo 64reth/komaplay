@@ -301,6 +301,7 @@ export function AccountNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
+  const [sessionArrived, setSessionArrived] = useState(false);
   const [dialog, setDialog] = useState<{
     mode: AuthMode;
     returnTo: string;
@@ -309,8 +310,13 @@ export function AccountNav() {
   const client = supabaseBrowser(config);
 
   useEffect(() => {
-    const subscription = client?.auth.onAuthStateChange((event) => {
-      if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
+    const subscription = client?.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") {
+        if (session && auth.state === "signed-out") {setSessionArrived(true); void revalidator.revalidate();}
+        return;
+      }
+      if (event === "TOKEN_REFRESHED") return;
+      if (event === "SIGNED_OUT") setSessionArrived(false);
       setDialog(null);
       setMenuOpen(false);
       if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "SIGNED_OUT")
@@ -358,9 +364,11 @@ export function AccountNav() {
       });
   }, [auth.state, location.pathname, location.search]);
 
+  if (sessionArrived && auth.state === "signed-out") return <span role="status">Completing your sign-in…</span>;
   if (
     !data ||
     auth.state === "profile-unavailable" ||
+    auth.state === "resolving" ||
     (auth.state === "authenticated" && data.membership?.status === "required")
   )
     return (

@@ -65,6 +65,17 @@ test("complete migrations enforce direct-request quotas, active accounts, privat
       ]);
       await db.exec("set role authenticated");
     };
+    const delayed='00000000-0000-4000-8000-000000000008';
+    await db.exec('alter table auth.users disable trigger open_panel_profile');
+    await db.query('insert into auth.users(id,raw_user_meta_data) values($1,$2)',[delayed,JSON.stringify({full_name:'Delayed Google member'})]);
+    await db.exec('alter table auth.users enable trigger open_panel_profile');
+    await as(delayed);
+    await db.query('select bootstrap_member_profile()');
+    await db.query("update profiles set display_name='Chosen identity' where id=$1",[delayed]);
+    await db.query('select bootstrap_member_profile()');
+    assert.deepEqual((await db.query('select display_name,role,account_status from profiles where id=$1',[delayed])).rows[0],{display_name:'Chosen identity',role:'member',account_status:'active'});
+    await db.exec('reset role');await db.exec('set role anon');
+    await assert.rejects(db.query('select bootstrap_member_profile()'),/permission denied/);
     await as(owner);
     const version = (
       await db.query<any>("select * from handbook_versions where active")

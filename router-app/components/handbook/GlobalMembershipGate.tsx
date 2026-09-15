@@ -1,3 +1,4 @@
+import { AuthCompletion } from "../AuthCompletion";
 import React, {
   useEffect,
   useRef,
@@ -48,6 +49,7 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
   const background = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const [acceptedLocally, setAcceptedLocally] = useState(false);
+  const [sessionArrived,setSessionArrived]=useState(false);
   const [announcement, setAnnouncement] = useState("");
   const membership = data?.membership;
   const memberId =
@@ -58,6 +60,14 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
     Boolean(membership.version) &&
     !acceptedLocally;
   const client = supabaseBrowser(data?.supabase ?? null);
+
+  useEffect(()=>{
+    const listener=client?.auth.onAuthStateChange((event,session)=>{
+      if(event==="INITIAL_SESSION" && session && data?.auth.state==="signed-out") setSessionArrived(true);
+      if(event==="SIGNED_OUT")setSessionArrived(false);
+    });
+    return()=>listener?.data.subscription.unsubscribe();
+  },[client,data?.auth.state]);
 
   useEffect(() => {
     setAcceptedLocally(false);
@@ -112,6 +122,8 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
       first.focus();
     }
   }
+
+  if(location.pathname!=="/auth/complete" && (data?.auth.state==="resolving" || data?.auth.state==="profile-unavailable" || (sessionArrived && data?.auth.state==="signed-out"))) return <AuthCompletion returnTo={location.pathname+location.search}/>;
 
   return (
     <>

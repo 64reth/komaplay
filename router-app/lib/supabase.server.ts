@@ -40,6 +40,9 @@ export function supabaseServer(request: Request): SupabaseRequest {
         for (const [name, value] of Object.entries(responseHeaders))
           headers.set(name, value);
         for (const { name, value, options } of values) {
+          const index = incoming.findIndex((cookie) => cookie.name === name);
+          if (index !== -1) incoming.splice(index, 1);
+          if (options.maxAge !== 0) incoming.push({ name, value });
           headers.append(
             "Set-Cookie",
             serializeCookieHeader(name, value, {

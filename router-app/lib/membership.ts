@@ -7,12 +7,12 @@ export type MembershipAccess =
   | "unavailable";
 
 export function membershipAccess(
-  auth: "unconfigured" | "signed-out" | "profile-unavailable" | "authenticated",
+  auth: "unconfigured" | "signed-out" | "profile-unavailable" | "resolving" | "authenticated",
   accountStatus?: "active" | "restricted" | "suspended",
   handbookStatus?: "required" | "accepted" | "unavailable",
 ): MembershipAccess {
   if (auth === "unconfigured" || auth === "signed-out") return "public";
-  if (auth === "profile-unavailable") return "unavailable";
+  if (auth === "profile-unavailable" || auth === "resolving") return "unavailable";
   if (accountStatus === "restricted" || accountStatus === "suspended")
     return accountStatus;
   return handbookStatus ?? "unavailable";

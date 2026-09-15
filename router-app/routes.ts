@@ -15,6 +15,8 @@ export default [
   route("handbook", "routes/handbook.tsx"),
   route("onboarding", "routes/onboarding.tsx"),
   route("auth/callback", "routes/auth-callback.tsx"),
+  route("auth/complete", "routes/auth-complete.tsx"),
+  route("auth/session", "routes/auth-session.ts"),
   route("member/handbook", "routes/member-handbook.tsx"),
   route("member/workshop/:action", "routes/workshop-action.tsx"),
   route("profile", "routes/profile.tsx"),
