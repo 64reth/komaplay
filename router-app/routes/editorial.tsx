@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/editorial";
@@ -163,6 +163,14 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const [imageErrorMessage, setImageErrorMessage] = useState("");
   const pending = navigation.state !== "idle";
   const response = routeActionData;
+  const errorSummary = useRef<HTMLParagraphElement>(null);
+  const submissionIssues = validateComposerSections(sections, true);
+  useEffect(() => {
+    if (response && "error" in response) {
+      errorSummary.current?.focus();
+      errorSummary.current?.scrollIntoView({ block: "center" });
+    }
+  }, [response]);
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
   const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
@@ -325,7 +333,7 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         </p>
       )}
       {response && "error" in response && (
-        <p className="profile-contribution" role="alert">
+        <p className="profile-contribution" role="alert" tabIndex={-1} ref={errorSummary}>
           {response.error}
         </p>
       )}
@@ -392,6 +400,10 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>Save keeps this private in MY PANELS.</p>
           <p>Submit sends it to the shared Review Inbox for editors and moderators.</p>
           <p>Drafts are private until submitted.</p>
+          {submissionIssues.length > 0 && <div aria-label="Submission requirements">
+            <p><strong>Before submitting:</strong> Fix these sections. You can still save this draft.</p>
+            <ul>{submissionIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+          </div>}
         </div>
         <div className="profile-actions">
           <button className="op-button" name="intent" value="save" onClick={() => setSubmitIntent("save")} disabled={pending || uploadingImage || isPublishReady}>

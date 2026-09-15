@@ -132,8 +132,32 @@ test('production missing-column error is reproduced, then narrow migration repai
     await as(owner);
     const second=await run('save','','existing-submit-fixture');assert.ok('featureId' in second.data);const secondId=String(second.data.featureId);
     assert.equal((await row(secondId)).submitted_at,null);
+    // Production reproduction: a saved body image with no alt stays a draft;
+    // submitting from MY PANELS must report the validation failure, not enter review.
+    const incomplete = sections.map(section=>section.type==='image'?{...section,alt:''}:section);
+    await run('save',secondId,'existing-submit-fixture',incomplete);
+    const invalidSaved = await run('submit-existing',secondId);
+    assert.equal(invalidSaved.init?.status,400);
+    assert.ok('error' in invalidSaved.data);
+    assert.match(invalidSaved.data.error,/Image section 3 needs alt text/);
+    assert.equal((await row(secondId)).lifecycle_status,'draft');
+    assert.equal((await row(secondId)).submitted_at,null);
+    await as(editor);
+    assert.ok(!(await db.query<EditorialWorkItem>('select * from editorial_review_inbox()')).rows.some(item=>item.feature_id===secondId));
+    await as(owner);
+    const corrected = await run('save',secondId,'existing-submit-fixture');
+    assert.ok('featureId' in corrected.data);assert.equal(corrected.data.featureId,secondId);
     const existing=await run('submit-existing',secondId);assert.ok('featureId' in existing.data);assert.equal(existing.data.featureId,secondId);
     const existingTimestamp=(await row(secondId)).submitted_at;assert.ok(existingTimestamp);
+    await db.exec('reset role');
+    // Fixture-only legacy profile: current schema rejects empty display names.
+    await db.exec('alter table profiles drop constraint profiles_display_name_check');
+    await db.query("update profiles set display_name='' where id=$1",[owner]);
+    await as(editor);
+    const universal=(await db.query<EditorialWorkItem & {author_display_name:string}>('select * from editorial_review_inbox()')).rows.find(item=>item.feature_id===secondId)!;
+    assert.ok(universal);assert.equal(universal.author_display_name,'Panelist');
+    assert.deepEqual(parseComposerSections(composerFromWorkItem(universal).sectionsJson).map(section=>section.id),sections.map(section=>section.id));
+    await as(owner);
     await run('submit-existing',secondId);assert.deepEqual((await row(secondId)).submitted_at,existingTimestamp);
     await as(admin);await db.query("select editorial_review_draft($1,'changes','Please revise the opening')",[secondId]);
     await as(owner);await run('save',secondId,'existing-submit-fixture');assert.deepEqual((await row(secondId)).submitted_at,existingTimestamp);
