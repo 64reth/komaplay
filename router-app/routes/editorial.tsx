@@ -10,6 +10,7 @@ import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { parseComposerSections, serializeComposerSections, composerSectionsToText, updateComposerSection, validateComposerSections, type ComposerSection, composerFromWorkItem, draftDocument, draftSchema, documentBodyText, editorialStatusLabel, myPanelsStatusLabel, reviewInboxStatusLabel, type EditorialWorkItem } from "../lib/editorial-alpha";
 import { memberCapabilities, membershipState } from "../lib/membership.server";
+import { submissionBlocker } from "../lib/editorial-alpha";
 
 
 async function editorialContext(request: Request, review = false) {
@@ -64,9 +65,14 @@ export async function action({ request }: Route.ActionArgs) {
       const item = (work.data as EditorialWorkItem[]).find(item => item.feature_id === featureId);
       if (!item) throw new Error("Saved draft was not found.");
       const existing = draftSchema.parse(composerFromWorkItem(item));
-      const issues = validateComposerSections(parseComposerSections(existing.sectionsJson, existing.sections), true);
+      const sections = parseComposerSections(existing.sectionsJson, existing.sections);
+      const issues = validateComposerSections(sections, true);
       if (existing.image && !existing.imageAlt.trim()) issues.push("Feature image needs alt text.");
-      if (issues.length) throw new Error(issues.join(" "));
+      if (issues.length) {
+        const blocker = submissionBlocker(sections);
+        if (!validateComposerSections(sections, true).length) blocker.error = `Draft saved, but not submitted. ${issues.join(" ")}`;
+        return data({ ...blocker, featureId, status: item.lifecycle_status }, { status: 400, headers: resolved.headers });
+      }
       const saved = await resolved.client.rpc("submit_editorial_draft", { target: featureId });
       if (saved.error) throw new Error(saved.error.message);
       return data({ success: "Submitted for review. Editors can now see this in the Review Inbox.", featureId: saved.data, status: "submitted" }, { headers: resolved.headers });
@@ -99,12 +105,13 @@ export async function action({ request }: Route.ActionArgs) {
       value.sectionsJson = serializeComposerSections(submittedSections);
     }
     const issues = validateComposerSections(submittedSections, intent === "submit");
-    if (issues.length) throw new Error(issues.join(" "));
+    if (issues.length) value.status = String(form.get("currentStatus") ?? "") === "changes_requested" ? "changes_requested" : "draft";
     const document = draftDocument(value);
     const saved = await resolved.client.rpc("save_editorial_draft", {
       payload: { feature_id: value.featureId || "", title: value.title, slug: value.slug, summary: value.summary, category_id: value.categoryId || "", image: value.image, image_alt: value.imageAlt, body: documentBodyText(value.sections, value.sectionsJson), status: value.status, document },
     });
     if (saved.error) throw new Error(saved.error.message);
+    if (issues.length) return data({ ...submissionBlocker(submittedSections), featureId: saved.data, status: value.status }, { status: 400, headers: resolved.headers });
     return data({ success: intent === "submit" ? "Submitted for review. Editors can now see this in the Review Inbox." : "Draft saved. You can leave and return from MY PANELS.", featureId: saved.data, status: value.status }, { headers: resolved.headers });
   } catch (error) {
     return data({ error: error instanceof z.ZodError ? error.issues.map((issue) => issue.message).join(" ") : error instanceof Error ? error.message : "Draft could not be saved." }, { status: 400, headers: resolved.headers });
@@ -167,14 +174,18 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
   const submissionIssues = validateComposerSections(sections, true);
   useEffect(() => {
     if (response && "error" in response) {
-      errorSummary.current?.focus();
-      errorSummary.current?.scrollIntoView({ block: "center" });
+      if ("featureId" in response && response.featureId !== draft.featureId) return;
+      const target = "focusSectionId" in response && response.focusSectionId
+        ? document.getElementById(`body-${"focusField" in response && response.focusField === "alt" ? "alt" : "section"}-${response.focusSectionId}`)
+        : errorSummary.current;
+      target?.focus();
+      target?.scrollIntoView({ block: "center" });
     }
-  }, [response]);
+  }, [response, draft.featureId]);
   const actionFeatureId = response && "featureId" in response && typeof response.featureId === "string" ? response.featureId : "";
   const selected = result.drafts.find((item) => item.feature_id === draft.featureId);
   const selectedStatus = response && "status" in response && typeof response.status === "string" ? response.status : selected?.lifecycle_status ?? draft.status;
-  const durableStatus = response && "success" in response && response.status === "draft" ? "Draft saved" : editorialStatusLabel(selectedStatus);
+  const durableStatus = selectedStatus === "submitted" ? "Submitted" : editorialStatusLabel(selectedStatus);
   const isSubmitted = selectedStatus === "submitted";
   const isPublishReady = selectedStatus === "publish_ready" || selectedStatus === "approved";
   const isChangesRequested = selectedStatus === "changes_requested";
@@ -192,8 +203,9 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
 
   useEffect(() => {
     if (response && "featureId" in response && typeof response.featureId === "string") {
+      const savedWork = result.drafts.find(item => item.feature_id === response.featureId);
       setDraft((current) => ({
-        ...current,
+        ...("error" in response && current.featureId !== response.featureId && savedWork ? composerFromWorkItem(savedWork) : current),
         featureId: response.featureId,
         status: typeof response.status === "string" ? response.status as any : current.status,
       }));
@@ -328,12 +340,12 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
         {isChangesRequested ? <p>Make your changes, then resubmit so editors can review the new version.</p> : null}
       </section>
       {response && "success" in response && (
-        <p className="profile-contribution" role="status">
+        <p className={`profile-contribution composer-outcome ${response.status === "submitted" ? "composer-outcome-submitted" : "composer-outcome-saved"}`} role="status">
           {response.success}
         </p>
       )}
       {response && "error" in response && (
-        <p className="profile-contribution" role="alert" tabIndex={-1} ref={errorSummary}>
+        <p className="profile-contribution composer-outcome composer-outcome-blocked" role="alert" tabIndex={-1} ref={errorSummary}>
           {response.error}
         </p>
       )}
@@ -401,7 +413,8 @@ function FeatureComposer({ result, selectedFeatureId }: { result: AcceptedLoader
           <p>Submit sends it to the shared Review Inbox for editors and moderators.</p>
           <p>Drafts are private until submitted.</p>
           {submissionIssues.length > 0 && <div aria-label="Submission requirements">
-            <p><strong>Before submitting:</strong> Fix these sections. You can still save this draft.</p>
+            <p><strong>{submissionIssues.length} submission requirement{submissionIssues.length === 1 ? "" : "s"} remaining</strong></p>
+            <p>Fix these sections. You can still save this draft.</p>
             <ul>{submissionIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
           </div>}
         </div>

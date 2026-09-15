@@ -116,10 +116,13 @@ test('production missing-column error is reproduced, then narrow migration repai
     for(let i=0;i<2;i++) {const updated=await run('save',id,'timestamp-fixture',reordered);assert.ok('featureId' in updated.data);assert.equal(updated.data.featureId,id);}
     assert.equal((await row(id)).submitted_at,null);
     assert.equal((await db.query('select * from editorial_my_work()')).rows.length,1);
-    const beforeInvalid = await row(id);
     const invalid=await run('submit',id,'timestamp-fixture',sections.map(s=>s.type==='image'?{...s,alt:''}:s));
     assert.ok('error' in invalid.data);assert.match(invalid.data.error,/alt text/);assert.equal((await row(id)).submitted_at,null);
-    assert.deepEqual((await row(id)).working_document,beforeInvalid.working_document);
+    assert.ok("featureId" in invalid.data);assert.equal(invalid.data.featureId,id);
+    assert.match(invalid.data.error,/Draft saved, but not submitted/);
+    assert.equal((await row(id)).lifecycle_status,"draft");
+    const invalidWork=(await db.query<EditorialWorkItem>("select * from editorial_my_work()")).rows.find(item=>item.feature_id===id)!;
+    assert.equal(parseComposerSections(composerFromWorkItem(invalidWork).sectionsJson).find(section=>section.type==="image")!.alt,"");
     const submitted=await run('submit',id,'timestamp-fixture',reordered);
     assert.ok('featureId' in submitted.data);assert.equal(submitted.data.featureId,id);assert.equal(submitted.data.status,'submitted');
     const submittedWork=(await db.query<EditorialWorkItem>('select * from editorial_my_work()')).rows.find(item=>item.feature_id===id)!;
@@ -135,11 +138,14 @@ test('production missing-column error is reproduced, then narrow migration repai
     // Production reproduction: a saved body image with no alt stays a draft;
     // submitting from MY PANELS must report the validation failure, not enter review.
     const incomplete = sections.map(section=>section.type==='image'?{...section,alt:''}:section);
+    const failedSave = await run('submit','','timestamp-fixture',incomplete);
+    assert.ok('error' in failedSave.data);
+    assert.doesNotMatch(failedSave.data.error,/Draft saved/);
     await run('save',secondId,'existing-submit-fixture',incomplete);
     const invalidSaved = await run('submit-existing',secondId);
     assert.equal(invalidSaved.init?.status,400);
     assert.ok('error' in invalidSaved.data);
-    assert.match(invalidSaved.data.error,/Image section 3 needs alt text/);
+    assert.match(invalidSaved.data.error,/Draft saved, but not submitted. Add alt text to image section 3/);
     assert.equal((await row(secondId)).lifecycle_status,'draft');
     assert.equal((await row(secondId)).submitted_at,null);
     await as(editor);

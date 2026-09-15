@@ -11,7 +11,8 @@ function SectionFields({ section, change, upload }: { section: ComposerSection; 
   if (section.type === "image") return <>
     <label>Image URL or path<input value={section.url ?? ""} onChange={e => change({ url: e.target.value })} maxLength={2000} /></label>
     <label>Upload image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => upload(e, section.id)} /></label>
-    <label>Alt text (required)<input value={section.alt ?? ""} onChange={e => change({ alt: e.target.value })} maxLength={400} /></label>
+    <label>Alt text (required)<input id={`body-alt-${section.id}`} aria-invalid={!(section.alt ?? "").trim()} aria-describedby={!(section.alt ?? "").trim() ? `body-alt-help-${section.id}` : undefined} value={section.alt ?? ""} onChange={e => change({ alt: e.target.value })} maxLength={400} /></label>
+    {!(section.alt ?? "").trim() && <p id={`body-alt-help-${section.id}`} className="field-error">Alt text is required for accessibility.</p>}
     <label>Caption (optional)<input value={section.text ?? ""} onChange={e => change({ text: e.target.value })} /></label>
   </>;
   if (section.type === "video") return <label>YouTube/Twitch URL<input value={section.url ?? ""} onChange={e => change({ url: e.target.value })} maxLength={2000} /></label>;
@@ -28,7 +29,7 @@ function SectionFields({ section, change, upload }: { section: ComposerSection; 
 export function ArticleSectionBuilder({ sections, onChange, upload }: { sections: ComposerSection[]; onChange: (sections: ComposerSection[]) => void; upload: (event: React.ChangeEvent<HTMLInputElement>, id: string) => void }) {
   return <section aria-label="Article body" className="article-section-builder">
     <h2>Article body</h2>
-    {sections.map((section, index) => <fieldset className="composer-module" key={section.id}>
+    {sections.map((section, index) => <fieldset className="composer-module" key={section.id} id={`body-section-${section.id}`} tabIndex={-1}>
       <legend>{index + 1}. {sectionLabels[section.type]}</legend>
       <SectionFields section={section} change={patch => onChange(updateComposerSection(sections, section.id, patch))} upload={upload} />
       {validateComposerSections([section], true).map(error => <p className="field-error" key={error}>{error.replace(/section 1/g, `section ${index + 1}`)}</p>)}

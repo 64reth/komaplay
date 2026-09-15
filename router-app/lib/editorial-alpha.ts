@@ -172,6 +172,17 @@ export function validateComposerSections(sections: ComposerSection[], strict = f
   return errors;
 }
 
+export function submissionBlocker(sections: ComposerSection[]) {
+  const index = sections.findIndex(section => validateComposerSections([section], true).length > 0);
+  const section = sections[index];
+  const missingAlt = section?.type === "image" && !(section.alt ?? "").trim();
+  return {
+    error: `Draft saved, but not submitted. ${missingAlt ? `Add alt text to image section ${index + 1}.` : validateComposerSections(sections, true).join(" ")}`,
+    focusSectionId: section?.id ?? "",
+    focusField: missingAlt ? "alt" : "section",
+  };
+}
+
 export function articleModulesFromDraft(input: z.infer<typeof draftSchema>) {
   if (input.sectionsJson) return composerSectionsToModules(parseComposerSections(input.sectionsJson, input.sections, input.videoUrl));
   return bodyModules(input.sections, input.videoUrl);

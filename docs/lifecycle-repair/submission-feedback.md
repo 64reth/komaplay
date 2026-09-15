@@ -1,5 +1,13 @@
 # Submission feedback repair — 15 September 2026
 
+## Acceptance follow-up
+
+The follow-up shows an exact requirement count beside submission controls. A blocked composer submission first persists its current content as draft (or retains changes-requested state), then reports `Draft saved, but not submitted. Add alt text to image section 5.` A failed database save never claims success. Saved-row submission validates the already-persisted document without rewriting it.
+
+The response identifies the section/field to focus. The editor opens the affected saved panel when needed, scrolls to its alt input, highlights it and provides the associated message `Alt text is required for accessibility.` Save, blocked submission and successful submission have distinct visual treatment. Successful submission immediately displays the `Submitted` lifecycle badge.
+
+The follow-up retains the existing nullable first-submission timestamp rules and needs no migration. Tests cover draft persistence on blocked submission, truthful failure messages, focused field, exact requirement count and badge change. The authenticated smoke below should now expect field focus, rather than focus on the page-level error summary. Previous Worker version for this follow-up: `785747ba-5a32-4ca2-a4cb-7aa76c366bcd`.
+
 ## Evidence and scope
 
 Production project `zrckabmgrbmbjbhqcngp` has the timestamp repair. Read-only inspection found the most recently edited panel still in `draft`, with `submitted_at = NULL`. Its fifth body section is an image with a valid source but empty alt text. All other textual sections were nonempty. No article text was retrieved for diagnosis.

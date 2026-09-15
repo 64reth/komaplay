@@ -3002,3 +3002,10 @@ html {
   border: 1px solid var(--ink);
   background: var(--paper);
 }
+/* Make saved, blocked and submitted outcomes distinct without relying on colour. */
+.composer-outcome { border-inline-start: 4px solid currentColor; padding: 1rem; }
+.composer-outcome-saved { border-inline-start-style: double; }
+.composer-outcome-blocked { border: 2px solid #a32620; background: #fff2ef; color: #721c18; }
+.composer-outcome-submitted { border: 3px solid #24633d; background: #eef8f0; color: #17472b; font-weight: 700; }
+.composer-module input[aria-invalid="true"] { border: 2px solid #a32620; background: #fff2ef; }
+.composer-module:focus, .composer-module input:focus { outline: 3px solid currentColor; outline-offset: 4px; }
