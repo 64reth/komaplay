@@ -144,6 +144,7 @@ test("Google is visible in both account modes and editorial returns keep the pan
     assert.match(render(mode), /CONTINUE WITH GOOGLE/);
     assert.match(render(mode), /Pocket Guide/);
   }
+  assert.equal(safeReturnPath("/documents/platform-notice"), "/documents/platform-notice");
   const path = "/editorial?featureId=panel-123";
   assert.equal(safeReturnPath(path), path);
   assert.equal(

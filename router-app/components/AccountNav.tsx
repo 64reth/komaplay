@@ -313,7 +313,7 @@ export function AccountNav() {
       if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
       setDialog(null);
       setMenuOpen(false);
-      if (event === "SIGNED_IN" || event === "USER_UPDATED")
+      if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "SIGNED_OUT")
         void revalidator.revalidate();
     });
     return () => subscription?.data.subscription.unsubscribe();
