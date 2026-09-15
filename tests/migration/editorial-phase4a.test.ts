@@ -7,8 +7,9 @@ import { applyWritingTool } from "../../router-app/components/WritingToolbar";
 
 const migration = readFileSync("supabase/migrations/202609120001_editorial_alpha_rpc.sql", "utf8");
 const profileRoute = readFileSync("router-app/routes/profile.tsx", "utf8");
-const moderationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8");
-const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8");
+const rawModerationRoute = readFileSync("router-app/routes/moderation.tsx", "utf8");
+const moderationRoute = rawModerationRoute.replace(/\s+/g, " ").replace(/([({])\s+/g, "$1").replace(/\s+([)}])/g, "$1");
+const editorialRoute = readFileSync("router-app/routes/editorial.tsx", "utf8").replace(/\s+/g, " ");
 const featureRoute = readFileSync("router-app/routes/feature.tsx", "utf8");
 const submitFeedbackMigration = readFileSync("supabase/migrations/202609120002_editorial_alpha_submit_feedback.sql", "utf8");
 const myDraftsMigration = readFileSync("supabase/migrations/202609120003_editorial_alpha_my_drafts.sql", "utf8");
@@ -226,7 +227,7 @@ test("row submit is a minimal normal form action", () => {
 
 
 test("composer persistence uses the route action result", () => {
-  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form" noValidate>/);
+  assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form" noValidate/);
   assert.match(editorialRoute, /name="title"/);
   assert.match(editorialRoute, /name="slug"/);
   assert.match(editorialRoute, /name="summary"/);
@@ -287,10 +288,10 @@ test("shared review inbox is account-wide for authorised editorial reviewers", (
   assert.doesNotMatch(reviewInboxBody, /author_id=auth\.uid\(\)/);
   assert.doesNotMatch(reviewInboxBody, /email/i);
   assert.doesNotMatch(reviewInboxBody, /aca99070|d57573e6|gareth/i);
-  const reviewRpcLine = moderationRoute.split("\n").find((line) => line.includes('rpc("editorial_review_inbox")')) ?? "";
+  const reviewRpcLine = rawModerationRoute.split("\n").find((line) => line.includes('rpc("editorial_review_inbox")')) ?? "";
   assert.match(reviewRpcLine, /resolved\.client\.rpc\("editorial_review_inbox"\)/);
   assert.doesNotMatch(reviewRpcLine, /author_id|profile_id|user_id/);
-  const reviewRowsBody = moderationRoute.slice(moderationRoute.indexOf("const reviewRows"), moderationRoute.indexOf("return ("));
+  const reviewRowsBody = moderationRoute.slice(moderationRoute.indexOf("const reviewRows"), moderationRoute.indexOf("return (", moderationRoute.indexOf("const reviewRows")));
   assert.match(reviewRowsBody, /result\.review\.map/);
   assert.doesNotMatch(reviewRowsBody, /author_id|profile_id|user_id/);
   assert.match(moderationRoute, /capabilities\.editorial \|\| capabilities\.moderation/);
@@ -463,9 +464,9 @@ test("phase 4b placeholder repair normalizes current editorial documents", () =>
 });
 
 test("publish and takedown require explicit confirmation", () => {
-  assert.match(moderationRoute, /useState<null \| \{ kind: "publish" \| "takeDown" \| "archive"/);
-  assert.match(moderationRoute, /setConfirmation\(\{ kind: "publish"/);
-  assert.match(moderationRoute, /setConfirmation\(\{ kind: "takeDown"/);
+  assert.match(moderationRoute, /useState<null \| \{\s*kind: "publish" \| "takeDown" \| "archive"/);
+  assert.match(moderationRoute, /setConfirmation\(\{\s*kind: "publish"/);
+  assert.match(moderationRoute, /setConfirmation\(\{\s*kind: "takeDown"/);
   assert.match(moderationRoute, /Publish this feature\? It will become visible on the public site and may appear in the current issue strip\./);
   assert.match(moderationRoute, /Take down this feature\? It will be removed from public feature pages and live issue listings, but its history will be kept\./);
   assert.match(moderationRoute, /Public URL: \/features\/\{confirmation\.slug\}/);
@@ -663,7 +664,7 @@ test("phase 4f editorial image upload route validates auth type size and file co
   assert.match(uploadRoute, /Images must be 5 MB or smaller\./);
   assert.match(uploadRoute, /Use PNG, JPEG or WebP\./);
   assert.match(mediaServer, /validateImageBytes/);
-  assert.match(uploadRoute, /storage\.from\(editorialImageBucket\)\.upload/);
+  assert.match(uploadRoute, /storage\s*\.from\(editorialImageBucket\)\s*\.upload/);
   assert.match(imageRoute, /createSignedUrl/);
   assert.doesNotMatch(uploadRoute + imageRoute + mediaServer, /service_role|SERVICE_ROLE/i);
 });

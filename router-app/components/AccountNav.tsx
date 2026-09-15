@@ -64,6 +64,8 @@ export function AuthDialog({
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState<"email" | "google">("email");
+  const pending = useRef(false);
   const [message, setMessage] = useState(initialError);
   const titleId = useId();
   const panel = useRef<HTMLElement>(null);
@@ -100,7 +102,7 @@ export function AuthDialog({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (pending.current) return;
     setMessage("");
     if (!client || !config) {
       setMessage("Authentication is unavailable on this deployment.");
@@ -112,26 +114,68 @@ export function AuthDialog({
       event.currentTarget.reportValidity();
       return;
     }
+    pending.current = true;
+    setProvider("email");
     setBusy(true);
-    const destination = safeReturnPath(returnTo);
-    const callback = authCallbackUrl(config.authCallbackOrigin, destination);
-    const { error } = await client.auth.signInWithOtp({
-      email: emailAddress,
-      options: {
-        emailRedirectTo: callback,
-        shouldCreateUser: mode === "create",
-        data:
-          mode === "create"
-            ? { display_name: String(form.get("displayName") ?? "").trim() }
-            : undefined,
-      },
-    });
-    setBusy(false);
-    setMessage(
-      error
-        ? understandableAuthError(error)
-        : "Check your email for a secure sign-in link. You can close this panel while you wait.",
-    );
+    try {
+      const destination = safeReturnPath(returnTo);
+      const callback = authCallbackUrl(config.authCallbackOrigin, destination);
+      const { error } = await client.auth.signInWithOtp({
+        email: emailAddress,
+        options: {
+          emailRedirectTo: callback,
+          shouldCreateUser: mode === "create",
+          data:
+            mode === "create"
+              ? { display_name: String(form.get("displayName") ?? "").trim() }
+              : undefined,
+        },
+      });
+      setBusy(false);
+      setMessage(
+        error
+          ? understandableAuthError(error)
+          : "Check your email for a secure sign-in link. You can close this panel while you wait.",
+      );
+    } catch {
+      setMessage(
+        "We couldn’t send the sign-in email just now. Please try again.",
+      );
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function google() {
+    if (pending.current) return;
+    if (!client || !config) {
+      setMessage(
+        "Sign-in is temporarily unavailable. Please try again shortly.",
+      );
+      return;
+    }
+    pending.current = true;
+    setProvider("google");
+    setBusy(true);
+    setMessage("Opening Google sign-in…");
+    try {
+      const { data, error } = await client.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: authCallbackUrl(config.authCallbackOrigin, returnTo),
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error || !data.url) throw new Error("oauth_start");
+      window.location.assign(data.url);
+    } catch {
+      setMessage(
+        "We couldn’t open Google sign-in just now. Please try again or use an email link.",
+      );
+      pending.current = false;
+      setBusy(false);
+    }
   }
 
   return (
@@ -183,6 +227,20 @@ export function AuthDialog({
             CREATE ACCOUNT
           </button>
         </div>
+        <button
+          type="button"
+          className="op-button action-primary"
+          disabled={busy}
+          onClick={() => void google()}
+        >
+          {busy && provider === "google"
+            ? "OPENING GOOGLE…"
+            : "CONTINUE WITH GOOGLE"}
+        </button>
+        <p>
+          Use Google or an email link. New members will read the Pocket Guide
+          before contributing.
+        </p>
         <form className="op-form" onSubmit={submit}>
           {mode === "create" && (
             <label>
@@ -216,14 +274,14 @@ export function AuthDialog({
             </label>
           )}
           <button className="op-button action-primary" disabled={busy}>
-            {busy
+            {busy && provider === "email"
               ? "SENDING…"
               : mode === "sign-in"
                 ? "SEND SIGN-IN LINK"
                 : "CREATE ACCOUNT"}
           </button>
           {message && (
-            <p role={message.startsWith("Check") ? "status" : "alert"}>
+            <p role={/^(Check|Opening)/.test(message) ? "status" : "alert"}>
               {message}
             </p>
           )}
@@ -241,6 +299,8 @@ export function AccountNav() {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [accountMessage, setAccountMessage] = useState("");
   const [dialog, setDialog] = useState<{
     mode: AuthMode;
     returnTo: string;
@@ -288,9 +348,14 @@ export function AccountNav() {
   useEffect(() => {
     if (
       (auth.state === "signed-out" || auth.state === "unconfigured") &&
-      new URLSearchParams(location.search).get("auth_error") === "expired"
+      ["expired", "cancelled", "unavailable"].includes(
+        new URLSearchParams(location.search).get("auth_error") ?? "",
+      )
     )
-      setDialog({ mode: "sign-in", returnTo: location.pathname });
+      setDialog({
+        mode: "sign-in",
+        returnTo: safeReturnPath(location.pathname + location.search),
+      });
   }, [auth.state, location.pathname, location.search]);
 
   if (
@@ -325,7 +390,13 @@ export function AccountNav() {
               new URLSearchParams(location.search).get("auth_error") ===
               "expired"
                 ? "This sign-in link is invalid or expired. Request a new link."
-                : ""
+                : new URLSearchParams(location.search).get("auth_error") ===
+                    "cancelled"
+                  ? "Sign-in was cancelled. You can try again whenever you’re ready."
+                  : new URLSearchParams(location.search).get("auth_error") ===
+                      "unavailable"
+                    ? "We couldn’t complete sign-in just now. Please try again."
+                    : ""
             }
             onClose={() => {
               setDialog(null);
@@ -346,6 +417,7 @@ export function AccountNav() {
       .toUpperCase() || "KP";
   return (
     <div className="account-nav">
+      {accountMessage && <p role="alert">{accountMessage}</p>}
       <button
         ref={button}
         aria-label={`Account menu for ${member.displayName}`}
@@ -379,26 +451,46 @@ export function AccountNav() {
             HANDBOOK
           </Link>
           {data.capabilities?.moderation && (
-            <span role="menuitem" aria-disabled="true">
-              MODERATION · MIGRATING
-            </span>
+            <Link
+              role="menuitem"
+              to="/moderation"
+              onClick={() => setMenuOpen(false)}
+            >
+              REVIEW INBOX
+            </Link>
           )}
           {data.capabilities?.editorial && (
-            <span role="menuitem" aria-disabled="true">
-              EDITORIAL · MIGRATING
-            </span>
+            <Link
+              role="menuitem"
+              to="/editorial"
+              onClick={() => setMenuOpen(false)}
+            >
+              EDITORIAL
+            </Link>
           )}
           <button
             role="menuitem"
             onClick={async () => {
-              if (!client) return;
-              setMenuOpen(false);
-              await client.auth.signOut();
-              await revalidator.revalidate();
-              navigate("/", { replace: true });
+              if (!client || signingOut) return;
+              setSigningOut(true);
+              setAccountMessage("");
+              try {
+                const { error } = await client.auth.signOut({ scope: "local" });
+                if (error) throw error;
+                setMenuOpen(false);
+                await revalidator.revalidate();
+                navigate("/", { replace: true });
+              } catch {
+                setAccountMessage(
+                  "We couldn’t sign you out just now. Please try again.",
+                );
+              } finally {
+                setSigningOut(false);
+              }
             }}
+            disabled={signingOut}
           >
-            SIGN OUT
+            {signingOut ? "SIGNING OUT…" : "SIGN OUT"}
           </button>
         </div>
       )}

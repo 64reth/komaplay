@@ -57,7 +57,7 @@ export function safeReturnPath(
     const url = new URL(value, "https://ink.local");
     if (url.origin !== "https://ink.local") return fallback;
     if (
-      !/^\/$|^\/(archive|search|moderation|publishing|handbook|onboarding|profile(?:\/settings)?)$|^\/features\/[a-z0-9-]+(?:\/(?:workshop|correction))?$|^\/issues\/[a-z0-9-]+$/.test(
+      !/^\/$|^\/(archive|search|about|documents|editorial|moderation|publishing|handbook|onboarding|profile(?:\/settings)?)$|^\/features\/[a-z0-9-]+(?:\/(?:workshop|correction))?$|^\/issues\/[a-z0-9-]+$/.test(
         url.pathname,
       )
     )
@@ -80,6 +80,9 @@ export function safeReturnPath(
       "tag",
       "status",
       "contributor",
+      "featureId",
+      "feature",
+      "review",
     ]) {
       const v = url.searchParams.get(key);
       if (v && v.length <= 200) query.set(key, v);

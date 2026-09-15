@@ -1,3 +1,4 @@
+import { actionFailure } from "../lib/action-feedback";
 import {
   data,
   Form,
@@ -133,7 +134,10 @@ export async function action({ request }: Route.ActionArgs) {
         error:
           error instanceof z.ZodError
             ? error.issues.map((issue) => issue.message).join(" ")
-            : "Settings could not be saved. Try again.",
+            : actionFailure(
+                error,
+                "Your changes are still here, but we couldn’t save them just now. Please try again.",
+              ),
       },
       { status: 400, headers: resolved.headers },
     );

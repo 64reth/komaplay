@@ -156,7 +156,7 @@ export function FeatureStrip({
               <span>{item.category}</span>
             </span>
             <span className="feature-art">
-              <img src={item.image} alt={item.imageAlt} draggable={false} />
+              <img src={item.image} alt={item.imageAlt} onError={event => { if (!event.currentTarget.src.endsWith("/assets/koma-feature-placeholder.svg")) event.currentTarget.src="/assets/koma-feature-placeholder.svg"; }} draggable={false} />
             </span>
             <span className="feature-caption">
               <strong>{item.title}</strong>

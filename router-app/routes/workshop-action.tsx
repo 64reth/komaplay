@@ -1,3 +1,4 @@
+import { actionFailure } from "../lib/action-feedback";
 import { data, redirect } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/workshop-action";
@@ -60,7 +61,7 @@ function databaseError(error: unknown, fallback: string) {
     typeof error === "object" && "code" in error ? String(error.code) : "";
   return {
     status: code === "42501" ? 403 : 409,
-    message: fallback,
+    message: actionFailure(error, fallback),
   };
 }
 

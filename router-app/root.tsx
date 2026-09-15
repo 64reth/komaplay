@@ -1,3 +1,4 @@
+import { privatePath, siteOrigin } from "./lib/seo";
 import {
   data,
   isRouteErrorResponse,
@@ -7,6 +8,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
+  useMatches,
 } from "react-router";
 import type { Route } from "./+types/root";
 import { Masthead } from "./components/Masthead";
@@ -70,12 +73,55 @@ export const meta: Route.MetaFunction = () => [
   },
 ];
 export function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const matches = useMatches();
+  const page = matches.at(-1)?.loaderData as
+    { feature?: { title: string; summary: string; image: string } } | undefined;
+  const feature = page?.feature;
+  const canonical = siteOrigin + location.pathname;
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
+        {privatePath(location.pathname) && (
+          <meta name="robots" content="noindex, nofollow" />
+        )}
+        <meta property="og:site_name" content="KOMA://PLAY" />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:type" content={feature ? "article" : "website"} />
+        <meta property="og:title" content={feature?.title ?? "KOMA://PLAY"} />
+        <meta
+          property="og:description"
+          content={
+            feature?.summary ??
+            "A living publication for games, manga and anime."
+          }
+        />
+        <meta
+          property="og:image"
+          content={
+            new URL(feature?.image ?? "/assets/koma-vhs-v2.png", siteOrigin)
+              .href
+          }
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        {feature && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Article",
+                headline: feature.title,
+                description: feature.summary,
+                url: canonical,
+                publisher: { "@type": "Organization", name: "KOMA://PLAY" },
+              }).replace(/</g, "\\u003c"),
+            }}
+          />
+        )}
         <Links />
       </head>
       <body>

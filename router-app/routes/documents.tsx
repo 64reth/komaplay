@@ -66,12 +66,13 @@ export default function Documents() {
             </p>
           </article>
           <article>
-            <p className="editorial-marker">COMING NEXT</p>
+            <p className="editorial-marker">ALPHA NOTICE · OWNER REVIEW PENDING</p>
             <h2>Privacy, cookies and terms</h2>
             <p>
-              Formal legal documents are not published yet. This page will link
-              to them when they are ready.
+              Read how accounts, contributions, cookies and moderation work now,
+              and which legal decisions remain outstanding.
             </p>
+            <Link className="op-button" to="/documents/platform-notice">READ PLATFORM NOTICE →</Link>
           </article>
         </div>
       </section>

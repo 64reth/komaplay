@@ -155,9 +155,16 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={async () => {
-                await client?.auth.signOut();
-                setAcceptedLocally(false);
-                await revalidator.revalidate();
+                try {
+                  const result = await client?.auth.signOut({ scope: "local" });
+                  if (result?.error) throw result.error;
+                  setAcceptedLocally(false);
+                  await revalidator.revalidate();
+                } catch {
+                  setAnnouncement(
+                    "We couldn’t sign you out just now. Please try again.",
+                  );
+                }
               }}
             >
               SIGN OUT AND CONTINUE READING

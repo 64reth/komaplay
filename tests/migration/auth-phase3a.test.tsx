@@ -47,7 +47,10 @@ test("auth callback origins are selected from explicit deployed and local origin
     "https://komaplay-canary.garetha81.workers.dev/auth/callback?returnTo=%2Ffeatures%2Ftokon%2Fworkshop",
   );
   assert.equal(
-    authCallbackUrl(requestAuthOrigin(new Request("https://komaplay.com/")), "/"),
+    authCallbackUrl(
+      requestAuthOrigin(new Request("https://komaplay.com/")),
+      "/",
+    ),
     "https://komaplay.com/auth/callback?returnTo=%2F",
   );
   assert.equal(
@@ -134,4 +137,72 @@ test("initial browser session hydration does not trigger a loader revalidation l
   assert.match(source, /event === "INITIAL_SESSION"/);
   assert.match(source, /event === "TOKEN_REFRESHED"/);
   assert.match(source, /return;/);
+});
+
+test("Google is visible in both account modes and editorial returns keep the panel identity", () => {
+  for (const mode of ["sign-in", "create"] as const) {
+    assert.match(render(mode), /CONTINUE WITH GOOGLE/);
+    assert.match(render(mode), /Pocket Guide/);
+  }
+  const path = "/editorial?featureId=panel-123";
+  assert.equal(safeReturnPath(path), path);
+  assert.equal(
+    safeReturnPath(`/onboarding?returnTo=${encodeURIComponent(path)}`),
+    `/onboarding?returnTo=${encodeURIComponent(path)}`,
+  );
+});
+
+test("OAuth exchange preserves response cookies and destination; cancellation and failure are safe", async () => {
+  const { completeAuthentication } =
+    await import("../../router-app/lib/auth-callback.server");
+  for (const outcome of [
+    "new-member",
+    "existing-member",
+    "expired",
+    "network",
+    "cancelled",
+  ] as const) {
+    let calls = 0;
+    const headers = new Headers();
+    const client = {
+      auth: {
+        exchangeCodeForSession: async (code: string) => {
+          calls++;
+          assert.equal(code, "one-use-code");
+          if (outcome === "network")
+            throw new Error("private technical detail");
+          headers.append(
+            "Set-Cookie",
+            "test-session=fixture; Path=/; Secure; SameSite=Lax",
+          );
+          return {
+            error:
+              outcome === "expired"
+                ? { message: "private provider response" }
+                : null,
+          };
+        },
+      },
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+    const request = new Request(
+      `https://komaplay.com/auth/callback?returnTo=%2Feditorial%3FfeatureId%3Dpanel-123&${outcome === "cancelled" ? "error=access_denied&error_description=private" : "code=one-use-code"}`,
+    );
+    const response = await completeAuthentication(request, { client, headers });
+    assert.equal(response.status, 302);
+    assert.equal(calls, outcome === "cancelled" ? 0 : 1);
+    const location = response.headers.get("location")!;
+    assert.match(location, /^\/editorial\?featureId=panel-123/);
+    assert.doesNotMatch(location, /private|one-use-code/);
+    if (outcome.endsWith("member")) {
+      assert.equal(location, "/editorial?featureId=panel-123");
+      assert.match(response.headers.get("set-cookie")!, /test-session/);
+    } else
+      assert.match(
+        location,
+        new RegExp(
+          `auth_error=${outcome === "network" ? "unavailable" : outcome}`,
+        ),
+      );
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  }
 });

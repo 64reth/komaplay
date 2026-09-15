@@ -1,9 +1,21 @@
-import { data, Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "react-router";
+import { actionFailure } from "../lib/action-feedback";
+import {
+  data,
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+} from "react-router";
 import { useState } from "react";
 import type { Route } from "./+types/moderation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
-import { PanelDirectory, type PanelDirectoryRow } from "../components/PanelDirectory";
+import {
+  PanelDirectory,
+  type PanelDirectoryRow,
+} from "../components/PanelDirectory";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
 import { resolveAuth } from "../lib/auth";
 import { reviewInboxStatusLabel } from "../lib/editorial-alpha";
@@ -11,75 +23,240 @@ import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 async function moderationContext(request: Request) {
   const resolved = await resolveAuth(request);
-  if (resolved.auth.state !== "authenticated" || !resolved.client || !resolved.user) return { resolved, state: "signed-out" as const, capabilities: { editorial: false, moderation: false } };
-  if (resolved.auth.member.accountStatus !== "active") return { resolved, state: resolved.auth.member.accountStatus as "restricted" | "suspended", capabilities: { editorial: false, moderation: false } };
+  if (
+    resolved.auth.state !== "authenticated" ||
+    !resolved.client ||
+    !resolved.user
+  )
+    return {
+      resolved,
+      state: "signed-out" as const,
+      capabilities: { editorial: false, moderation: false },
+    };
+  if (resolved.auth.member.accountStatus !== "active")
+    return {
+      resolved,
+      state: resolved.auth.member.accountStatus as "restricted" | "suspended",
+      capabilities: { editorial: false, moderation: false },
+    };
   const handbook = await membershipState(resolved.client, resolved.user.id);
-  if (handbook.status !== "accepted") return { resolved, state: "verifying" as const, capabilities: { editorial: false, moderation: false } };
-  const capabilities = await memberCapabilities(resolved.client, resolved.auth.member);
-  const review = await resolved.client.rpc("editorial_has_access", { target: resolved.user.id, review: false });
-  const allowed = capabilities.editorial || capabilities.moderation || (!review.error && review.data === true);
-  return { resolved, state: allowed ? "accepted" as const : "denied" as const, capabilities };
+  if (handbook.status !== "accepted")
+    return {
+      resolved,
+      state: "verifying" as const,
+      capabilities: { editorial: false, moderation: false },
+    };
+  const capabilities = await memberCapabilities(
+    resolved.client,
+    resolved.auth.member,
+  );
+  const review = await resolved.client.rpc("editorial_has_access", {
+    target: resolved.user.id,
+    review: false,
+  });
+  const allowed =
+    capabilities.editorial ||
+    capabilities.moderation ||
+    (!review.error && review.data === true);
+  return {
+    resolved,
+    state: allowed ? ("accepted" as const) : ("denied" as const),
+    capabilities,
+  };
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
   const context = await moderationContext(request);
   const { resolved } = context;
-  if (context.state !== "accepted" || !resolved.client) return data({ state: context.state, capabilities: context.capabilities, grants: [], review: [], closePreview: null }, { headers: resolved.headers });
+  if (context.state !== "accepted" || !resolved.client)
+    return data(
+      {
+        state: context.state,
+        capabilities: context.capabilities,
+        grants: [],
+        review: [],
+        closePreview: null,
+      },
+      { headers: resolved.headers },
+    );
   const [grants, review, publication, closePreview] = await Promise.all([
-    resolved.client.from("editorial_access_grants").select("id,access_level,scope_type,granted_at,revoked_at,reason,profiles!editorial_access_grants_user_id_fkey(display_name)").order("granted_at", { ascending: false }),
+    resolved.client
+      .from("editorial_access_grants")
+      .select(
+        "id,access_level,scope_type,granted_at,revoked_at,reason,profiles!editorial_access_grants_user_id_fkey(display_name)",
+      )
+      .order("granted_at", { ascending: false }),
     resolved.client.rpc("editorial_review_inbox"),
     resolved.client.rpc("editorial_publication_panels"),
-    context.capabilities.moderation ? resolved.client.rpc("issue_close_preview") : Promise.resolve({ data: null, error: null }),
+    context.capabilities.moderation
+      ? resolved.client.rpc("issue_close_preview")
+      : Promise.resolve({ data: null, error: null }),
   ]);
-  return data({ state: "accepted" as const, capabilities: context.capabilities, grants: grants.error ? [] : grants.data ?? [], review: review.error ? [] : review.data ?? [], publication: publication.error ? [] : publication.data ?? [], closePreview: closePreview.error ? null : closePreview.data }, { headers: resolved.headers });
+  if (review.error || publication.error || closePreview.error) throw data("The review desk could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
+  return data(
+    {
+      state: "accepted" as const,
+      capabilities: context.capabilities,
+      grants: grants.error ? [] : (grants.data ?? []),
+      review: review.error ? [] : (review.data ?? []),
+      publication: publication.error ? [] : (publication.data ?? []),
+      closePreview: closePreview.error ? null : closePreview.data,
+    },
+    { headers: resolved.headers },
+  );
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const context = await moderationContext(request);
   const { resolved } = context;
-  if (context.state !== "accepted" || !resolved.client) return data({ error: "Moderation access is required." }, { status: 403, headers: resolved.headers });
+  if (context.state !== "accepted" || !resolved.client)
+    return data(
+      { error: "Moderation access is required." },
+      { status: 403, headers: resolved.headers },
+    );
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return data({ error: "Same-origin request required." }, { status: 403, headers: resolved.headers });
+  if (origin && origin !== new URL(request.url).origin)
+    return data(
+      { error: "Same-origin request required." },
+      { status: 403, headers: resolved.headers },
+    );
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   try {
+    if (intent === "moderateAccount") {
+      const result=await resolved.client.rpc("moderate_member_account",{target_email:String(form.get("email") ?? ""),next_status:String(form.get("accountStatus") ?? ""),review_note:String(form.get("reason") ?? "")});
+      if(result.error)throw result.error;
+      return data({success:"Account access updated. The reason has been recorded."},{headers:resolved.headers});
+    }
     if (intent === "grant" || intent === "revoke") {
       const email = String(form.get("email") ?? "").trim();
-      if (!email || !email.includes("@")) throw new Error("Enter an existing user email.");
-      const result = await resolved.client.rpc("manage_editorial_grant", { target_email: email, grant_access: intent === "grant", grant_reason: String(form.get("reason") ?? "") });
-      if (result.error) throw new Error(result.error.message);
-      return data({ success: intent === "grant" ? "Editorial access granted." : "Editorial access revoked." }, { headers: resolved.headers });
+      if (!email || !email.includes("@"))
+        return data(
+          { error: "Enter the email address of an existing member." },
+          { status: 400, headers: resolved.headers },
+        );
+      const result = await resolved.client.rpc("manage_editorial_grant", {
+        target_email: email,
+        grant_access: intent === "grant",
+        grant_reason: String(form.get("reason") ?? ""),
+      });
+      if (result.error) throw result.error;
+      return data(
+        {
+          success:
+            intent === "grant"
+              ? "Editorial access granted."
+              : "Editorial access revoked.",
+        },
+        { headers: resolved.headers },
+      );
     }
-    if (intent === "publishFeature" || intent === "takeDownFeature" || intent === "archiveFeature" || intent === "closeIssue") {
-      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to publish, archive, close or take down panels." }, { status: 403, headers: resolved.headers });
+    if (
+      intent === "publishFeature" ||
+      intent === "takeDownFeature" ||
+      intent === "archiveFeature" ||
+      intent === "closeIssue"
+    ) {
+      if (!context.capabilities.moderation)
+        return data(
+          {
+            error:
+              "Moderator access is required to publish, archive, close or take down panels.",
+          },
+          { status: 403, headers: resolved.headers },
+        );
       if (intent === "closeIssue") {
         const result = await resolved.client.rpc("close_current_issue");
-        if (result.error) throw new Error(result.error.message);
-        return data({ success: "Issue closed and archived." }, { headers: resolved.headers });
+        if (result.error) throw result.error;
+        return data(
+          { success: "Issue closed and archived." },
+          { headers: resolved.headers },
+        );
       }
       const featureId = String(form.get("featureId") ?? "");
-      const rpcName = intent === "publishFeature" ? "publish_editorial_panel" : intent === "archiveFeature" ? "archive_editorial_panel" : "take_down_editorial_panel";
+      const rpcName =
+        intent === "publishFeature"
+          ? "publish_editorial_panel"
+          : intent === "archiveFeature"
+            ? "archive_editorial_panel"
+            : "take_down_editorial_panel";
       const result = await resolved.client.rpc(rpcName, { target: featureId });
-      if (result.error) throw new Error(result.error.message);
-      return data({ success: intent === "publishFeature" ? "Feature published." : intent === "archiveFeature" ? "Panel archived." : "Feature taken down." }, { headers: resolved.headers });
+      if (result.error) throw result.error;
+      return data(
+        {
+          success:
+            intent === "publishFeature"
+              ? "Feature published."
+              : intent === "archiveFeature"
+                ? "Panel archived."
+                : "Feature taken down.",
+        },
+        { headers: resolved.headers },
+      );
     }
     if (intent === "approveDraft" || intent === "changesDraft") {
-      if (!context.capabilities.moderation) return data({ error: "Moderator access is required to approve or request changes." }, { status: 403, headers: resolved.headers });
+      if (!context.capabilities.moderation)
+        return data(
+          {
+            error:
+              "Moderator access is required to approve or request changes.",
+          },
+          { status: 403, headers: resolved.headers },
+        );
       const note = String(form.get("note") ?? "").trim();
-      if (intent === "changesDraft" && note.length < 4) throw new Error("Add a reviewer note before requesting changes.");
-      const result = await resolved.client.rpc("editorial_review_draft", { target: String(form.get("featureId") ?? ""), decision: intent === "approveDraft" ? "approve" : "changes", review_note: note });
-      if (result.error) throw new Error(result.error.message);
-      return data({ success: intent === "approveDraft" ? "Panel marked publish-ready." : "Changes requested." }, { headers: resolved.headers });
+      if (intent === "changesDraft" && note.length < 4)
+        return data(
+          { error: "Add a reviewer note explaining what needs to change." },
+          { status: 400, headers: resolved.headers },
+        );
+      const result = await resolved.client.rpc("editorial_review_draft", {
+        target: String(form.get("featureId") ?? ""),
+        decision: intent === "approveDraft" ? "approve" : "changes",
+        review_note: note,
+      });
+      if (result.error) throw result.error;
+      return data(
+        {
+          success:
+            intent === "approveDraft"
+              ? "Panel marked publish-ready."
+              : "Changes requested.",
+        },
+        { headers: resolved.headers },
+      );
     }
     throw new Error("Unknown moderation action.");
   } catch (error) {
-    return data({ error: error instanceof Error ? error.message : "Action failed." }, { status: 400, headers: resolved.headers });
+    return data(
+      {
+        error: actionFailure(
+          error,
+          "We couldn’t complete this action just now. No confirmation was received. Refresh the panel to check its current state before trying again.",
+        ),
+      },
+      { status: 400, headers: resolved.headers },
+    );
   }
 }
 
 function Boundary({ state }: { state: string }) {
-  if (state === "signed-out") return <SignedOutMemberBoundary title="SIGN IN TO USE MODERATION" returnTo="/moderation" />;
-  return <section className="op-workspace"><p className="editorial-marker">MODERATION</p><h1>Moderation unavailable</h1><p role="alert">Administrator, moderator or review permission is required.</p><Link to="/profile">← RETURN TO PROFILE</Link></section>;
+  if (state === "signed-out")
+    return (
+      <SignedOutMemberBoundary
+        title="SIGN IN TO USE MODERATION"
+        returnTo="/moderation"
+      />
+    );
+  return (
+    <section className="op-workspace">
+      <p className="editorial-marker">MODERATION</p>
+      <h1>Moderation unavailable</h1>
+      <p role="alert">
+        Administrator, moderator or review permission is required.
+      </p>
+      <Link to="/profile">← RETURN TO PROFILE</Link>
+    </section>
+  );
 }
 
 export default function Moderation() {
@@ -87,27 +264,105 @@ export default function Moderation() {
   const actionResult = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
-  const [confirmation, setConfirmation] = useState<null | { kind: "publish" | "takeDown" | "archive" | "closeIssue"; featureId?: string; title: string; slug: string }>(null);
-  if (result.state !== "accepted") return <main className="editorial-page"><Masthead /><Boundary state={result.state} /></main>;
+  const [confirmation, setConfirmation] = useState<null | {
+    kind: "publish" | "takeDown" | "archive" | "closeIssue";
+    featureId?: string;
+    title: string;
+    slug: string;
+  }>(null);
+  if (result.state !== "accepted")
+    return (
+      <main className="editorial-page">
+        <Masthead />
+        <Boundary state={result.state} />
+      </main>
+    );
   const selectedReviewId = searchParams.get("review") ?? "";
-  const selectedReview = result.review.find((draft: any) => draft.feature_id === selectedReviewId) ?? null;
-  const publicationRows: PanelDirectoryRow[] = ("publication" in result ? result.publication : []).map((draft: any) => ({
+  const selectedReview =
+    result.review.find((draft: any) => draft.feature_id === selectedReviewId) ??
+    null;
+  const publicationRows: PanelDirectoryRow[] = (
+    "publication" in result ? result.publication : []
+  ).map((draft: any) => ({
     id: `publication-${draft.feature_id}`,
     title: draft.title ?? "Untitled panel",
     type: "Editorial Feature",
     status: reviewInboxStatusLabel(draft.lifecycle_status),
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.slug ?? ""}`,
-    action: draft.lifecycle_status === "publish_ready" ? (
-      <button className="op-button action-primary" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "publish", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>PUBLISH FEATURE</button>
-    ) : draft.lifecycle_status === "published" ? (
-      <span className="profile-actions">
-        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "archive", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>ARCHIVE PANEL</button>
-        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>TAKE DOWN</button>
-      </span>
-    ) : draft.lifecycle_status === "archived" ? (
-      <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={() => setConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" })}>TAKE DOWN</button>
-    ) : <span>{draft.lifecycle_status === "taken_down" ? "TAKEN DOWN" : "NO PUBLIC ACTION"}</span>,
+    action:
+      draft.lifecycle_status === "publish_ready" ? (
+        <button
+          className="op-button action-primary"
+          type="button"
+          disabled={navigation.state !== "idle"}
+          onClick={() =>
+            setConfirmation({
+              kind: "publish",
+              featureId: draft.feature_id,
+              title: draft.title ?? "Untitled panel",
+              slug: draft.slug ?? "",
+            })
+          }
+        >
+          PUBLISH FEATURE
+        </button>
+      ) : draft.lifecycle_status === "published" ? (
+        <span className="profile-actions">
+          <button
+            className="op-button"
+            type="button"
+            disabled={navigation.state !== "idle"}
+            onClick={() =>
+              setConfirmation({
+                kind: "archive",
+                featureId: draft.feature_id,
+                title: draft.title ?? "Untitled panel",
+                slug: draft.slug ?? "",
+              })
+            }
+          >
+            ARCHIVE PANEL
+          </button>
+          <button
+            className="op-button"
+            type="button"
+            disabled={navigation.state !== "idle"}
+            onClick={() =>
+              setConfirmation({
+                kind: "takeDown",
+                featureId: draft.feature_id,
+                title: draft.title ?? "Untitled panel",
+                slug: draft.slug ?? "",
+              })
+            }
+          >
+            TAKE DOWN
+          </button>
+        </span>
+      ) : draft.lifecycle_status === "archived" ? (
+        <button
+          className="op-button"
+          type="button"
+          disabled={navigation.state !== "idle"}
+          onClick={() =>
+            setConfirmation({
+              kind: "takeDown",
+              featureId: draft.feature_id,
+              title: draft.title ?? "Untitled panel",
+              slug: draft.slug ?? "",
+            })
+          }
+        >
+          TAKE DOWN
+        </button>
+      ) : (
+        <span>
+          {draft.lifecycle_status === "taken_down"
+            ? "TAKEN DOWN"
+            : "NO PUBLIC ACTION"}
+        </span>
+      ),
   }));
   const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
     id: draft.feature_id,
@@ -116,7 +371,11 @@ export default function Moderation() {
     status: reviewInboxStatusLabel(draft.lifecycle_status),
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.summary ?? ""}`,
-    action: <Link to={`/moderation?review=${draft.feature_id}#review-preview`}>REVIEW ↓</Link>,
+    action: (
+      <Link to={`/moderation?review=${draft.feature_id}#review-preview`}>
+        REVIEW ↓
+      </Link>
+    ),
   }));
   return (
     <main className="editorial-page">
@@ -133,18 +392,57 @@ export default function Moderation() {
           <section>
             <h2>Editorial grants</h2>
             <Form className="op-form" method="post">
-              <label>User email<input name="email" type="email" required /></label>
-              <label>Reason<input name="reason" maxLength={240} /></label>
+              <label>
+                User email
+                <input name="email" type="email" required />
+              </label>
+              <label>
+                Reason
+                <input name="reason" maxLength={240} />
+              </label>
               <div className="profile-actions">
-                <button className="op-button action-primary" name="intent" value="grant" disabled={navigation.state !== "idle"}>GRANT EDITORIAL ACCESS</button>
-                <button className="op-button" name="intent" value="revoke" disabled={navigation.state !== "idle"}>REVOKE EDITORIAL ACCESS</button>
+                <button
+                  className="op-button action-primary"
+                  name="intent"
+                  value="grant"
+                  disabled={navigation.state !== "idle"}
+                >
+                  GRANT EDITORIAL ACCESS
+                </button>
+                <button
+                  className="op-button"
+                  name="intent"
+                  value="revoke"
+                  disabled={navigation.state !== "idle"}
+                >
+                  REVOKE EDITORIAL ACCESS
+                </button>
               </div>
             </Form>
-            <div>{result.grants.length ? result.grants.map((grant) => <p key={grant.id}>{grant.revoked_at ? "Revoked" : "Active"} · {grant.access_level} · {((Array.isArray((grant as any).profiles) ? (grant as any).profiles[0] : (grant as any).profiles)?.display_name) ?? "Member"}</p>) : <p>No editorial grants found.</p>}</div>
+            <div>
+              {result.grants.length ? (
+                result.grants.map((grant) => (
+                  <p key={grant.id}>
+                    {grant.revoked_at ? "Revoked" : "Active"} ·{" "}
+                    {grant.access_level} ·{" "}
+                    {(Array.isArray((grant as any).profiles)
+                      ? (grant as any).profiles[0]
+                      : (grant as any).profiles
+                    )?.display_name ?? "Member"}
+                  </p>
+                ))
+              ) : (
+                <p>No editorial grants found.</p>
+              )}
+            </div>
           </section>
         )}
-        {actionResult && "error" in actionResult && <p role="alert">{actionResult.error}</p>}
-        {actionResult && "success" in actionResult && <p role="status">{actionResult.success}</p>}
+        {actionResult && "error" in actionResult && (
+          <p role="alert">{actionResult.error}</p>
+        )}
+        {actionResult && "success" in actionResult && (
+          <p role="status">{actionResult.success}</p>
+        )}
 
         {confirmation && (
           <div className="auth-dialog-backdrop" role="presentation">
@@ -155,51 +453,139 @@ export default function Moderation() {
               aria-labelledby="publication-confirmation-title"
             >
               <p className="editorial-marker">PUBLICATION CHECK</p>
-              <h2 id="publication-confirmation-title">{confirmation.kind === "publish" ? "Publish this feature?" : confirmation.kind === "archive" ? "Archive this panel?" : confirmation.kind === "closeIssue" ? "Close the current issue?" : "Take down this feature?"}</h2>
-              <p><strong>{confirmation.title}</strong></p>
-              {confirmation.slug && <p className="field-help">Public URL: /features/{confirmation.slug}</p>}
-              <p>{confirmation.kind === "publish" ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip." : confirmation.kind === "archive" ? "Archive this panel? It will leave the current issue spaces and move to the Archive. Public archive access will remain available." : confirmation.kind === "closeIssue" ? "Close the current issue? Published panels from this issue will move to the Archive and leave live issue spaces. Drafts, submitted panels and publish-ready panels will remain active." : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}</p>
+              <h2 id="publication-confirmation-title">
+                {confirmation.kind === "publish"
+                  ? "Publish this feature?"
+                  : confirmation.kind === "archive"
+                    ? "Archive this panel?"
+                    : confirmation.kind === "closeIssue"
+                      ? "Close the current issue?"
+                      : "Take down this feature?"}
+              </h2>
+              <p>
+                <strong>{confirmation.title}</strong>
+              </p>
+              {confirmation.slug && (
+                <p className="field-help">
+                  Public URL: /features/{confirmation.slug}
+                </p>
+              )}
+              <p>
+                {confirmation.kind === "publish"
+                  ? "Publish this feature? It will become visible on the public site and may appear in the current issue strip."
+                  : confirmation.kind === "archive"
+                    ? "Archive this panel? It will leave the current issue spaces and move to the Archive. Public archive access will remain available."
+                    : confirmation.kind === "closeIssue"
+                      ? "Close the current issue? Published panels from this issue will move to the Archive and leave live issue spaces. Drafts, submitted panels and publish-ready panels will remain active."
+                      : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}
+              </p>
               <Form method="post" className="profile-actions">
-                {confirmation.featureId && <input type="hidden" name="featureId" value={confirmation.featureId} />}
+                {confirmation.featureId && (
+                  <input
+                    type="hidden"
+                    name="featureId"
+                    value={confirmation.featureId}
+                  />
+                )}
                 <button
-                  className={confirmation.kind === "publish" ? "op-button action-primary" : "op-button"}
+                  className={
+                    confirmation.kind === "publish"
+                      ? "op-button action-primary"
+                      : "op-button"
+                  }
                   name="intent"
-                  value={confirmation.kind === "publish" ? "publishFeature" : confirmation.kind === "archive" ? "archiveFeature" : confirmation.kind === "closeIssue" ? "closeIssue" : "takeDownFeature"}
+                  value={
+                    confirmation.kind === "publish"
+                      ? "publishFeature"
+                      : confirmation.kind === "archive"
+                        ? "archiveFeature"
+                        : confirmation.kind === "closeIssue"
+                          ? "closeIssue"
+                          : "takeDownFeature"
+                  }
                   disabled={navigation.state !== "idle"}
                 >
-                  {confirmation.kind === "publish" ? "CONFIRM PUBLISH" : confirmation.kind === "archive" ? "CONFIRM ARCHIVE" : confirmation.kind === "closeIssue" ? "CONFIRM CLOSE ISSUE" : "CONFIRM TAKE DOWN"}
+                  {confirmation.kind === "publish"
+                    ? "CONFIRM PUBLISH"
+                    : confirmation.kind === "archive"
+                      ? "CONFIRM ARCHIVE"
+                      : confirmation.kind === "closeIssue"
+                        ? "CONFIRM CLOSE ISSUE"
+                        : "CONFIRM TAKE DOWN"}
                 </button>
-                <button className="op-button" type="button" onClick={() => setConfirmation(null)} disabled={navigation.state !== "idle"}>CANCEL</button>
+                <button
+                  className="op-button"
+                  type="button"
+                  onClick={() => setConfirmation(null)}
+                  disabled={navigation.state !== "idle"}
+                >
+                  CANCEL
+                </button>
               </Form>
             </section>
           </div>
         )}
         <section>
           <h2>REVIEW INBOX</h2>
-          <p>Publishing to the live strip is next. Publish-ready panels are not public yet.</p>
-          <PanelDirectory label="Review Inbox" rows={reviewRows} empty="No submitted drafts waiting." />
+          <p>
+            Publishing to the live strip is next. Publish-ready panels are not
+            public yet.
+          </p>
+          <PanelDirectory
+            label="Review Inbox"
+            rows={reviewRows}
+            empty="No submitted drafts waiting."
+          />
           {result.capabilities.moderation && (
             <>
               <h2>PUBLICATION CONTROLS</h2>
-              <p>Publish-ready panels can become public features. Published panels can be taken down without deleting history.</p>
-              <PanelDirectory label="Publication controls" rows={publicationRows} empty="No panels ready to publish. Approve a submitted panel first." />
+              <p>
+                Publish-ready panels can become public features. Published
+                panels can be taken down without deleting history.
+              </p>
+              <PanelDirectory
+                label="Publication controls"
+                rows={publicationRows}
+                empty="No panels ready to publish. Approve a submitted panel first."
+              />
 
-              <section className="review-decision-desk" aria-label="Issue close controls">
+              <section
+                className="review-decision-desk"
+                aria-label="Issue close controls"
+              >
                 <p className="editorial-marker">MONTHLY RESET</p>
                 <h3>CLOSE CURRENT ISSUE</h3>
-                <p>{result.closePreview?.status === "ready" ? `${result.closePreview.includedPanelCount ?? result.closePreview.eligiblePanelCount ?? 0} total public panels will be included in ${result.closePreview.issueTitle ?? "the current issue"}. ${result.closePreview.editorialPanelCount ?? result.closePreview.publishedPanelCount ?? 0} editorial panels are ready to archive. ${result.closePreview.staticPanelCount ?? 0} static/seeded panels are already part of this issue and will remain read-only.` : result.closePreview?.message ?? "No published panels are ready to close for this issue."}</p>
+                <p>
+                  {result.closePreview?.status === "ready"
+                    ? `${result.closePreview.includedPanelCount ?? result.closePreview.eligiblePanelCount ?? 0} total public panels will be included in ${result.closePreview.issueTitle ?? "the current issue"}. ${result.closePreview.editorialPanelCount ?? result.closePreview.publishedPanelCount ?? 0} editorial panels are ready to archive. ${result.closePreview.staticPanelCount ?? 0} static/seeded panels are already part of this issue and will remain read-only.`
+                    : (result.closePreview?.message ??
+                      "No published panels are ready to close for this issue.")}
+                </p>
                 <button
                   className="op-button"
                   type="button"
-                  disabled={navigation.state !== "idle" || result.closePreview?.status !== "ready"}
-                  onClick={() => setConfirmation({ kind: "closeIssue", title: `${result.closePreview?.issueTitle ?? "Current issue"}`, slug: "" })}
+                  disabled={
+                    navigation.state !== "idle" ||
+                    result.closePreview?.status !== "ready"
+                  }
+                  onClick={() =>
+                    setConfirmation({
+                      kind: "closeIssue",
+                      title: `${result.closePreview?.issueTitle ?? "Current issue"}`,
+                      slug: "",
+                    })
+                  }
                 >
                   CLOSE CURRENT ISSUE
                 </button>
               </section>
             </>
           )}
-          <section id="review-preview" className="review-preview-shell" aria-label="Review preview">
+          <section
+            id="review-preview"
+            className="review-preview-shell"
+            aria-label="Review preview"
+          >
             <p className="editorial-marker">REVIEW PREVIEW</p>
             {selectedReview ? (
               <>
@@ -209,33 +595,106 @@ export default function Moderation() {
                     <p>{selectedReview.summary}</p>
                   </div>
                   <dl className="review-preview-meta">
-                    <div><dt>Author</dt><dd>{selectedReview.author_display_name ?? "Panelist"}</dd></div>
-                    <div><dt>Status</dt><dd><span className="panel-status">{reviewInboxStatusLabel(selectedReview.lifecycle_status)}</span></dd></div>
-                    <div><dt>Updated</dt><dd>{new Date(selectedReview.updated_at).toLocaleDateString("en-GB")}</dd></div>
+                    <div>
+                      <dt>Author</dt>
+                      <dd>
+                        {selectedReview.author_display_name ?? "Panelist"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>
+                        <span className="panel-status">
+                          {reviewInboxStatusLabel(
+                            selectedReview.lifecycle_status,
+                          )}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Updated</dt>
+                      <dd>
+                        {new Date(selectedReview.updated_at).toLocaleDateString(
+                          "en-GB",
+                        )}
+                      </dd>
+                    </div>
                   </dl>
                 </header>
                 <div className="review-article-frame">
-                  <ArticleRenderer document={selectedReview.working_document as any} />
+                  <ArticleRenderer
+                    document={selectedReview.working_document as any}
+                  />
                 </div>
-                <aside className="review-decision-desk" aria-label="Reviewer decision controls">
+                <aside
+                  className="review-decision-desk"
+                  aria-label="Reviewer decision controls"
+                >
                   <div>
                     <h4>Reviewer note</h4>
-                    <p>Use the note to explain requested changes clearly. Approval marks the panel publish-ready only; it does not publish it live.</p>
+                    <p>
+                      Use the note to explain requested changes clearly.
+                      Approval marks the panel publish-ready only; it does not
+                      publish it live.
+                    </p>
                   </div>
                   {result.capabilities.moderation ? (
-                    <Form method="post" className="op-form review-decision-form">
-                      <input type="hidden" name="featureId" value={selectedReview.feature_id} />
-                      <label>Reviewer note<textarea name="note" minLength={4} maxLength={240} rows={3} placeholder="Explain what needs to change before this can move forward." /></label>
+                    <Form
+                      method="post"
+                      className="op-form review-decision-form"
+                    >
+                      <input
+                        type="hidden"
+                        name="featureId"
+                        value={selectedReview.feature_id}
+                      />
+                      <label>
+                        Reviewer note
+                        <textarea
+                          name="note"
+                          minLength={4}
+                          maxLength={240}
+                          rows={3}
+                          placeholder="Explain what needs to change before this can move forward."
+                        />
+                      </label>
                       <div className="profile-actions">
-                        {selectedReview.lifecycle_status === "publish_ready" || selectedReview.lifecycle_status === "approved" ? <span>Publishing to the live strip is next. This panel is publish-ready.</span> : <button className="op-button action-primary" name="intent" value="approveDraft">APPROVE AS PUBLISH-READY</button>}
-                        <button className="op-button" name="intent" value="changesDraft">REQUEST CHANGES</button>
+                        {selectedReview.lifecycle_status === "publish_ready" ||
+                        selectedReview.lifecycle_status === "approved" ? (
+                          <span>
+                            Publishing to the live strip is next. This panel is
+                            publish-ready.
+                          </span>
+                        ) : (
+                          <button
+                            className="op-button action-primary"
+                            name="intent"
+                            value="approveDraft"
+                          >
+                            APPROVE AS PUBLISH-READY
+                          </button>
+                        )}
+                        <button
+                          className="op-button"
+                          name="intent"
+                          value="changesDraft"
+                        >
+                          REQUEST CHANGES
+                        </button>
                       </div>
                     </Form>
-                  ) : <p>Editors can view the shared Review Inbox. Moderator access is required to approve or request changes.</p>}
+                  ) : (
+                    <p>
+                      Editors can view the shared Review Inbox. Moderator access
+                      is required to approve or request changes.
+                    </p>
+                  )}
                 </aside>
               </>
             ) : (
-              <p className="preview-empty">Select a submitted panel to review.</p>
+              <p className="preview-empty">
+                Select a submitted panel to review.
+              </p>
             )}
           </section>
         </section>

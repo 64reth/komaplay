@@ -26,6 +26,7 @@ function Image({
       <img
         src={src}
         alt={alt}
+        onError={event => {if (!event.currentTarget.src.endsWith(KOMA_FEATURE_PLACEHOLDER)) event.currentTarget.src=KOMA_FEATURE_PLACEHOLDER;}}
         loading="lazy"
       />
       {(caption || source) && (

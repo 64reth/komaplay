@@ -7,6 +7,9 @@ function exposePublicSupabaseEnv(env: Env) {
   const runtime = env as Record<string, string | undefined>;
   const processEnv = process.env as Record<string, string | undefined>;
   for (const name of [
+    "TURNSTILE_SITE_KEY",
+    "TURNSTILE_SECRET",
+    "TURNSTILE_HOSTNAMES",
     "SUPABASE_URL",
     "VITE_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_URL",
