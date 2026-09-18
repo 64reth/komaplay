@@ -26,7 +26,7 @@ Reference: Supabase's [SSR advanced guide](https://supabase.com/docs/guides/auth
 
 ## Validation
 
-- `pnpm typecheck`, **138 tests**, `pnpm build`, `git diff --check`: passed before release.
+- `pnpm typecheck`, **139 tests**, `pnpm build`, `git diff --check`: passed before release.
 - Regression: asynchronous session → delayed profile → successful bootstrap; transient Auth/profile errors; existing profile never overwritten; real SSR chunked cookies survive a new request.
 - Full migration-chain test includes missing-profile bootstrap, repeated bootstrap preserving chosen identity/default member role, and anonymous denial.
 - Browser: completion state persists through delayed readiness; new member reaches Pocket Guide with retained panel destination; bounded failure shows retry; retry finishes without Google; existing member returns directly.
@@ -44,3 +44,27 @@ Reference: Supabase's [SSR advanced guide](https://supabase.com/docs/guides/auth
 Automated fixtures do not replace real Google consent testing. The exact original failed attempt cannot be retrospectively proven from absent telemetry; new safe stage diagnostics allow a recurrence to be distinguished from provider rejection.
 
 Rollback baseline: Worker `2bd9011c-1a6f-4d33-91ec-830af974f89c`. The additive bootstrap function can remain when rolling back application code.
+
+## Production release
+
+- Application commit: `8806da74c1788dc1afb86ad0f36ec646661525aa`, pushed to `origin/fix/editorial-submit-feedback`.
+- Worker `komaplay`: `e43002c0-f084-4196-9223-b22d4e7fcd33`.
+- Applied only `202609150003_member_profile_bootstrap.sql`. Verified migration record, authenticated execution, anonymous denial and `ON CONFLICT DO NOTHING`. No existing profiles changed by migration.
+- Production browser: 15 routes and 14 additional links passed; invalid/cancelled callback recovery and live Google PKCE initiation passed.
+- Production completion page: SSR waiting state, bounded retry, no Google restart, no-store pending response and foreign-origin rejection passed. No browser errors; no production account created by tests.
+- Google provider credentials/dashboard settings unchanged; Worker variables preserved.
+
+Rollback command:
+
+```sh
+pnpm exec wrangler rollback 2bd9011c-1a6f-4d33-91ec-830af974f89c --name komaplay
+```
+
+The new function is additive; do not remove profiles or reverse the migration as part of a Worker rollback.
+
+## 18 September recovery status
+
+The later accidental Vinext deployment was rolled back to Worker
+`2bd9011c-1a6f-4d33-91ec-830af974f89c`. The first-login repair remains in
+commit `8806da7` and is included unchanged in the reconciled Alpha candidate,
+but is not active in the restored production Worker pending release approval.

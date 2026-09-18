@@ -283,15 +283,7 @@ nav button.on {
 .margin-note b {
   color: var(--red);
 }
-.story.vice .hero-panel {
-  background: #111;
-}
-.story.tokon .hero-panel {
-  background: var(--acid);
-}
-.story.vhs .hero-panel {
-  background: #d6d1c7;
-}
+
 .enter {
   animation: enter 0.65s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -413,11 +405,7 @@ nav button.on {
 .hero-panel {
   clip-path: polygon(0 0, 97% 0, 100% 5%, 100% 100%, 0 100%);
 }
-.story.vice .hero-panel,
-.story.tokon .hero-panel,
-.story.vhs .hero-panel {
-  background: #faf7ef;
-}
+
 .story-copy b,
 .margin-note b {
   color: var(--ink);
@@ -594,50 +582,7 @@ body {
   right: 16px;
   font-size: 1.4rem;
 }
-.feature-panel.vice .feature-art {
-  inset: 32px 0 0 45%;
-  clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
-}
-.feature-panel.vice .feature-caption {
-  top: 64px;
-  bottom: auto;
-  right: 47%;
-}
-.feature-panel.vice .feature-caption strong {
-  font-size: clamp(2rem, 3.7vw, 4.6rem);
-}
-.feature-panel.vice .feature-art:before {
-  content: "";
-  position: absolute;
-  left: 10%;
-  height: 110%;
-  top: -5%;
-  width: 1px;
-  background: var(--ink);
-  transform: rotate(10deg);
-}
-.feature-panel.tokon .feature-art {
-  inset: 40px 6px 80px 48%;
-  opacity: 0.8;
-}
-.feature-panel.tokon .feature-caption {
-  bottom: 24px;
-  right: 28px;
-}
-.feature-panel.tokon .feature-caption strong {
-  max-width: 8ch;
-  font-size: clamp(2rem, 3.2vw, 3.8rem);
-}
-.feature-panel.tokon .feature-summary {
-  max-width: 20ch;
-}
-.feature-panel.vhs .feature-art {
-  inset: 26px 8% 86px;
-}
-.feature-panel.vhs .feature-caption strong {
-  max-width: none;
-  font-size: clamp(1.5rem, 2.2vw, 2.6rem);
-}
+
 .feature-panel:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: -6px;
@@ -732,13 +677,8 @@ nav button {
   .feature-caption strong {
     font-size: 2rem;
   }
-  .feature-panel.vice .feature-caption strong,
-  .feature-panel.tokon .feature-caption strong {
-    font-size: 2.6rem;
-  }
-  .feature-panel.vhs .feature-caption strong {
-    font-size: 1.8rem;
-  }
+
+
   .feature-meta {
     font-size: 0.55rem;
     inset: 14px;

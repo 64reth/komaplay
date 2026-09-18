@@ -106,7 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta
           property="og:image"
           content={
-            new URL(feature?.image ?? "/assets/koma-vhs-v2.png", siteOrigin)
+            new URL(feature?.image ?? "/assets/koma-feature-placeholder.svg", siteOrigin)
               .href
           }
         />

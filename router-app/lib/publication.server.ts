@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { developmentCatalogue } from "../data/publication-demo";
 import type { Catalogue } from "./publication";
 import { resolvePublicMediaPath } from "./publication-media";
 import { resolvePublicSupabaseConfig } from "./supabase-config";
@@ -35,7 +34,6 @@ const empty = (): Catalogue => ({
   relationships: [],
   credits: [],
   profiles: [],
-  demo: false,
   message: null,
   now: new Date().toISOString(),
 });
@@ -74,9 +72,8 @@ async function publicRows(db: SupabaseClient, name: PublicTable) {
   }
 }
 
-export async function catalogue(): Promise<Catalogue> {
-  const db = client();
-  if (!db) return developmentCatalogue();
+export async function catalogue(db: SupabaseClient | null = client()): Promise<Catalogue> {
+  if (!db) return { ...empty(), message: "The publication is temporarily unavailable. Please try again shortly." };
   const base = empty();
   try {
     const names = Object.keys(publicColumns) as PublicTable[];
@@ -123,6 +120,14 @@ export async function catalogue(): Promise<Catalogue> {
         Date.parse(feature.published_at) <= Date.now() &&
         result.drops.some((drop) => drop.id === feature.weekly_drop_id),
     );
+    // The public RPC enforces publication state without exposing private documents.
+    // A feature row alone is not a published editorial panel.
+    const canonical = await Promise.all(result.features.map(async (feature) => {
+      const document = await db.rpc("public_editorial_document", { feature_slug: feature.slug });
+      if (document.error) throw new Error("Public editorial query failed");
+      return document.data ? feature : null;
+    }));
+    result.features = canonical.filter((feature): feature is Catalogue["features"][number] => feature !== null);
     return result;
   } catch {
     return {

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useId, useRef, useState } from "react";
-import type { FeatureItem } from "../data/issue-zero";
+import type { FeatureItem } from "../lib/publication";
 export function FeatureStrip({
   items,
   label,

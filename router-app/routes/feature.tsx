@@ -6,9 +6,6 @@ import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { OpenPanelCountdown } from "../components/publication/OpenPanelCountdown";
-import { tokonGuide } from "../data/tokon-guide";
-import { editorial } from "../data/editorial";
-import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "../lib/publication-media";
 import {
   OpenPanelStatus,
   CommunityAdditions,
@@ -21,6 +18,7 @@ export async function loader({ params }: { params: { slug?: string } }) {
   const feature = all.features.find((item) => item.slug === params.slug);
   if (!feature) throw data("Panel not found", { status: 404 });
   const [panel, publishedDocument] = await Promise.all([publicPanel(feature.slug), publicEditorialDocument(feature.slug)]);
+  if (!publishedDocument) throw data("Panel not found", { status: 404 });
   return { all, feature, panel, publishedDocument };
 }
 
@@ -36,52 +34,6 @@ export const meta: Route.MetaFunction = ({ loaderData }) =>
         },
       ]
     : [{ title: "Panel not found — KOMA://PLAY" }];
-
-function documentFor(
-  feature: Route.ComponentProps["loaderData"]["feature"],
-  publishedDocument?: EditorialDocument | null,
-): EditorialDocument {
-  if (publishedDocument) return publishedDocument;
-  if (feature.slug === "tokon") return tokonGuide;
-  const copy = editorial[feature.slug];
-  const heroSrc = resolvePublicMediaPath(feature.image);
-  const heroAlt = heroSrc === KOMA_FEATURE_PLACEHOLDER ? KOMA_FEATURE_PLACEHOLDER_ALT : resolvePublicImageAlt(feature.image_alt);
-  return {
-    schemaVersion: 1,
-    header: {
-      eyebrow: copy?.meta ?? "KOMA://PLAY EDITORIAL",
-      title: feature.title,
-      panelHeadline: feature.title,
-      deck: feature.summary,
-      byline: "KOMA://PLAY Editorial",
-      hero: {
-        id: `${feature.slug}-hero`,
-        src: heroSrc,
-        alt: heroAlt,
-      },
-      heroCaption: "KOMA://PLAY editorial artwork",
-    },
-    modules: [
-      {
-        id: `${feature.slug}-overview`,
-        type: "heading",
-        version: 1,
-        content: { text: "Overview" },
-      },
-      {
-        id: `${feature.slug}-body`,
-        type: "paragraph",
-        version: 1,
-        content: {
-          text:
-            feature.editorial_body ||
-            copy?.body ||
-            "This editorial panel is being prepared.",
-        },
-      },
-    ],
-  };
-}
 
 export default function Feature({ loaderData }: Route.ComponentProps) {
   const { all, feature, panel } = loaderData;
@@ -113,7 +65,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           <OpenPanelStatus data={panel.data} slug={feature.slug} open={open} />
         </div>
         <div className="published-body">
-          <ArticleRenderer document={documentFor(feature, loaderData.publishedDocument as EditorialDocument | null)} />
+          <ArticleRenderer document={loaderData.publishedDocument as EditorialDocument} />
         </div>
         {panel.message && (
           <p className="op-notice" role="status">

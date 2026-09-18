@@ -70,6 +70,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           {data.message}
         </p>
       )}
+      {features.length === 0 && <p className="op-notice">No published panels match this view yet. Explore the archive or check back soon.</p>}
       {drops.map((drop, i) => (
         <WeeklyDropStrip
           key={drop.id}
@@ -86,7 +87,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </Link>
       <footer className="op-footer">
         <span>New panels every week. New issues every month.</span>
-        <Link to="/features/time">Read the first panel →</Link>
+        {features[0] && <Link to={`/features/${features[0].slug}`}>Read a panel →</Link>}
       </footer>
       <footer className="site-handbook-footer">
         <Link to="/about">ABOUT</Link>

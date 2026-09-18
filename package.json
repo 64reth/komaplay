@@ -15,7 +15,8 @@
     "lint": "pnpm exec eslint router-app workers tests/migration tests/e2e/*.spec.ts vite.config.ts react-router.config.ts playwright.config.ts",
     "deploy:canary": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --keep-vars",
     "deploy:canary:dry-run": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --dry-run --keep-vars",
-    "test:e2e": "playwright test tests/e2e/migration-phase1.spec.ts tests/e2e/publication-phase2.spec.ts tests/e2e/auth-phase3.spec.ts"
+    "test:e2e": "playwright test tests/e2e/migration-phase1.spec.ts tests/e2e/publication-phase2.spec.ts tests/e2e/auth-phase3.spec.ts",
+    "deploy:production": "node scripts/deploy-production.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -1,19 +1,15 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { issueZeroFeatures } from "../../router-app/data/issue-zero.ts";
 
-test("Phase 1 uses React Router links and the canonical Tokon route", async () => {
+test("Feature Strip uses React Router links", async () => {
   const strip = await readFile(
     "router-app/components/FeatureStrip.tsx",
     "utf8",
   );
   assert.match(strip, /from "react-router"/);
   assert.doesNotMatch(strip, /next\//);
-  assert.equal(
-    issueZeroFeatures.find((item) => item.id === "tokon")?.image,
-    "/assets/clue-shield.png",
-  );
+
 });
 
 test("the canary Worker is isolated from production", async () => {

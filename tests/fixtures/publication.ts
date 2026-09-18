@@ -1,7 +1,7 @@
-import { issueZeroFeatures } from "./issue-zero";
-import { editorial } from "./editorial";
-import type { Catalogue, Issue, Feature } from "../lib/publication";
-export function developmentCatalogue(
+
+
+import type { Catalogue, Issue, Feature } from "../../router-app/lib/publication";
+export function publicationFixture(
   now = new Date().toISOString(),
 ): Catalogue {
   const issue: Issue = {
@@ -50,29 +50,15 @@ export function developmentCatalogue(
     "Impressions",
     "Discovery",
   ].map((name) => ({ id: name.toLowerCase(), name, slug: name.toLowerCase() }));
-  const features: Feature[] = issueZeroFeatures.map((f) => ({
-    id: f.id,
-    slug: f.id,
-    title: f.title,
-    status: "published",
-    issue_id: issue.id,
-    weekly_drop_id: "demo-drop",
-    strip_position: f.pageIndex,
-    category_id: f.id === "afterimage" ? "anime" : "gaming",
-    format_id: f.id === "tokon" ? "guide" : f.id === "time" ? "news" : "essay",
-    lifecycle_status: "open_panel",
-    deadline_override: null,
-    published_at: "2026-09-10T00:00:00Z",
-    finalised_at: null,
-    archived_at: null,
-    summary: f.summary,
-    image: f.image,
-    image_alt: f.imageAlt,
-    panel_size: f.panelSize,
-    panel_class: f.panelClass ?? "",
-    editorial_body: editorial[f.id].body,
-    current_revision: 1,
-    updated_at: "2026-09-10T00:00:00Z",
+  const features: Feature[] = ["first", "second", "guide", "animation"].map((slug, index) => ({
+    id: slug, slug, title: slug === "guide" ? "A playing guide" : slug,
+    status: "published", issue_id: issue.id, weekly_drop_id: "demo-drop",
+    strip_position: index + 1, category_id: index === 3 ? "anime" : "gaming",
+    format_id: slug === "guide" ? "guide" : "essay", lifecycle_status: "open_panel",
+    deadline_override: null, published_at: "2026-09-10T00:00:00Z", finalised_at: null,
+    archived_at: null, summary: "A test panel", image: "/image.png", image_alt: "Test image",
+    panel_size: "standard", panel_class: "", editorial_body: "Test body",
+    current_revision: 1, updated_at: "2026-09-10T00:00:00Z",
   }));
   features.push({
     ...features[3],
@@ -118,7 +104,7 @@ export function developmentCatalogue(
     categories,
     formats,
     tags: [
-      { id: "tokon", name: "Tōkon", slug: "tokon", kind: "franchise" },
+      { id: "guide", name: "Playing", slug: "guide", kind: "franchise" },
       {
         id: "retro-anime",
         name: "Retro Anime",
@@ -127,14 +113,13 @@ export function developmentCatalogue(
       },
     ],
     featureTags: [
-      { feature_id: "tokon", tag_id: "tokon" },
-      { feature_id: "afterimage", tag_id: "retro-anime" },
+      { feature_id: "guide", tag_id: "guide" },
+      { feature_id: "animation", tag_id: "retro-anime" },
       { feature_id: "demo-archive-feature", tag_id: "retro-anime" },
     ],
     relationships: [],
     credits: [],
     profiles: [],
-    demo: true,
     message:
       "Development preview · Supabase is not configured. Articles remain readable; publishing and community mutations require setup.",
     now,

@@ -7,8 +7,11 @@ const report={checkedAt:new Date().toISOString(),origin,routes:[],links:[],brows
 const checked=new Set();const discovered=new Set();
 try {
  const page=await browser.newPage({viewport:{width:1440,height:900}});
+ const sitemapText=await (await page.request.get(origin+'/sitemap.xml')).text();
+ const featureUrl=sitemapText.match(/<loc>([^<]*\/features\/[^<]+)<\/loc>/)?.[1];
+ const featurePath=featureUrl ? new URL(featureUrl).pathname : null;
  page.on('pageerror',error=>report.browserErrors.push(error.message));
- for(const path of ['/','/about','/documents','/documents/platform-notice','/handbook','/archive','/search?q=tokon','/features/tokon','/features/tokon/workshop','/onboarding','/profile','/profile/settings','/editorial','/moderation','/launch-readiness-missing-page']) {
+ for(const path of ['/','/about','/documents','/documents/platform-notice','/handbook','/archive','/search?q=tokon',...(featurePath?[featurePath,featurePath+'/workshop']:[]),'/onboarding','/profile','/profile/settings','/editorial','/moderation','/launch-readiness-missing-page']) {
   const response=await page.goto(origin+path,{waitUntil:'networkidle'});
   const status=response?.status();
   const expected=path.includes('missing-page')?404:200;
@@ -55,7 +58,7 @@ try {
  if(/\/(editorial|moderation|profile|member|auth)(?:<|\/)/.test(await sitemap.text()))throw Error('Private route in sitemap');
  const robots=await page.request.get(origin+'/robots.txt');if(!robots.ok() || !(await robots.text()).includes('Sitemap: https://komaplay.com/sitemap.xml'))throw Error('Robots unavailable');
  const privateHtml=await (await page.request.get(origin+'/editorial')).text();if(!privateHtml.includes('noindex, nofollow'))throw Error('Private indexing directive missing');
- const articleHtml=await (await page.request.get(origin+'/features/tokon')).text();if(!articleHtml.includes('application/ld+json') || !articleHtml.includes('og:title'))throw Error('Article metadata missing');
+ if(featurePath){const articleHtml=await (await page.request.get(origin+featurePath)).text();if(!articleHtml.includes('application/ld+json') || !articleHtml.includes('og:title'))throw Error('Article metadata missing');}
  await page.goto(origin+'/auth/callback?error=access_denied&returnTo=%2Feditorial%3Ffeature%3Dfixture',{waitUntil:'networkidle'});
  await page.getByRole('dialog').waitFor();if(!(await page.getByRole('dialog').innerText()).includes('Sign-in was cancelled'))throw Error('Cancelled OAuth recovery missing');
  if(!page.url().includes('feature=fixture'))throw Error('OAuth destination lost');

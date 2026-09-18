@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { developmentCatalogue } from "../../router-app/data/publication-demo.ts";
+import { publicationFixture } from "../fixtures/publication.ts";
 import {
   archiveIssues,
   filterFeatures,
@@ -10,21 +10,21 @@ import { handbookPanels } from "../../router-app/lib/handbook.ts";
 import handbook from "../../router-app/data/handbook-v1.json" with { type: "json" };
 import { trustedVideo } from "../../router-app/lib/media.ts";
 test("every public feature slug resolves in the catalogue", () => {
-  const d = developmentCatalogue("2026-09-12T00:00:00Z");
+  const d = publicationFixture("2026-09-12T00:00:00Z");
   for (const slug of [
-    "time",
-    "vice",
-    "tokon",
-    "afterimage",
+    "first",
+    "second",
+    "guide",
+    "animation",
     "demo-the-painted-frame",
   ])
     assert.ok(d.features.some((f) => f.slug === slug));
 });
 test("search and taxonomy filters preserve their contracts", () => {
-  const d = developmentCatalogue("2026-09-12T00:00:00Z");
+  const d = publicationFixture("2026-09-12T00:00:00Z");
   assert.deepEqual(
-    filterFeatures(d, { q: "Tōkon" }).map((f) => f.slug),
-    ["tokon"],
+    filterFeatures(d, { q: "playing" }).map((f) => f.slug),
+    ["guide"],
   );
   assert.ok(
     filterFeatures(d, { category: "anime" }).every(
@@ -33,16 +33,16 @@ test("search and taxonomy filters preserve their contracts", () => {
   );
   assert.deepEqual(
     filterFeatures(d, { format: "guide" }).map((f) => f.slug),
-    ["tokon"],
+    ["guide"],
   );
   assert.deepEqual(
-    filterFeatures(d, { tag: "tokon" }).map((f) => f.slug),
-    ["tokon"],
+    filterFeatures(d, { tag: "guide" }).map((f) => f.slug),
+    ["guide"],
   );
   assert.equal(filterFeatures(d, { q: "no-such-panel" }).length, 0);
 });
 test("current and archived issue selection is public and ordered", () => {
-  const d = developmentCatalogue("2026-09-12T00:00:00Z");
+  const d = publicationFixture("2026-09-12T00:00:00Z");
   assert.equal(
     d.issues.find((i) => i.status === "current")?.slug,
     "issue-zero-september-2026",
@@ -53,7 +53,7 @@ test("current and archived issue selection is public and ordered", () => {
   );
   assert.deepEqual(
     stripItems(d, d.drops[0]).map((x) => x.id),
-    ["time", "vice", "tokon", "afterimage"],
+    ["first", "second", "guide", "animation"],
   );
 });
 test("the protected handbook parses into exactly four public panels", () => {
@@ -71,7 +71,7 @@ test("video providers use trusted privacy-preserving adapters", () => {
 
 test("feature image fallback uses the KOMA placeholder only when image data is missing", async () => {
   const { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT } = await import("../../router-app/lib/publication-media.ts");
-  const d = developmentCatalogue("2026-09-12T00:00:00Z");
+  const d = publicationFixture("2026-09-12T00:00:00Z");
   const drop = d.drops[0];
   const missing = { ...d.features[0], image: "", image_alt: "" };
   const existing = { ...d.features[1], image: "/assets/clue-gun.png", image_alt: "Existing art" };

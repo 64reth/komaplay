@@ -1,4 +1,15 @@
-import type { FeatureItem } from "../data/issue-zero";
+export type FeatureItem = {
+  id: string;
+  issueNumber: string;
+  category: string;
+  title: string;
+  summary: string;
+  image: string;
+  imageAlt: string;
+  pageIndex: number;
+  panelSize: "narrow" | "standard" | "wide";
+  panelClass?: string;
+};
 import { KOMA_FEATURE_PLACEHOLDER, KOMA_FEATURE_PLACEHOLDER_ALT, resolvePublicImageAlt, resolvePublicMediaPath } from "./publication-media";
 export type Issue = {
   id: string;
@@ -64,7 +75,6 @@ export type Catalogue = {
   relationships: { feature_id: string; related_id: string; kind: string }[];
   credits: { feature_id: string; contributor_id: string }[];
   profiles: { id: string; display_name: string }[];
-  demo: boolean;
   message: string | null;
   now: string;
 };

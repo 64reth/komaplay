@@ -420,7 +420,7 @@ test("phase 4b public catalogue includes published editorial panels and excludes
   assert.match(publicationServer, /!\["draft", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
   assert.match(featureRoute, /publicEditorialDocument/);
   assert.match(featureRoute, /publishedDocument/);
-  assert.match(featureRoute, /if \(publishedDocument\) return publishedDocument/);
+  assert.match(featureRoute, /if \(!publishedDocument\) throw data/);
 });
 
 test("phase 4b moderation exposes publication controls without fake live publishing", () => {

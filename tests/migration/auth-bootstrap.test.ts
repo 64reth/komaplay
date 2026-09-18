@@ -199,3 +199,15 @@ test("real SSR PKCE exchange persists all cookie chunks and survives a fresh ser
     else process.env.SUPABASE_ANON_KEY = previousKey;
   }
 });
+
+test('completion uses authoritative Pocket Guide state and preserves safe destinations',async()=>{
+ let accepted=false,available=true;
+ const version={id:'guide',statement_version:'v1',content_hash:'fixture',active:true};
+ const client={from:(table:string)=>{const q:any={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:table==='handbook_versions'?(available?version:null):(accepted?{handbook_version_id:'guide',statement_version:'v1'}:null),error:null})};return q;},rpc:async()=>({data:accepted,error:null})} as unknown as SupabaseClient;
+ const resolved={auth:{state:'authenticated' as const,member:{id:'new',displayName:'Member',role:'member' as const,accountStatus:'active' as const}},client,user:{id:'new'} as import('@supabase/supabase-js').User,config,headers:new Headers()};
+ assert.deepEqual(await completionStatus(resolved,'/editorial?feature=kept'),{state:'ready',next:'/onboarding?returnTo=%2Feditorial%3Ffeature%3Dkept'});
+ accepted=true;
+ assert.deepEqual(await completionStatus(resolved,'/editorial?feature=kept'),{state:'ready',next:'/editorial?feature=kept'});
+ assert.deepEqual(await completionStatus(resolved,'https://evil.test'),{state:'ready',next:'/profile'});
+ available=false;assert.deepEqual(await completionStatus(resolved,'/profile'),{state:'pending'});
+});

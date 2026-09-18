@@ -8,7 +8,7 @@ export async function loader({ params }: { params: { slug?: string } }) {
   const all = await catalogue();
   const issue = all.issues.find((i) => i.slug === params.slug);
   if (!issue) {
-    if (all.message && !all.demo) throw data(all.message, { status: 503 });
+    if (all.message) throw data(all.message, { status: 503 });
     throw data("Issue not found", { status: 404 });
   }
   return { all, issue };

@@ -2,7 +2,7 @@ import { catalogue } from "../lib/publication.server";
 import { siteOrigin, xmlEscape } from "../lib/seo";
 export async function loader() {
   const all = await catalogue();
-  if (all.message || all.demo)
+  if (all.message)
     return new Response("Sitemap temporarily unavailable.", { status: 503 });
   const paths = [
     "/",
