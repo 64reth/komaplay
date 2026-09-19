@@ -234,7 +234,7 @@ test("composer persistence uses the route action result", () => {
   assert.match(editorialRoute, /name="sections"/);
   assert.match(editorialRoute, /name="intent" value="save"/);
   assert.match(editorialRoute, /name="intent" value="submit"/);
-  assert.match(editorialRoute, /rpc\("save_editorial_draft"/);
+  assert.match(editorialRoute, /rpc\("save_editorial_draft_versioned"/);
   assert.match(editorialRoute, /const response = routeActionData/);
   assert.equal(submissionCopy.saved, "Draft saved");
   assert.match(submissionCopy.submitted, /submitted for review/);

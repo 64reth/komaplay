@@ -43,6 +43,7 @@ test('production missing-column error is reproduced, then narrow migration repai
       await db.exec('set role authenticated');
     };
     const version = (await db.query<{id:string;content_hash:string;statement_version:string}>('select * from handbook_versions where active')).rows[0];
+    await db.exec(await readFile('supabase/migrations/202609190001_editorial_save_version.sql','utf8'));
     for (const id of [owner, editor, member, admin]) {
       await as(id);
       await db.query('select accept_handbook($1,$2,$3,true)', [version.id, version.content_hash, version.statement_version]);
@@ -64,7 +65,7 @@ test('production missing-column error is reproduced, then narrow migration repai
           const name = url.pathname.split('/').at(-1)!;
           rpcCalls.push(name);
           if (name === 'editorial_has_access') result = (await db.query('select editorial_has_access($1,$2) value', [actor, body.review])).rows[0].value;
-          else if (name === 'save_editorial_draft') result = (await db.query('select save_editorial_draft($1::jsonb) value', [JSON.stringify(body.payload)])).rows[0].value;
+          else if (name === 'save_editorial_draft_versioned') result = (await db.query('select save_editorial_draft_versioned($1::jsonb) value', [JSON.stringify(body.payload)])).rows[0].value;
           else if (name === 'submit_editorial_draft') result = (await db.query('select submit_editorial_draft($1) value', [body.target])).rows[0].value;
           else if (name === 'editorial_my_work') result = (await db.query('select * from editorial_my_work()')).rows;
           else throw new Error('Unexpected fixture request: ' + url.pathname);
@@ -125,6 +126,9 @@ test('production missing-column error is reproduced, then narrow migration repai
     const invalid=await run('submit',id,'timestamp-fixture',sections.map(s=>s.type==='image'?{...s,alt:''}:s));
     assert.ok('error' in invalid.data);assert.equal(invalid.data.error,submissionCopy.blocked);assert.ok("issues" in invalid.data);assert.ok(invalid.data.issues.some(issue=>issue.sectionId==="image-1"&&issue.field==="alt"));assert.equal((await row(id)).submitted_at,null);
     assert.ok("featureId" in invalid.data);assert.equal(invalid.data.featureId,id);
+    assert.ok('savedVersion' in invalid.data);
+    const exactSavedVersion=(await db.query<any>("select to_jsonb(updated_at) version from editorial_documents where feature_id=$1",[id])).rows[0].version;
+    assert.equal(invalid.data.savedVersion,exactSavedVersion);
     assert.equal(invalid.data.error,submissionCopy.blocked);
     assert.equal((await row(id)).lifecycle_status,"draft");
     const invalidWork=(await db.query<EditorialWorkItem>("select * from editorial_my_work()")).rows.find(item=>item.feature_id===id)!;
@@ -203,7 +207,7 @@ test('production missing-column error is reproduced, then narrow migration repai
     assert.equal((await row(emptyId)).submitted_at,null);
     const repairedEmpty=await run('submit',emptyId,'completed-empty-draft',sections);
     assert.ok('featureId' in repairedEmpty.data);assert.equal(repairedEmpty.data.featureId,emptyId);assert.equal(repairedEmpty.data.success,submissionCopy.submitted);
-    assert.ok(rpcCalls.includes('save_editorial_draft'));assert.ok(rpcCalls.includes('submit_editorial_draft'));
+    assert.ok(rpcCalls.includes('save_editorial_draft_versioned'));assert.ok(rpcCalls.includes('submit_editorial_draft'));
   } finally {
     globalThis.fetch=previousFetch;
     if(previousUrl===undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL=previousUrl;

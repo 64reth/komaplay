@@ -155,6 +155,7 @@ export async function action({ request }: Route.ActionArgs) {
   let safelySaved = false;
   let savedFeatureId = "";
   let savedStatus = "draft";
+  let savedVersion: string | undefined;
   try {
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "save");
@@ -302,7 +303,7 @@ export async function action({ request }: Route.ActionArgs) {
       expected_updated_at: String(form.get("expectedUpdatedAt") ?? ""),
       request_key: String(form.get("creationKey") ?? ""),
     };
-    let saved = await resolved.client.rpc("save_editorial_draft", { payload });
+    let saved = await resolved.client.rpc("save_editorial_draft_versioned", { payload });
     if (
       saved.error?.code === "23505" &&
       saved.error.message.includes("features_slug_key")
@@ -316,7 +317,7 @@ export async function action({ request }: Route.ActionArgs) {
         message:
           "That panel address is already in use. Choose a different address before submitting.",
       });
-      saved = await resolved.client.rpc("save_editorial_draft", {
+      saved = await resolved.client.rpc("save_editorial_draft_versioned", {
         payload: {
           ...payload,
           slug: `draft-${value.featureId || crypto.randomUUID()}`,
@@ -324,6 +325,9 @@ export async function action({ request }: Route.ActionArgs) {
       });
     }
     if (saved.error) throw saved.error;
+    const receipt = saved.data as { feature_id: string; updated_at: string };
+    savedVersion = receipt.updated_at;
+    saved.data = receipt.feature_id;
     safelySaved = true;
     savedFeatureId = String(saved.data);
     savedStatus = value.status;
@@ -332,6 +336,7 @@ export async function action({ request }: Route.ActionArgs) {
         {
           success: submissionCopy.saved,
           featureId: saved.data,
+          savedVersion,
           status: value.status,
         },
         { headers: resolved.headers },
@@ -353,6 +358,7 @@ export async function action({ request }: Route.ActionArgs) {
           error: submissionCopy.blocked,
           issues,
           featureId: saved.data,
+          savedVersion,
           status: value.status,
         },
         { status: 400, headers: resolved.headers },
@@ -368,6 +374,7 @@ export async function action({ request }: Route.ActionArgs) {
           error:
             "Your draft is saved, but hasn’t been submitted. Complete the quick check, then try again.",
           featureId: saved.data,
+          savedVersion,
           status: value.status,
         },
         { status: 403, headers: resolved.headers },
@@ -380,6 +387,7 @@ export async function action({ request }: Route.ActionArgs) {
       {
         success: submissionCopy.submitted,
         featureId: saved.data,
+        savedVersion,
         status: "submitted",
       },
       { headers: resolved.headers },
@@ -394,7 +402,7 @@ export async function action({ request }: Route.ActionArgs) {
             : submissionCopy.saveFailure,
         ),
         ...(savedFeatureId
-          ? { featureId: savedFeatureId, status: savedStatus }
+          ? { featureId: savedFeatureId, status: savedStatus, savedVersion }
           : {}),
       },
       { status: 400, headers: resolved.headers },
@@ -571,11 +579,15 @@ function FeatureComposer({
       "featureId" in response &&
       typeof response.featureId === "string"
     ) {
-      setSavedSignature(sentSignature.current);
+      if ("savedVersion" in response && typeof response.savedVersion === "string")
+        setSavedSignature(sentSignature.current);
       const savedWork = result.drafts.find(
         (item) => item.feature_id === response.featureId,
       );
-      if (savedWork) setExpectedUpdatedAt(savedWork.updated_at);
+      // Only adopt the version from our own atomic save, never a later loader
+      // snapshot that may contain another editor’s changes. Conflicts have no receipt.
+      if ("savedVersion" in response && typeof response.savedVersion === "string")
+        setExpectedUpdatedAt(response.savedVersion);
       setDraft((current) => ({
         ...("error" in response &&
         current.featureId !== response.featureId &&

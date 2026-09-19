@@ -24,7 +24,7 @@ test("safe feedback never exposes provider responses", () => {
   );
 });
 
-test("complete migrations enforce direct-request quotas, active accounts, private drafts and lifecycle guards", async () => {
+test("complete migrations enforce direct-request quotas, active accounts, private drafts and lifecycle guards", async (t) => {
   const db = new PGlite();
   const admin = "00000000-0000-4000-8000-000000000099",
     owner = "00000000-0000-4000-8000-000000000001";
@@ -46,6 +46,8 @@ test("complete migrations enforce direct-request quotas, active accounts, privat
         );
       await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
     }
+    const wrapperPrivileges=(await db.query<any>("select prosecdef,has_function_privilege('anon',oid,'execute') as anonymous,has_function_privilege('authenticated',oid,'execute') as member from pg_proc where proname='save_editorial_draft_versioned'")).rows[0];
+    assert.deepEqual(wrapperPrivileges,{prosecdef:false,anonymous:false,member:true});
     await db.query(
       "insert into auth.users(id,raw_user_meta_data) values($1,$2)",
       [owner, JSON.stringify({ full_name: "Google Member" })],
@@ -147,7 +149,24 @@ test("complete migrations enforce direct-request quotas, active accounts, privat
     assert.ok(inbox.some(r=>r.feature_id===feature));
     await db.query("select editorial_review_draft($1,'changes','Clarify opening')",[feature]);
     await as(owner);
-    await save({...payload,feature_id:feature,slug:'lifecycle-fixture',title:'Lifecycle fixture',summary:'All eight sections persist.',document,status:'changes_requested'});
+    await t.test('returned revision alt/text saves reopen correctly, repeated receipts advance, and stale editors cannot overwrite',async()=>{
+    const currentRevision = async () => (await db.query<any>("select working_document,updated_at::text as baseline from editorial_documents where feature_id=$1",[feature])).rows[0];
+    const versionedSave = async (baseline:string, doc:unknown) => (await db.query<any>("select save_editorial_draft_versioned($1) receipt",[{...payload,feature_id:feature,slug:'lifecycle-fixture',title:'Lifecycle fixture',summary:'All eight sections persist.',document:doc,status:'changes_requested',expected_updated_at:baseline}])).rows[0].receipt;
+    const opened = await currentRevision();
+    const revised = structuredClone(opened.working_document);
+    revised.modules.find((m:any)=>m.type==='image').content.alt='Revised image description';
+    const firstSave = await versionedSave(opened.baseline,revised);
+    assert.equal(firstSave.feature_id,feature);
+    assert.equal((await currentRevision()).working_document.modules.find((m:any)=>m.type==='image').content.alt,'Revised image description');
+    revised.modules.find((m:any)=>m.type==='paragraph').content.text='Ordinary revision text';
+    const secondSave = await versionedSave(firstSave.updated_at,revised);
+    assert.equal((await currentRevision()).working_document.modules.find((m:any)=>m.type==='paragraph').content.text,'Ordinary revision text');
+    const editorA = secondSave.updated_at;
+    revised.modules.find((m:any)=>m.type==='paragraph').content.text='Editor B newer work';
+    await versionedSave(editorA,revised);
+    await assert.rejects(versionedSave(editorA,document),/Newer version/);
+    assert.equal((await currentRevision()).working_document.modules.find((m:any)=>m.type==='paragraph').content.text,'Editor B newer work');
+    });
     await db.query('select submit_editorial_draft($1)',[feature]);
     assert.deepEqual((await db.query<any>('select submitted_at from editorial_documents where feature_id=$1',[feature])).rows[0].submitted_at,first);
     await as(admin);
