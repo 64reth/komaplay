@@ -217,15 +217,17 @@ function Module({ module }: { module: ArticleModule }) {
       );
   }
 }
-export function ArticleRenderer({ document }: { document: EditorialDocument }) {
+export function ArticleRenderer({ document, presentation = "standalone" }: { document: EditorialDocument; presentation?: "standalone" | "publication" }) {
   return (
     <>
       <header className="editorial-feature-header">
+        {presentation === "standalone" && <>
         <p className="op-eyebrow">{document.header.eyebrow}</p>
         <h1>{document.header.title}</h1>
         {document.header.deck && (
           <p className="published-dek">{document.header.deck}</p>
         )}
+        </>}
         <p className="editorial-byline">By {document.header.byline}</p>
         {document.header.hero && (
           <figure className="editorial-hero">

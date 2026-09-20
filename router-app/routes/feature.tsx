@@ -37,6 +37,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) =>
 
 export default function Feature({ loaderData }: Route.ComponentProps) {
   const { all, feature, panel } = loaderData;
+  const document = loaderData.publishedDocument as EditorialDocument;
   const issue = all.issues.find((item) => item.id === feature.issue_id)!;
   const open = acceptsContributions(feature, issue, all.now);
   const related = all.relationships.filter(
@@ -59,14 +60,14 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
             / {all.formats.find((item) => item.id === feature.format_id)?.name}{" "}
             / <Link to={`/issues/${issue.slug}`}>{issue.title}</Link>
           </p>
-          <h1>{feature.title}</h1>
+          <h1>{document.header.title}</h1>
           <p className="published-dek">{feature.summary}</p>
           {feature.lifecycle_status === "archived" ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
-          <OpenPanelStatus data={panel.data} slug={feature.slug} open={open} />
         </div>
         <div className="published-body">
-          <ArticleRenderer document={loaderData.publishedDocument as EditorialDocument} />
+          <ArticleRenderer document={document} presentation="publication" />
         </div>
+        <OpenPanelStatus data={panel.data} slug={feature.slug} open={open} />
         {panel.message && (
           <p className="op-notice" role="status">
             {panel.message}

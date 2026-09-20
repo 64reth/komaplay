@@ -828,10 +828,28 @@ body:has(.editorial-page) {
 }
 .published-body {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7vw;
-  align-items: center;
-  margin: 60px 0;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+  margin: 32px 0;
+}
+/* The publication shell owns the title; artwork and ordered body start together. */
+.published-body > .editorial-feature-header {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+.published-body > .editorial-document {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+.published-body .editorial-byline,
+.published-body .editorial-document > :first-child {
+  margin-top: 0;
+}
+.published-body .editorial-image.wide {
+  margin-inline: 0;
 }
 .published-body section p:not(.op-eyebrow) {
   font-size: 1.2rem;
