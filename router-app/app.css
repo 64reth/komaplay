@@ -521,9 +521,7 @@ body {
     background 0.25s,
     box-shadow 0.25s;
   isolation: isolate;
-  display: grid;
-  grid-template-columns: minmax(0, 56%) minmax(0, 44%);
-  grid-template-rows: 48px minmax(0, 1fr);
+  container-type: inline-size;
 }
 .feature-panel.panel-wide {
   flex-basis: 38vw;
@@ -543,51 +541,66 @@ body {
   grid-column: 1 / -1;
 }
 .feature-art {
-  position: relative;
-  inset: auto;
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
-  min-height: 0;
-  padding: 4px 12px 22px 0;
+  position: absolute;
+  inset: 0;
   display: block;
+  overflow: hidden;
   transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.feature-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 1px 1px, #0000000a 0 0.7px, transparent 0.8px)
+      0 0 / 4px 4px,
+    linear-gradient(
+      90deg,
+      var(--paper) 0%,
+      color-mix(in srgb, var(--paper) 98%, transparent) 28%,
+      color-mix(in srgb, var(--paper) 90%, transparent) 48%,
+      color-mix(in srgb, var(--paper) 50%, transparent) 67%,
+      transparent 88%
+    );
+  pointer-events: none;
 }
 .feature-art img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  filter: grayscale(1) contrast(1.45);
+  object-fit: cover;
+  object-position: center;
+  filter: grayscale(1) contrast(1.4) brightness(1.04);
   user-select: none;
   pointer-events: none;
 }
 .feature-caption {
-  position: relative;
-  inset: auto;
-  grid-column: 1;
-  grid-row: 2;
-  align-self: end;
+  position: absolute;
+  left: clamp(16px, 4cqi, 24px);
+  bottom: clamp(18px, 5cqi, 28px);
+  width: min(78%, 46ch);
   min-width: 0;
-  padding: 0 10px 20px 20px;
   z-index: 2;
   transition: transform 0.3s;
 }
 .feature-caption strong {
   display: block;
   font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(1.8rem, 3.15vw, 4.2rem);
+  font-size: clamp(2rem, 9cqi, 4.5rem);
   font-weight: 900;
   letter-spacing: -0.045em;
-  line-height: 0.95;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+  line-height: 0.91;
+  max-width: 15ch;
+  text-wrap: balance;
 }
 .feature-summary {
-  display: block;
+  display: -webkit-box;
   margin-top: 8px;
-  font-size: 0.7rem;
-  line-height: 1.35;
-  max-width: 34ch;
+  font-size: clamp(0.66rem, 2.5cqi, 0.82rem);
+  line-height: 1.4;
+  max-width: 46ch;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 .feature-arrow {
   position: absolute;
@@ -686,11 +699,23 @@ nav button {
     flex-basis: 82vw;
     height: clamp(245px, 37svh, 320px);
   }
-  .feature-panel {
-    grid-template-columns: minmax(0, 58%) minmax(0, 42%);
-  }
   .feature-caption strong {
-    font-size: clamp(2rem, 8vw, 3.2rem);
+    font-size: clamp(2rem, 13cqi, 3.35rem);
+  }
+  .feature-caption {
+    width: min(84%, 42ch);
+  }
+  .feature-art::after {
+    background:
+      radial-gradient(circle at 1px 1px, #0000000a 0 0.7px, transparent 0.8px)
+        0 0 / 4px 4px,
+      linear-gradient(
+        90deg,
+        var(--paper) 0%,
+        color-mix(in srgb, var(--paper) 97%, transparent) 34%,
+        color-mix(in srgb, var(--paper) 78%, transparent) 62%,
+        transparent 100%
+      );
   }
   .feature-meta {
     font-size: 0.55rem;

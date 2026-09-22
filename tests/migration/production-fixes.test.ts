@@ -67,11 +67,13 @@ test("publication confirmation resets on success, retains failure and restores f
   assert.match(route, /CONFIRM TAKE DOWN/);
 });
 
-test("Feature Strip uses responsive non-overlapping title and artwork zones", async () => {
+test("Feature Strip uses a responsive full-bleed editorial artwork treatment", async () => {
   const css = await readFile("router-app/app.css", "utf8");
-  assert.match(css, /grid-template-columns: minmax\(0, 56%\) minmax\(0, 44%\)/);
-  assert.match(css, /\.feature-art \{[\s\S]*grid-column: 2/);
-  assert.match(css, /\.feature-caption \{[\s\S]*grid-column: 1/);
-  assert.match(css, /\.feature-caption strong \{[\s\S]*overflow-wrap: anywhere/);
+  assert.match(css, /\.feature-panel \{[\s\S]*container-type: inline-size/);
+  assert.match(css, /\.feature-art \{[\s\S]*position: absolute;[\s\S]*inset: 0/);
+  assert.match(css, /\.feature-art img \{[\s\S]*object-fit: cover/);
+  assert.match(css, /\.feature-art::after \{[\s\S]*var\(--paper\)[\s\S]*linear-gradient/);
+  assert.match(css, /\.feature-caption strong \{[\s\S]*9cqi/);
+  assert.match(css, /\.feature-summary \{[\s\S]*-webkit-line-clamp: 4/);
   assert.doesNotMatch(css, /\.feature-panel\.(?:tokon|vice|vhs) \.feature-(?:art|caption)/);
 });
