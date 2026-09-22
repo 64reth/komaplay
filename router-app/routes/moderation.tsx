@@ -8,7 +8,7 @@ import {
   useNavigation,
   useSearchParams,
 } from "react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/moderation";
 import { ArticleRenderer } from "../components/ArticleRenderer";
 import { Masthead } from "../components/Masthead";
@@ -270,6 +270,26 @@ export default function Moderation() {
     title: string;
     slug: string;
   }>(null);
+  const [confirmationError, setConfirmationError] = useState("");
+  const confirmationTrigger = useRef<HTMLElement | null>(null);
+  const confirmationDialog = useRef<HTMLElement | null>(null);
+  const closeConfirmation = () => {
+    setConfirmation(null);
+    setConfirmationError("");
+    requestAnimationFrame(() => confirmationTrigger.current?.focus());
+  };
+  const openConfirmation = (next: NonNullable<typeof confirmation>, trigger: HTMLElement) => {
+    confirmationTrigger.current = trigger;
+    setConfirmationError("");
+    setConfirmation(next);
+  };
+  useEffect(() => {
+    if (actionResult && "success" in actionResult && confirmation) closeConfirmation();
+    else if (actionResult && "error" in actionResult && confirmation) setConfirmationError(actionResult.error);
+  }, [actionResult]);
+  useEffect(() => {
+    if (confirmation) confirmationDialog.current?.querySelector<HTMLElement>("button")?.focus();
+  }, [confirmation]);
   if (result.state !== "accepted")
     return (
       <main className="editorial-page">
@@ -290,79 +310,16 @@ export default function Moderation() {
     status: reviewInboxStatusLabel(draft.lifecycle_status),
     date: new Date(draft.updated_at).toLocaleDateString("en-GB"),
     meta: `${draft.author_display_name ?? "Panelist"} · ${draft.slug ?? ""}`,
-    action:
-      draft.lifecycle_status === "publish_ready" ? (
-        <button
-          className="op-button action-primary"
-          type="button"
-          disabled={navigation.state !== "idle"}
-          onClick={() =>
-            setConfirmation({
-              kind: "publish",
-              featureId: draft.feature_id,
-              title: draft.title ?? "Untitled panel",
-              slug: draft.slug ?? "",
-            })
-          }
-        >
-          PUBLISH FEATURE
-        </button>
-      ) : draft.lifecycle_status === "published" ? (
-        <span className="profile-actions">
-          <button
-            className="op-button"
-            type="button"
-            disabled={navigation.state !== "idle"}
-            onClick={() =>
-              setConfirmation({
-                kind: "archive",
-                featureId: draft.feature_id,
-                title: draft.title ?? "Untitled panel",
-                slug: draft.slug ?? "",
-              })
-            }
-          >
-            ARCHIVE PANEL
-          </button>
-          <button
-            className="op-button"
-            type="button"
-            disabled={navigation.state !== "idle"}
-            onClick={() =>
-              setConfirmation({
-                kind: "takeDown",
-                featureId: draft.feature_id,
-                title: draft.title ?? "Untitled panel",
-                slug: draft.slug ?? "",
-              })
-            }
-          >
-            TAKE DOWN
-          </button>
-        </span>
-      ) : draft.lifecycle_status === "archived" ? (
-        <button
-          className="op-button"
-          type="button"
-          disabled={navigation.state !== "idle"}
-          onClick={() =>
-            setConfirmation({
-              kind: "takeDown",
-              featureId: draft.feature_id,
-              title: draft.title ?? "Untitled panel",
-              slug: draft.slug ?? "",
-            })
-          }
-        >
-          TAKE DOWN
-        </button>
-      ) : (
-        <span>
-          {draft.lifecycle_status === "taken_down"
-            ? "TAKEN DOWN"
-            : "NO PUBLIC ACTION"}
-        </span>
-      ),
+    action: draft.lifecycle_status === "publish_ready" ? (
+      <button className="op-button action-primary" type="button" disabled={navigation.state !== "idle"} onClick={(event) => openConfirmation({ kind: "publish", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" }, event.currentTarget)}>PUBLISH FEATURE</button>
+    ) : draft.lifecycle_status === "published" ? (
+      <span className="profile-actions">
+        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={(event) => openConfirmation({ kind: "archive", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" }, event.currentTarget)}>ARCHIVE PANEL</button>
+        <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={(event) => openConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" }, event.currentTarget)}>TAKE DOWN</button>
+      </span>
+    ) : draft.lifecycle_status === "archived" ? (
+      <button className="op-button" type="button" disabled={navigation.state !== "idle"} onClick={(event) => openConfirmation({ kind: "takeDown", featureId: draft.feature_id, title: draft.title ?? "Untitled panel", slug: draft.slug ?? "" }, event.currentTarget)}>TAKE DOWN</button>
+    ) : <span>{draft.lifecycle_status === "taken_down" ? "TAKEN DOWN" : "NO PUBLIC ACTION"}</span>,
   }));
   const reviewRows: PanelDirectoryRow[] = result.review.map((draft: any) => ({
     id: draft.feature_id,
@@ -447,12 +404,14 @@ export default function Moderation() {
         {confirmation && (
           <div className="auth-dialog-backdrop" role="presentation">
             <section
+              ref={confirmationDialog}
               className="auth-dialog publication-confirmation"
               role="dialog"
               aria-modal="true"
               aria-labelledby="publication-confirmation-title"
             >
               <p className="editorial-marker">PUBLICATION CHECK</p>
+              {confirmationError && <p role="alert">{confirmationError}</p>}
               <h2 id="publication-confirmation-title">
                 {confirmation.kind === "publish"
                   ? "Publish this feature?"
@@ -516,7 +475,7 @@ export default function Moderation() {
                 <button
                   className="op-button"
                   type="button"
-                  onClick={() => setConfirmation(null)}
+                  onClick={closeConfirmation}
                   disabled={navigation.state !== "idle"}
                 >
                   CANCEL
@@ -564,17 +523,8 @@ export default function Moderation() {
                 <button
                   className="op-button"
                   type="button"
-                  disabled={
-                    navigation.state !== "idle" ||
-                    result.closePreview?.status !== "ready"
-                  }
-                  onClick={() =>
-                    setConfirmation({
-                      kind: "closeIssue",
-                      title: `${result.closePreview?.issueTitle ?? "Current issue"}`,
-                      slug: "",
-                    })
-                  }
+                  disabled={navigation.state !== "idle" || result.closePreview?.status !== "ready"}
+                  onClick={(event) => openConfirmation({ kind: "closeIssue", title: `${result.closePreview?.issueTitle ?? "Current issue"}`, slug: "" }, event.currentTarget)}
                 >
                   CLOSE CURRENT ISSUE
                 </button>

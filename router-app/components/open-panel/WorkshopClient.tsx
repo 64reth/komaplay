@@ -2,8 +2,8 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useRevalidator } from "react-router";
 import {
   contributionSchema,
+  genericContributionSection,
   screenshotError,
-  sections,
   types,
   type Contribution,
 } from "../../lib/open-panel";
@@ -45,20 +45,12 @@ export function WorkshopClient({
 }) {
   const revalidator = useRevalidator();
   const formRef = useRef<HTMLFormElement>(null);
-  const sectionRef = useRef<HTMLSelectElement>(null);
   const [busy, setBusy] = useState(false);
   const [screenshot, setScreenshot] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [bodyText, setBodyText] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-
-  function chooseSection(section: string) {
-    if (!sectionRef.current || readOnly) return;
-    sectionRef.current.value = section;
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    sectionRef.current.focus();
-  }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -97,6 +89,7 @@ export function WorkshopClient({
     const parsed = contributionSchema.safeParse({
       ...values,
       feature_id: featureId,
+      target_section: genericContributionSection,
       screenshot_path: screenshot,
       publication_consent: values.publication_consent === "on",
     });
@@ -186,29 +179,6 @@ export function WorkshopClient({
         )}
       </section>
 
-      <section className="workshop-sections" aria-labelledby="sections-heading">
-        <p className="op-eyebrow">CURRENT ARTICLE CONSTRUCTION</p>
-        <h2 id="sections-heading">Sections in this panel</h2>
-        {sections.map((section, index) => {
-          const count = contributions.filter(
-            (item) => item.target_section === section,
-          ).length;
-          return (
-            <article key={section} className="workshop-section-card">
-              <p>
-                {String(index + 1).padStart(2, "0")} · {section.toUpperCase()}
-              </p>
-              <p>Current published section · {count} of your proposals</p>
-              {!readOnly && (
-                <button type="button" onClick={() => chooseSection(section)}>
-                  ADD TO THIS SECTION →
-                </button>
-              )}
-            </article>
-          );
-        })}
-      </section>
-
       {!readOnly && (
         <form
           ref={formRef}
@@ -218,30 +188,16 @@ export function WorkshopClient({
         >
           <h2 id="proposal-heading">Propose a contribution</h2>
           <p>
-            Attach one focused proposal to this feature and one article section.
+            Offer one focused addition to this feature for editorial review.
           </p>
-          <div className="op-form-row">
-            <label>
-              Contribution type
-              <select name="type" defaultValue="Tip">
-                {types.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Target section
-              <select
-                ref={sectionRef}
-                name="target_section"
-                defaultValue="Overview"
-              >
-                {sections.map((section) => (
-                  <option key={section}>{section}</option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label>
+            Contribution type
+            <select name="type" defaultValue="Tip">
+              {types.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
           <label>
             Title
             <input name="title" required minLength={4} maxLength={120} />
@@ -322,7 +278,7 @@ export function WorkshopClient({
           contributions.map((item) => (
             <article className="contribution-card" key={item.id}>
               <p className="op-eyebrow">
-                {item.type} · {item.target_section}
+                {item.type}
               </p>
               <h3>{item.title}</h3>
               <p><MarkdownText text={item.body} /></p>

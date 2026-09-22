@@ -19,13 +19,7 @@ export const statuses = [
   "Accepted",
   "Rejected",
 ] as const;
-export const sections = [
-  "Overview",
-  "Choosing a fighter",
-  "Assists",
-  "Practice",
-  "Sources",
-] as const;
+export const genericContributionSection = "Contribution" as const;
 export type Role = "member" | "contributor" | "moderator" | "admin";
 export const canModerate = (role?: string) =>
   role === "moderator" || role === "admin";
@@ -69,7 +63,9 @@ export const contributionSchema = z
   .object({
     feature_id: z.string().uuid(),
     type: z.enum(types),
-    target_section: z.enum(sections),
+    // Kept for compatibility with historical contributions and additions.
+    // New Workshop proposals target the canonical feature as a whole.
+    target_section: z.string().trim().default(genericContributionSection),
     title: z.string().trim().min(4).max(120),
     body: z.string().trim().min(20).max(8000),
     source_url: url.default(""),

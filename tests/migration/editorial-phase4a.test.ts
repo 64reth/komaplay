@@ -67,8 +67,8 @@ test("review actions use canonical publish-ready status rather than fake live pu
 
 test("editorial save and submit return visible lifecycle feedback", () => {
   assert.match(submissionCopy.submitted, /submitted for review/);
-  assert.match(editorialRoute, /role=\"status\"/);
-  assert.match(editorialRoute, /role=\"alert\"/);
+  assert.match(editorialRoute, /role="status"/);
+  assert.match(editorialRoute, /role="alert"/);
   assert.doesNotMatch(editorialRoute, /useFetcher/);
   assert.match(editorialRoute, /<Form method="post" action="\/editorial" className="op-form"/);
   assert.match(editorialRoute, /value=\{draft\.featureId/);
@@ -403,7 +403,7 @@ test("phase 4b publish and takedown RPCs require moderator review access", () =>
 
 test("phase 4b publish makes canonical documents public and takedown removes them", () => {
   const publishingMigration = readFileSync("supabase/migrations/202609130005_editorial_publication_controls.sql", "utf8");
-  assert.match(publishingMigration, /doc\.lifecycle_status<>\'approved\'/);
+  assert.match(publishingMigration, /doc\.lifecycle_status<>'approved'/);
   assert.match(publishingMigration, /status='published'/);
   assert.match(publishingMigration, /lifecycle_status='open_panel'/);
   assert.match(publishingMigration, /set lifecycle_status='published'/);
@@ -465,8 +465,8 @@ test("phase 4b placeholder repair normalizes current editorial documents", () =>
 
 test("publish and takedown require explicit confirmation", () => {
   assert.match(moderationRoute, /useState<null \| \{\s*kind: "publish" \| "takeDown" \| "archive"/);
-  assert.match(moderationRoute, /setConfirmation\(\{\s*kind: "publish"/);
-  assert.match(moderationRoute, /setConfirmation\(\{\s*kind: "takeDown"/);
+  assert.match(moderationRoute, /openConfirmation\(\{\s*kind: "publish"/);
+  assert.match(moderationRoute, /openConfirmation\(\{\s*kind: "takeDown"/);
   assert.match(moderationRoute, /Publish this feature\? It will become visible on the public site and may appear in the current issue strip\./);
   assert.match(moderationRoute, /Take down this feature\? It will be removed from public feature pages and live issue listings, but its history will be kept\./);
   assert.match(moderationRoute, /Public URL: \/features\/\{confirmation\.slug\}/);
