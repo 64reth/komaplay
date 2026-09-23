@@ -2470,6 +2470,11 @@ html {
 .admin-toolbar label,.admin-role-form label { display: grid; gap: .3rem; font: 700 .72rem/1.2 var(--font-mono,monospace); text-transform: uppercase; }
 .admin-toolbar input,.admin-toolbar select,.admin-role-form select { min-height: 2.75rem; border: 1px solid currentColor; border-radius: 0; background: transparent; padding: .55rem; color: inherit; }
 .admin-member-list { display: grid; border-top: 1px solid currentColor; }
+.admin-role-guide { margin-block: 1rem; padding: 1rem; border: 1px solid currentColor; }
+.admin-role-guide h2 { margin-top: 0; }
+.admin-role-guide dl { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
+.admin-role-guide dt { font-weight: 900; text-transform: uppercase; }
+.admin-role-guide dd { margin: .35rem 0 0; }
 .admin-member { padding: 1rem 0; border-bottom: 1px solid currentColor; }
 .admin-member header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .admin-member h2 { margin: 0; font-size: clamp(1.25rem,2vw,2rem); }
@@ -2479,8 +2484,8 @@ html {
 .admin-role-form { display: flex; flex-wrap: wrap; gap: .55rem; align-items: end; }
 .admin-confirm { grid-template-columns: auto 1fr !important; align-items: center; max-width: 10rem; }
 .admin-pagination { display: flex; justify-content: space-between; padding-block: 1rem; font-weight: 800; }
-@media (max-width: 820px) { .admin-toolbar { position: static; grid-template-columns: 1fr 1fr; } .admin-toolbar label:first-child { grid-column: 1/-1; } .admin-member header { display: grid; } }
-@media (max-width: 520px) { .admin-toolbar { grid-template-columns: 1fr; } .admin-toolbar label:first-child { grid-column: auto; } }
+@media (max-width: 820px) { .admin-toolbar { position: static; grid-template-columns: 1fr 1fr; } .admin-toolbar label:first-child { grid-column: 1/-1; } .admin-member header { display: grid; } .admin-role-guide dl { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .admin-toolbar,.admin-role-guide dl { grid-template-columns: 1fr; } .admin-toolbar label:first-child { grid-column: auto; } }
 .membership-background[inert] {
   pointer-events: none;
   user-select: none;

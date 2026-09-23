@@ -2,6 +2,7 @@ import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "r
 import type { Route } from "./+types/admin";
 import { Masthead } from "../components/Masthead";
 import { resolveAuth } from "../lib/auth";
+import { editorialContributor, legacyEditorialReviewer, rolePresentation, type SiteRole } from "../lib/role-classification";
 
 type MemberRow = {
   user_id: string; email: string | null; display_name: string; role: string;
@@ -61,7 +62,7 @@ export async function action({ request }: Route.ActionArgs) {
         return data({ error: "Confirm this high-impact permission change." }, { status: 400, headers: resolved.headers });
       const result = await resolved.client.rpc("grant_open_panel_role", { target: String(form.get("userId") ?? ""), new_role: role });
       if (result.error) throw result.error;
-      return data({ success: `Site role changed to ${role}.` }, { headers: resolved.headers });
+      return data({ success: `Site role changed to ${rolePresentation[role as SiteRole].label}.` }, { headers: resolved.headers });
     }
     return data({ error: "Unknown admin action." }, { status: 400, headers: resolved.headers });
   } catch {
@@ -77,20 +78,20 @@ export default function AdminDashboard() {
   const query = result.params.search_term;
   return <main className="editorial-page"><Masthead/><section className="op-workspace admin-dashboard">
     <p className="editorial-marker">ADMINISTRATION · USER ACCESS</p><h1>Member permissions</h1>
-    <p>Editors can create panels. Moderators can review other people’s submissions and publish approved work, but cannot approve their own work. Admins inherit all tools and can manage permissions.</p>
+    <div className="admin-role-guide"><h2>Access levels</h2><dl><div><dt>Member</dt><dd>{rolePresentation.member.description}</dd></div><div><dt>{editorialContributor.label}</dt><dd>{editorialContributor.description}</dd></div><div><dt>Moderator</dt><dd>{rolePresentation.moderator.description}</dd></div><div><dt>Admin</dt><dd>{rolePresentation.admin.description}</dd></div></dl><p>Publisher and Owner are not separate roles in the current system. Publishing is bundled into Moderator; Admin is the highest access level.</p></div>
     {feedback && "error" in feedback && <p role="alert" className="form-error">{feedback.error}</p>}{feedback && "success" in feedback && <p role="status" className="form-success">{feedback.success}</p>}
     <Form method="get" className="admin-toolbar">
       <label>Search<input name="q" defaultValue={query} placeholder="Name, email or user ID"/></label>
-      <label>Access<select name="role" defaultValue={result.params.role_filter}><option value="all">All roles</option><option value="editor">Editorial access</option><option value="moderator">Moderators</option><option value="admin">Admins</option><option value="member">Members</option><option value="missing-profile">Missing display name</option></select></label>
+      <label>Access<select name="role" defaultValue={result.params.role_filter}><option value="all">All access levels</option><option value="editor">Editorial Contributors</option><option value="moderator">Moderators</option><option value="admin">Admins</option><option value="member">Members</option><option value="contributor">Legacy contributors</option><option value="missing-profile">Missing display name</option></select></label>
       <label>Status<select name="status" defaultValue={result.params.status_filter}><option value="all">All states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></label>
       <label>Sort<select name="sort" defaultValue={result.params.sort_order}><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name">Name</option><option value="role">Role</option></select></label><button className="op-button action-primary">FILTER →</button>
     </Form>
     <p>{result.total} matching member{result.total === 1 ? "" : "s"}</p>
     <div className="admin-member-list">{result.members.length === 0 ? <p>No members match these filters.</p> : result.members.map(member => <article className="admin-member" key={member.user_id}>
-      <header><div><h2>{member.display_name || "Profile name missing"}</h2><p>{member.email ?? member.user_id}</p></div><div className="admin-badges"><span>{member.account_status}</span><span>{member.role}</span>{member.editorial_access && <span>editor</span>}{member.legacy_review_grant && <span>legacy reviewer</span>}</div></header>
+      <header><div><h2>{member.display_name || "Profile name missing"}</h2><p>{member.email ?? member.user_id}</p></div><div className="admin-badges"><span>{member.account_status}</span><span>{rolePresentation[member.role as SiteRole]?.label ?? member.role}</span>{member.editorial_access && <span>{editorialContributor.label}</span>}{member.legacy_review_grant && <span>{legacyEditorialReviewer.label}</span>}</div></header>
       <p>Joined {new Date(member.joined_at).toLocaleDateString("en-GB")}</p>
-      <div className="admin-actions"><Form method="post"><input type="hidden" name="email" value={member.email ?? ""}/><input type="hidden" name="intent" value={member.editorial_access ? "revokeEditor" : "grantEditor"}/><button disabled={navigation.state !== "idle" || !member.email} className="op-button">{member.editorial_access ? "REVOKE EDITOR" : "GRANT EDITOR"}</button></Form>
-      <Form method="post" className="admin-role-form"><input type="hidden" name="intent" value="setRole"/><input type="hidden" name="userId" value={member.user_id}/><label>Site role<select name="role" defaultValue={member.role}><option value="member">Member</option><option value="contributor">Contributor</option><option value="moderator">Moderator / reviewer / publisher</option><option value="admin">Admin / owner</option></select></label><label className="admin-confirm"><input type="checkbox" name="confirmed" value="yes"/> Confirm elevated access</label><button disabled={navigation.state !== "idle"} className="op-button">UPDATE ROLE</button></Form></div>
+      <div className="admin-actions"><Form method="post"><input type="hidden" name="email" value={member.email ?? ""}/><input type="hidden" name="intent" value={member.editorial_access ? "revokeEditor" : "grantEditor"}/><button disabled={navigation.state !== "idle" || !member.email} className="op-button">{member.editorial_access ? "REVOKE EDITORIAL CONTRIBUTOR" : "GRANT EDITORIAL CONTRIBUTOR"}</button></Form>
+      <Form method="post" className="admin-role-form"><input type="hidden" name="intent" value="setRole"/><input type="hidden" name="userId" value={member.user_id}/><label>Site role<select name="role" defaultValue={member.role}><option value="member">Member</option><option value="contributor">Member (legacy contributor)</option><option value="moderator">Moderator</option><option value="admin">Admin</option></select></label><label className="admin-confirm"><input type="checkbox" name="confirmed" value="yes"/> Confirm elevated access</label><button disabled={navigation.state !== "idle"} className="op-button">UPDATE ROLE</button></Form></div>
     </article>)}</div>
     <nav className="admin-pagination">{result.page > 1 && <Link to={`?q=${encodeURIComponent(query)}&role=${result.params.role_filter}&status=${result.params.status_filter}&sort=${result.params.sort_order}&page=${result.page-1}`}>← PREVIOUS</Link>}{result.page * 25 < result.total && <Link to={`?q=${encodeURIComponent(query)}&role=${result.params.role_filter}&status=${result.params.status_filter}&sort=${result.params.sort_order}&page=${result.page+1}`}>NEXT →</Link>}</nav>
   </section></main>;

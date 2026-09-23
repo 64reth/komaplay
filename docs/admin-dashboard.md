@@ -4,17 +4,17 @@
 
 ## Existing access levels
 
-- **Member / contributor:** community profile and Workshop access.
-- **Editor:** an active `editorial_access_grants` record; can create and edit canonical panels.
-- **Moderator:** the existing `profiles.role = 'moderator'`; can review other people's submissions and publish approved work. The current production schema intentionally combines reviewer and publisher duties in this role.
-- **Admin / owner:** `profiles.role = 'admin'`; inherits editorial, review, moderation and publishing access and can manage permissions.
-- **Legacy reviewer grant:** old `administrator` entries in `editorial_access_grants` confer review access but are not site-admin authority. The dashboard identifies them without renaming or escalating them.
+- **Member:** community profile and Workshop access. The stored `contributor` role is a legacy member-level classification and adds no tools.
+- **Editorial Contributor:** an active `editor` grant; can create and submit canonical panels.
+- **Moderator:** the existing `profiles.role = 'moderator'`; can create panels, review other people's submissions, moderate Open Panel work and publish approved panels. Reviewer and publisher are bundled in the current database model.
+- **Admin:** `profiles.role = 'admin'`; the highest current tier, inheriting editorial, review, moderation and publishing access and managing permissions. There is no separate Owner role.
+- **Legacy editorial reviewer/publisher:** old `administrator` entries in `editorial_access_grants` confer canonical review and publishing access but are not site Admin authority or Open Panel moderation.
 
 No role can approve its own canonical panel or Open Panel submission. Those checks remain inside the database RPCs.
 
 ## Granting reviewer access
 
-Sign in with an active admin account, open **ADMIN** from the account menu, search for the member by email or display name, choose **Moderator / reviewer / publisher**, tick the elevated-access confirmation, and update the role. Use **Grant editor** as well only if the member needs to author canonical panels.
+Sign in with an active admin account, open **ADMIN** from the account menu, search for the member by email or display name, choose **Moderator**, tick the elevated-access confirmation, and update the role. Moderator already includes canonical authoring, review, Open Panel moderation and publishing. Use **Grant Editorial Contributor** alone when the member should author canonical panels without reviewing or publishing.
 
 ## Production verification
 
