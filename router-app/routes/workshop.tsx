@@ -73,7 +73,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       resolved.client
         .from("contributions")
         .select(
-          "id,feature_id,author_id,type,target_section,title,body,screenshot_path,media_url,source_url,public_credit,publication_consent,status,moderator_note,created_at,updated_at",
+          "id,feature_id,author_id,type,target_section,title,body,screenshot_path,media_url,source_url,public_credit,publication_consent,status,moderator_note,incorporated_at,created_at,updated_at",
         )
         .eq("author_id", resolved.user.id)
         .eq("feature_id", feature.id)

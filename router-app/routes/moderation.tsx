@@ -76,10 +76,12 @@ export async function loader({ request }: Route.LoaderArgs) {
         grants: [],
         review: [],
         closePreview: null,
+        contributions: [],
+        incorporations: [],
       },
       { headers: resolved.headers },
     );
-  const [grants, review, publication, closePreview] = await Promise.all([
+  const [grants, review, publication, closePreview, contributions, incorporations] = await Promise.all([
     resolved.client
       .from("editorial_access_grants")
       .select(
@@ -91,8 +93,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     context.capabilities.moderation
       ? resolved.client.rpc("issue_close_preview")
       : Promise.resolve({ data: null, error: null }),
+    context.capabilities.moderation
+      ? resolved.client.rpc("open_panel_review_inbox")
+      : Promise.resolve({ data: [], error: null }),
+    context.capabilities.moderation
+      ? resolved.client.rpc("contribution_incorporation_inbox")
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  if (review.error || publication.error || closePreview.error) throw data("The review desk could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
+  if (review.error || publication.error || closePreview.error || contributions.error || incorporations.error) throw data("The review desk could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
   return data(
     {
       state: "accepted" as const,
@@ -101,6 +109,8 @@ export async function loader({ request }: Route.LoaderArgs) {
       review: review.error ? [] : (review.data ?? []),
       publication: publication.error ? [] : (publication.data ?? []),
       closePreview: closePreview.error ? null : closePreview.data,
+      contributions: contributions.data ?? [],
+      incorporations: incorporations.data ?? [],
     },
     { headers: resolved.headers },
   );
@@ -225,6 +235,32 @@ export async function action({ request }: Route.ActionArgs) {
         { headers: resolved.headers },
       );
     }
+    if (["reviewContribution", "requestContributionChanges", "declineContribution"].includes(intent)) {
+      if (!context.capabilities.moderation)
+        return data({ error: "Moderator access is required." }, { status: 403, headers: resolved.headers });
+      const decision = intent === "reviewContribution" ? "Accepted" : intent === "requestContributionChanges" ? "Changes Requested" : "Rejected";
+      const note = String(form.get("note") ?? "").trim();
+      if (decision !== "Accepted" && note.length < 4)
+        return data({ error: "Add useful feedback for the contributor." }, { status: 400, headers: resolved.headers });
+      const result = await resolved.client.rpc("moderate_contribution", { target: String(form.get("contributionId") ?? ""), decision, published_heading: "", published_body: "", note });
+      if (result.error) throw result.error;
+      return data({ success: decision === "Accepted" ? "Contribution accepted for editorial incorporation." : decision === "Rejected" ? "Contribution declined." : "Changes requested from the contributor." }, { headers: resolved.headers });
+    }
+    if (intent === "prepareIncorporation") {
+      const result = await resolved.client.rpc("prepare_contribution_incorporation", { target: String(form.get("contributionId") ?? ""), incorporated_heading: String(form.get("heading") ?? ""), incorporated_body: String(form.get("body") ?? ""), incorporation_note: String(form.get("note") ?? "") });
+      if (result.error) throw result.error;
+      return data({ success: "Incorporation submitted for independent review." }, { headers: resolved.headers });
+    }
+    if (intent === "approveIncorporation" || intent === "changesIncorporation") {
+      const result = await resolved.client.rpc("review_contribution_incorporation", { target: String(form.get("contributionId") ?? ""), decision: intent === "approveIncorporation" ? "approve" : "changes", review_note: String(form.get("note") ?? "") });
+      if (result.error) throw result.error;
+      return data({ success: intent === "approveIncorporation" ? "Incorporation approved for publication." : "Incorporation changes requested." }, { headers: resolved.headers });
+    }
+    if (intent === "publishIncorporation") {
+      const result = await resolved.client.rpc("publish_contribution_incorporation", { target: String(form.get("contributionId") ?? "") });
+      if (result.error) throw result.error;
+      return data({ success: "Community contribution incorporated and published with attribution." }, { headers: resolved.headers });
+    }
     throw new Error("Unknown moderation action.");
   } catch (error) {
     return data(
@@ -345,6 +381,64 @@ export default function Moderation() {
         </nav>
         <p className="editorial-marker">MODERATION</p>
         <h1>Editorial access and review</h1>
+        {result.capabilities.moderation && (
+          <section aria-labelledby="open-panel-review-heading">
+            <p className="editorial-marker">OPEN PANEL REVIEW</p>
+            <h2 id="open-panel-review-heading">Community contribution inbox</h2>
+            <p>Accept records editorial suitability only. Publication happens later through the independently reviewed incorporation desk.</p>
+            {result.contributions.length ? result.contributions.map((item: any) => (
+              <article className="contribution-card" key={item.contribution_id}>
+                <p className="op-eyebrow">{item.feature_title} · {item.contribution_type}</p>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <p><b>{item.status === "Rejected" ? "DECLINED" : item.status.toUpperCase()}</b> · {item.author_display_name}</p>
+                {item.moderator_note && <p><b>Current feedback:</b> {item.moderator_note}</p>}
+                {item.can_review ? item.status === "Accepted" ? (
+                  <Form method="post" className="op-form">
+                    <input type="hidden" name="contributionId" value={item.contribution_id} />
+                    <h4>Prepare editorial incorporation</h4>
+                    <label>Published heading<input name="heading" defaultValue={item.title} required minLength={4} maxLength={120} /></label>
+                    <label>Edited contribution<textarea name="body" defaultValue={item.body} required minLength={20} maxLength={8000} rows={6} /></label>
+                    <label>Editorial note<textarea name="note" maxLength={2000} rows={2} /></label>
+                    <button className="op-button action-primary" name="intent" value="prepareIncorporation">SUBMIT INCORPORATION FOR REVIEW</button>
+                  </Form>
+                ) : (
+                  <Form method="post" className="op-form">
+                    <input type="hidden" name="contributionId" value={item.contribution_id} />
+                    <label>Reviewer feedback<textarea name="note" maxLength={2000} rows={3} /></label>
+                    <div className="profile-actions">
+                      <button className="op-button action-primary" name="intent" value="reviewContribution">ACCEPT</button>
+                      <button className="op-button" name="intent" value="requestContributionChanges">REQUEST CHANGES</button>
+                      <button className="op-button" name="intent" value="declineContribution">DECLINE</button>
+                    </div>
+                  </Form>
+                ) : <p className="op-notice"><b>Independent review required.</b> Another authorised reviewer must process this submission.</p>}
+              </article>
+            )) : <p>No Open Panel submissions currently require attention.</p>}
+          </section>
+        )}
+        {result.capabilities.moderation && (
+          <section aria-labelledby="incorporation-heading">
+            <p className="editorial-marker">EDITORIAL INCORPORATION</p>
+            <h2 id="incorporation-heading">Community material awaiting incorporation</h2>
+            {result.incorporations.length ? result.incorporations.map((item: any) => (
+              <article className="contribution-card" key={item.contribution_id}>
+                <p className="op-eyebrow">{item.feature_title} · {item.status.replaceAll("_", " ").toUpperCase()}</p>
+                <h3>{item.heading}</h3><p>{item.body}</p>
+                {item.editorial_note && <p><b>Editorial note:</b> {item.editorial_note}</p>}
+                {item.status === "approved" ? (
+                  <Form method="post"><input type="hidden" name="contributionId" value={item.contribution_id} /><button className="op-button action-primary" name="intent" value="publishIncorporation">PUBLISH INCORPORATION WITH CREDIT</button></Form>
+                ) : item.can_review ? (
+                  <Form method="post" className="op-form">
+                    <input type="hidden" name="contributionId" value={item.contribution_id} />
+                    <label>Reviewer note<textarea name="note" maxLength={2000} rows={3} /></label>
+                    <div className="profile-actions"><button className="op-button action-primary" name="intent" value="approveIncorporation">APPROVE INCORPORATION</button><button className="op-button" name="intent" value="changesIncorporation">REQUEST CHANGES</button></div>
+                  </Form>
+                ) : <p className="op-notice"><b>Independent review required.</b> The editor who prepared this incorporation cannot approve it.</p>}
+              </article>
+            )) : <p>No accepted material is awaiting incorporation review.</p>}
+          </section>
+        )}
         {result.capabilities.moderation && (
           <section>
             <h2>Editorial grants</h2>
@@ -588,7 +682,7 @@ export default function Moderation() {
                       publish it live.
                     </p>
                   </div>
-                  {result.capabilities.moderation ? (
+                  {result.capabilities.moderation && selectedReview.can_review ? (
                     <Form
                       method="post"
                       className="op-form review-decision-form"
@@ -633,6 +727,8 @@ export default function Moderation() {
                         </button>
                       </div>
                     </Form>
+                  ) : selectedReview.can_review === false ? (
+                    <p><b>Independent review required.</b> Another authorised reviewer must approve or request changes for this panel.</p>
                   ) : (
                     <p>
                       Editors can view the shared Review Inbox. Moderator access

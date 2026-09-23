@@ -49,6 +49,7 @@ export function WorkshopClient({
   const [screenshot, setScreenshot] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [bodyText, setBodyText] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -103,12 +104,13 @@ export function WorkshopClient({
         await fetch("/member/workshop/save", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(parsed.data),
+          body: JSON.stringify({ ...parsed.data, id: editingId }),
         }),
       );
       form.reset();
       setBodyText("");
       setScreenshot("");
+      setEditingId(null);
       setMessage(
         result.duplicate
           ? "This proposal was already submitted. Its existing copy is shown below."
@@ -124,6 +126,22 @@ export function WorkshopClient({
     } finally {
       setBusy(false);
     }
+  }
+
+  function revise(item: Contribution) {
+    const form = formRef.current;
+    if (!form) return;
+    setEditingId(item.id);
+    setBodyText(item.body);
+    setScreenshot(item.screenshot_path);
+    for (const [name, value] of Object.entries({ type: item.type, title: item.title, source_url: item.source_url, media_url: item.media_url, public_credit: item.public_credit })) {
+      const field = form.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) field.value = value;
+    }
+    const consent = form.elements.namedItem("publication_consent");
+    if (consent instanceof HTMLInputElement) consent.checked = true;
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+    setMessage("Revise the returned proposal, then resubmit it for independent review.");
   }
 
   async function withdraw(id: string) {
@@ -187,6 +205,7 @@ export function WorkshopClient({
           aria-labelledby="proposal-heading"
         >
           <h2 id="proposal-heading">Propose a contribution</h2>
+          {editingId && <p className="op-notice"><b>REVISING RETURNED CONTRIBUTION</b></p>}
           <p>
             Offer one focused addition to this feature for editorial review.
           </p>
@@ -257,7 +276,7 @@ export function WorkshopClient({
             public Community Edition and its Panel Citation.
           </label>
           <button className="action-primary" disabled={busy}>
-            {busy ? "SUBMITTING…" : "SUBMIT TO WORKSHOP"}
+            {busy ? "SUBMITTING…" : editingId ? "RESUBMIT TO WORKSHOP" : "SUBMIT TO WORKSHOP"}
           </button>
         </form>
       )}
@@ -283,7 +302,7 @@ export function WorkshopClient({
               <h3>{item.title}</h3>
               <p><MarkdownText text={item.body} /></p>
               <p>
-                <b>{item.status.toUpperCase()}</b> ·{" "}
+                <b>{item.incorporated_at ? "INCORPORATED / PUBLISHED" : item.status === "Rejected" ? "DECLINED" : item.status === "Accepted" ? "ACCEPTED · AWAITING EDITORIAL INCORPORATION" : item.status.toUpperCase()}</b> ·{" "}
                 {new Date(item.updated_at).toLocaleDateString("en-GB")}
               </p>
               {item.source_url && (
@@ -316,20 +335,17 @@ export function WorkshopClient({
                   <b>Editorial guidance:</b> {item.moderator_note}
                 </p>
               )}
-              {item.status === "Accepted" && (
+              {item.incorporated_at && (
                 <Link to={`/features/${featureSlug}`}>
                   VIEW IN COMMUNITY EDITION →
                 </Link>
               )}
               {!readOnly &&
                 ["Submitted", "Changes Requested"].includes(item.status) && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => withdraw(item.id)}
-                  >
-                    WITHDRAW
-                  </button>
+                  <div className="profile-actions">
+                    {item.status === "Changes Requested" && <button type="button" disabled={busy} onClick={() => revise(item)}>REVISE AND RESUBMIT</button>}
+                    <button type="button" disabled={busy} onClick={() => withdraw(item.id)}>WITHDRAW</button>
+                  </div>
                 )}
             </article>
           ))

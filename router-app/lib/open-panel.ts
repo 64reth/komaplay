@@ -24,7 +24,7 @@ export type Role = "member" | "contributor" | "moderator" | "admin";
 export const canModerate = (role?: string) =>
   role === "moderator" || role === "admin";
 export const canEdit = (status: string) =>
-  status === "Submitted" || status === "Changes Requested";
+  status === "Changes Requested";
 export const canTransition = (from: string, to: string) =>
   ["Submitted", "In Review", "Changes Requested"].includes(from) &&
   ["In Review", "Changes Requested", "Accepted", "Rejected"].includes(to) &&
@@ -121,6 +121,7 @@ export type Contribution = ContributionInput & {
   author_id: string;
   status: string;
   moderator_note: string | null;
+  incorporated_at: string | null;
   created_at: string;
   updated_at: string;
   author?: Credit;
