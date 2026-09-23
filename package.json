@@ -16,6 +16,7 @@
     "deploy:canary": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --keep-vars",
     "deploy:canary:dry-run": "pnpm build && WRANGLER_LOG_PATH=.wrangler/logs pnpm exec wrangler deploy --dry-run --keep-vars",
     "test:e2e": "playwright test tests/e2e/migration-phase1.spec.ts tests/e2e/publication-phase2.spec.ts tests/e2e/auth-phase3.spec.ts",
+    "smoke:four-eyes": "node scripts/smoke-four-eyes-workflow.mjs",
     "deploy:production": "node scripts/deploy-production.mjs"
   },
   "dependencies": {
