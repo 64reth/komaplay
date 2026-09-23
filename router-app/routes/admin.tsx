@@ -29,7 +29,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     page_limit: 25, page_offset: (page - 1) * 25,
   };
   const result = await resolved.client.rpc("admin_member_directory", params);
-  if (result.error) throw data("The member directory could not be loaded.", { status: 503, headers: resolved.headers });
+  if (result.error)
+    return data({ state: "unavailable" as const, members: [] as MemberRow[], total: 0 }, { status: 503, headers: resolved.headers });
   const members = (result.data ?? []) as MemberRow[];
   return data({ state: "accepted" as const, members, total: Number(members[0]?.total_count ?? 0), page, params }, { headers: resolved.headers });
 }
@@ -72,7 +73,7 @@ export default function AdminDashboard() {
   const result = useLoaderData<typeof loader>();
   const feedback = useActionData<typeof action>();
   const navigation = useNavigation();
-  if (result.state !== "accepted") return <main className="editorial-page"><Masthead/><section className="op-workspace admin-denied"><p className="editorial-marker">ADMINISTRATION</p><h1>{result.state === "signed-out" ? "Sign in to continue." : "Admin access is restricted."}</h1><p>{result.state === "signed-out" ? "Use the account menu to sign in." : "Only active owner/admin accounts can manage user permissions. Moderator access does not include user management."}</p><Link to="/">RETURN TO PUBLICATION →</Link></section></main>;
+  if (result.state !== "accepted") return <main className="editorial-page"><Masthead/><section className="op-workspace admin-denied"><p className="editorial-marker">ADMINISTRATION</p><h1>{result.state === "signed-out" ? "Sign in to continue." : result.state === "unavailable" ? "The admin directory is temporarily unavailable." : "Admin access is restricted."}</h1><p>{result.state === "signed-out" ? "Use the account menu to sign in." : result.state === "unavailable" ? "Your admin access is intact. Please retry shortly; no permission changes have been made." : "Only active owner/admin accounts can manage user permissions. Moderator access does not include user management."}</p><Link to="/">RETURN TO PUBLICATION →</Link></section></main>;
   const query = result.params.search_term;
   return <main className="editorial-page"><Masthead/><section className="op-workspace admin-dashboard">
     <p className="editorial-marker">ADMINISTRATION · USER ACCESS</p><h1>Member permissions</h1>
