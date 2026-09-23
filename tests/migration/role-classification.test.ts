@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accessFor, editorialContributor, legacyEditorialReviewer, rolePresentation } from "../../router-app/lib/role-classification";
+import { accessFor, editorialContributor, keyRingAccess, legacyEditorialReviewer, rolePresentation } from "../../router-app/lib/role-classification";
 import { readFile } from "node:fs/promises";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -28,6 +28,25 @@ test("legacy editorial administrator is not presented as site admin", () => {
   assert.match(legacyEditorialReviewer.description,/not Admin access/i);
 });
 
+test("key-ring counts derive only from existing server role and grant fields",()=>{
+  assert.equal(keyRingAccess("member").badge,"member");
+  assert.equal(keyRingAccess("contributor").badge,"member");
+  assert.equal(keyRingAccess("member",true).badge,"editorial-contributor");
+  assert.equal(keyRingAccess("moderator").badge,"moderator");
+  assert.equal(keyRingAccess("admin").badge,"admin");
+  assert.equal(keyRingAccess("member",false,true).badge,"moderator");
+  assert.match(keyRingAccess("member",false,true).tooltip,/Legacy editorial access/);
+});
+
+test("key-ring SVG assets are small accessible monochrome vectors",async()=>{
+  for(const name of ["member","editorial-contributor","moderator","admin"]){
+    const svg=await readFile(`public/assets/badges/key-ring-${name}.svg`,"utf8");
+    assert.match(svg,/<title id="title">/);assert.match(svg,/<desc id="desc">/);
+    assert.match(svg,/stroke="currentColor"/);assert.doesNotMatch(svg,/<filter|<linearGradient|data:image/);
+    assert.ok(svg.length<3000);
+  }
+});
+
 test("admin copy uses honest tiers and does not invent Publisher or Owner options",async()=>{
   const route=await readFile("router-app/routes/admin.tsx","utf8");
   assert.match(route,/Editorial Contributor/);assert.match(route,/>Moderator</);assert.match(route,/>Admin</);
@@ -48,4 +67,6 @@ test("rendered admin controls explain each visible classification",()=>{
   assert.match(html,/Cannot approve their own work/);
   assert.match(html,/<option value="moderator">Moderator<\/option>/);
   assert.match(html,/<option value="admin">Admin<\/option>/);
+  assert.match(html,/key-ring-member\.svg/);assert.match(html,/key-ring-editorial-contributor\.svg/);
+  assert.match(html,/key-ring-moderator\.svg/);assert.match(html,/key-ring-admin\.svg/);
 });

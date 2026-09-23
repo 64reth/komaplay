@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
+  <title id="title">Editorial Contributor key-ring badge</title>
+  <desc id="desc">Two editorial keys on a ring, indicating panel creation and submission access.</desc>
+  <circle cx="20" cy="24" r="10"/>
+  <g transform="rotate(-14 20 24)"><circle cx="40" cy="18" r="6"/><path d="M46 18h49m-13 0v8m8-8v6"/></g>
+  <g transform="rotate(13 20 24)"><circle cx="40" cy="30" r="6"/><path d="M46 30h49m-13 0v-8m8 8v-6"/></g>
+</svg>

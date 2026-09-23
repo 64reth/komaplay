@@ -2,7 +2,8 @@ import { data, Form, Link, useActionData, useLoaderData, useNavigation } from "r
 import type { Route } from "./+types/admin";
 import { Masthead } from "../components/Masthead";
 import { resolveAuth } from "../lib/auth";
-import { editorialContributor, legacyEditorialReviewer, rolePresentation, type SiteRole } from "../lib/role-classification";
+import { editorialContributor, keyRingAccess, legacyEditorialReviewer, rolePresentation, type SiteRole } from "../lib/role-classification";
+import { KeyRingBadge } from "../components/KeyRingBadge";
 
 type MemberRow = {
   user_id: string; email: string | null; display_name: string; role: string;
@@ -78,7 +79,7 @@ export default function AdminDashboard() {
   const query = result.params.search_term;
   return <main className="editorial-page"><Masthead/><section className="op-workspace admin-dashboard">
     <p className="editorial-marker">ADMINISTRATION · USER ACCESS</p><h1>Member permissions</h1>
-    <div className="admin-role-guide"><h2>Access levels</h2><dl><div><dt>Member</dt><dd>{rolePresentation.member.description}</dd></div><div><dt>{editorialContributor.label}</dt><dd>{editorialContributor.description}</dd></div><div><dt>Moderator</dt><dd>{rolePresentation.moderator.description}</dd></div><div><dt>Admin</dt><dd>{rolePresentation.admin.description}</dd></div></dl><p>Publisher and Owner are not separate roles in the current system. Publishing is bundled into Moderator; Admin is the highest access level.</p></div>
+    <div className="admin-role-guide"><h2>Access levels</h2><dl><div><dt><KeyRingBadge access={keyRingAccess("member")}/>Member</dt><dd>{rolePresentation.member.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("member",true)}/>{editorialContributor.label}</dt><dd>{editorialContributor.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("moderator")}/>Moderator</dt><dd>{rolePresentation.moderator.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("admin")}/>Admin</dt><dd>{rolePresentation.admin.description}</dd></div></dl><p>Key-rings show operational access, not status. Publisher and Owner are not separate roles in the current system. Publishing is bundled into Moderator; Admin is the highest access level.</p></div>
     {feedback && "error" in feedback && <p role="alert" className="form-error">{feedback.error}</p>}{feedback && "success" in feedback && <p role="status" className="form-success">{feedback.success}</p>}
     <Form method="get" className="admin-toolbar">
       <label>Search<input name="q" defaultValue={query} placeholder="Name, email or user ID"/></label>
@@ -88,7 +89,7 @@ export default function AdminDashboard() {
     </Form>
     <p>{result.total} matching member{result.total === 1 ? "" : "s"}</p>
     <div className="admin-member-list">{result.members.length === 0 ? <p>No members match these filters.</p> : result.members.map(member => <article className="admin-member" key={member.user_id}>
-      <header><div><h2>{member.display_name || "Profile name missing"}</h2><p>{member.email ?? member.user_id}</p></div><div className="admin-badges"><span>{member.account_status}</span><span>{rolePresentation[member.role as SiteRole]?.label ?? member.role}</span>{member.editorial_access && <span>{editorialContributor.label}</span>}{member.legacy_review_grant && <span>{legacyEditorialReviewer.label}</span>}</div></header>
+      <header><div><h2>{member.display_name || "Profile name missing"}</h2><p>{member.email ?? member.user_id}</p></div><div className="admin-badges"><KeyRingBadge access={keyRingAccess(member.role as SiteRole,member.editorial_access,member.legacy_review_grant)}/><span>{member.account_status}</span><span>{rolePresentation[member.role as SiteRole]?.label ?? member.role}</span>{member.editorial_access && <span>{editorialContributor.label}</span>}{member.legacy_review_grant && <span>{legacyEditorialReviewer.label}</span>}</div></header>
       <p>Joined {new Date(member.joined_at).toLocaleDateString("en-GB")}</p>
       <div className="admin-actions"><Form method="post"><input type="hidden" name="email" value={member.email ?? ""}/><input type="hidden" name="intent" value={member.editorial_access ? "revokeEditor" : "grantEditor"}/><button disabled={navigation.state !== "idle" || !member.email} className="op-button">{member.editorial_access ? "REVOKE EDITORIAL CONTRIBUTOR" : "GRANT EDITORIAL CONTRIBUTOR"}</button></Form>
       <Form method="post" className="admin-role-form"><input type="hidden" name="intent" value="setRole"/><input type="hidden" name="userId" value={member.user_id}/><label>Site role<select name="role" defaultValue={member.role}><option value="member">Member</option><option value="contributor">Member (legacy contributor)</option><option value="moderator">Moderator</option><option value="admin">Admin</option></select></label><label className="admin-confirm"><input type="checkbox" name="confirmed" value="yes"/> Confirm elevated access</label><button disabled={navigation.state !== "idle"} className="op-button">UPDATE ROLE</button></Form></div>
