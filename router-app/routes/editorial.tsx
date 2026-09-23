@@ -281,7 +281,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
     value.sectionsJson = serializeComposerSections(sections);
     const issues = validateEditorialSubmission(value, sections);
-    const { featureId: _id, status: _status, ...composer } = value;
+    const composer = { ...value, featureId: undefined, status: undefined };
     const document = { ...draftDocument(value), composer };
     // Keep unfinished contributor input in the existing JSON document. Canonical
     // metadata needs safe values for database constraints while the draft is private.
@@ -704,7 +704,7 @@ function FeatureComposer({
         };
       });
       setImageMessage("Image uploaded.");
-    } catch (cause) {
+    } catch {
       setImageErrorMessage(
         "We couldn’t upload this image just now. Please try again.",
       );

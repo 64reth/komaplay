@@ -24,7 +24,7 @@ import { safeReturnPath } from "../lib/handbook";
 type RootData = {
   auth: AuthSnapshot;
   membership?: { status: string };
-  capabilities?: { editorial: boolean; moderation: boolean };
+  capabilities?: { editorial: boolean; moderation: boolean; admin?: boolean };
   supabase: BrowserSupabaseConfig | null;
 };
 
@@ -465,6 +465,11 @@ export function AccountNav() {
               onClick={() => setMenuOpen(false)}
             >
               REVIEW INBOX
+            </Link>
+          )}
+          {data.capabilities?.admin && (
+            <Link role="menuitem" to="/admin" onClick={() => setMenuOpen(false)}>
+              ADMIN
             </Link>
           )}
           {data.capabilities?.editorial && (

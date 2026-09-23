@@ -8,8 +8,11 @@ import Feature from '../../router-app/routes/feature';
 import {ArticleRenderer} from '../../router-app/components/ArticleRenderer';
 import {publicationFixture} from '../fixtures/publication';
 import {draftDocument} from '../../router-app/lib/editorial-alpha';
+// The route/component generated prop types are deliberately bypassed in this SSR fixture.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const document=draftDocument({title:'Canonical document title',summary:'Introduction',image:'/hero.png',imageAlt:'Hero artwork',sectionsJson:JSON.stringify([{id:'one',type:'heading',text:'First section'},{id:'two',type:'paragraph',text:'Second section'},{id:'three',type:'image',url:'/body.png',alt:'Body artwork'}])} as any);
 test('publication shell owns exactly one document title and preserves artwork and section order',()=>{
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
  const all=publicationFixture();const element=<Feature loaderData={{all,feature:all.features[0],panel:{data:null,message:null},publishedDocument:document} as any} params={{}} matches={[]}/>;
  const router=createMemoryRouter([{id:"root",path:"/",element}],{hydrationData:{loaderData:{root:{auth:{state:"signed-out"},config:null}}}});
  const html=renderToStaticMarkup(<RouterProvider router={router}/>);

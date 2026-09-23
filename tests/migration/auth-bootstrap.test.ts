@@ -128,9 +128,8 @@ test("real SSR PKCE exchange persists all cookie chunks and survives a fresh ser
     ).toString("base64url"),
     "fixture",
   ].join(".");
-  const headers = new Headers();
   try {
-    globalThis.fetch = async (input, init) => {
+    globalThis.fetch = async (input) => {
       const url = new URL(String(input));
       if (url.pathname === "/auth/v1/token") {
         assert.equal(url.searchParams.get("grant_type"), "pkce");

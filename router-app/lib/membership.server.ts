@@ -68,9 +68,9 @@ export async function memberCapabilities(
   member: PublicMember,
 ) {
   if (member.accountStatus !== "active")
-    return { editorial: false, moderation: false };
+    return { editorial: false, moderation: false, admin: false };
   const roleModeration = member.role === "moderator" || member.role === "admin";
-  if (member.role === "admin") return { editorial: true, moderation: true };
+  if (member.role === "admin") return { editorial: true, moderation: true, admin: true };
   const result = await db
     .from("editorial_access_grants")
     .select("id,access_level,revoked_at")
@@ -79,5 +79,5 @@ export async function memberCapabilities(
   const activeGrants = result.error ? [] : result.data ?? [];
   const editorial = activeGrants.length > 0;
   const grantModeration = activeGrants.some((grant) => grant.access_level === "administrator");
-  return { editorial: editorial || roleModeration, moderation: roleModeration || grantModeration };
+  return { editorial: editorial || roleModeration, moderation: roleModeration || grantModeration, admin: false };
 }

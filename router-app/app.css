@@ -2463,6 +2463,24 @@ html {
   font: 700 0.72rem monospace;
   opacity: 0.62;
 }
+
+/* Dense, print-led administration workspace. */
+.admin-dashboard { max-width: 96rem; }
+.admin-toolbar { position: sticky; top: 0; z-index: 4; display: grid; grid-template-columns: minmax(14rem,2fr) repeat(3,minmax(9rem,1fr)) auto; gap: .65rem; align-items: end; padding: .8rem; border: 1px solid currentColor; background: var(--paper, #f4efe5); }
+.admin-toolbar label,.admin-role-form label { display: grid; gap: .3rem; font: 700 .72rem/1.2 var(--font-mono,monospace); text-transform: uppercase; }
+.admin-toolbar input,.admin-toolbar select,.admin-role-form select { min-height: 2.75rem; border: 1px solid currentColor; border-radius: 0; background: transparent; padding: .55rem; color: inherit; }
+.admin-member-list { display: grid; border-top: 1px solid currentColor; }
+.admin-member { padding: 1rem 0; border-bottom: 1px solid currentColor; }
+.admin-member header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.admin-member h2 { margin: 0; font-size: clamp(1.25rem,2vw,2rem); }
+.admin-member p { overflow-wrap: anywhere; }
+.admin-badges,.admin-actions { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.admin-badges span { border: 1px solid currentColor; padding: .25rem .45rem; font: 700 .68rem/1 var(--font-mono,monospace); text-transform: uppercase; }
+.admin-role-form { display: flex; flex-wrap: wrap; gap: .55rem; align-items: end; }
+.admin-confirm { grid-template-columns: auto 1fr !important; align-items: center; max-width: 10rem; }
+.admin-pagination { display: flex; justify-content: space-between; padding-block: 1rem; font-weight: 800; }
+@media (max-width: 820px) { .admin-toolbar { position: static; grid-template-columns: 1fr 1fr; } .admin-toolbar label:first-child { grid-column: 1/-1; } .admin-member header { display: grid; } }
+@media (max-width: 520px) { .admin-toolbar { grid-template-columns: 1fr; } .admin-toolbar label:first-child { grid-column: auto; } }
 .membership-background[inert] {
   pointer-events: none;
   user-select: none;

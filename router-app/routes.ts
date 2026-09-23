@@ -23,6 +23,7 @@ export default [
   route("profile/settings", "routes/profile-settings.tsx"),
   route("editorial", "routes/editorial.tsx"),
   route("moderation", "routes/moderation.tsx"),
+  route("admin", "routes/admin.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
   route("api/editorial/image", "routes/editorial-image.tsx"),
   route("member/editorial/upload", "routes/editorial-upload.tsx"),
