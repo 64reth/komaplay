@@ -2514,7 +2514,7 @@ html {
   .editorial-nav nav a:first-child { width: 40px; height: 42px; min-height: 42px; }
   .editorial-nav .account-signin,
   .editorial-nav .account-nav > button { min-width: 44px; min-height: 44px; }
-  .issue-navigation { display: grid; grid-template-columns: repeat(3,minmax(0,auto)); justify-content: start; gap: 0 18px; padding: 8px 14px 12px; }
+  .issue-navigation { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); justify-content: start; gap: 0 18px; padding: 8px 14px 12px; }
   .issue-navigation > a { min-height: 42px; }
   .issue-navigation form { grid-column: 1 / -1; width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin: 0; }
   .issue-navigation input { width: 100%; min-height: 44px; padding-inline: 0; }
@@ -2566,6 +2566,7 @@ html {
   .feature-panel.panel-standard,
   .feature-panel.panel-wide { height: 78svh; min-height: 300px; }
 }
+.feature-meta { inset: 14px 18px auto; align-items: flex-start; }
 .membership-background[inert] {
   pointer-events: none;
   user-select: none;
