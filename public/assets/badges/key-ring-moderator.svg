@@ -2,7 +2,8 @@
   <title id="title">Moderator key-ring badge</title>
   <desc id="desc">Three editorial keys on a ring, indicating review, publishing and moderation access.</desc>
   <circle cx="20" cy="24" r="10"/>
-  <g transform="rotate(-19 20 24)"><circle cx="39" cy="15" r="5"/><path d="M44 15h50m-13 0v7m8-7v5"/></g>
+  <path d="M28 13h6m-4 11h6m-8 11h6"/>
+  <g><circle cx="39" cy="13" r="5"/><path d="M44 13h50m-13 0v7m8-7v5"/></g>
   <g><circle cx="41" cy="24" r="5"/><path d="M46 24h52m-13 0v8m8-8v6"/></g>
-  <g transform="rotate(19 20 24)"><circle cx="39" cy="33" r="5"/><path d="M44 33h50m-13 0v-7m8 7v-5"/></g>
+  <g><circle cx="39" cy="35" r="5"/><path d="M44 35h50m-13 0v7m8-7v5"/></g>
 </svg>
