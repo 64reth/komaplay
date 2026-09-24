@@ -13,6 +13,7 @@ import React, {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { X } from "lucide-react";
 import type { AuthSnapshot } from "../lib/auth";
 import {
   supabaseBrowser,
@@ -199,7 +200,7 @@ export function AuthDialog({
           onClick={onClose}
           aria-label="Close account dialog"
         >
-          ×
+          <X className="koma-icon" aria-hidden="true" />
         </button>
         <p className="editorial-marker">KOMA://PLAY ACCOUNT</p>
         <h2 id={titleId}>

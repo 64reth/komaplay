@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { GallerySlide } from "../lib/document";
 
 function Figure({
@@ -145,7 +146,7 @@ export function Gallery({
           disabled={current === 0}
           aria-label="Previous image"
         >
-          ←
+          <ArrowLeft className="koma-icon" aria-hidden="true" />
         </button>
         <output className="text-accent" aria-live="polite">
           {String(current + 1).padStart(2, "0")} /{" "}
@@ -157,7 +158,7 @@ export function Gallery({
           disabled={current === slides.length - 1}
           aria-label="Next image"
         >
-          →
+          <ArrowRight className="koma-icon" aria-hidden="true" />
         </button>
       </div>
       <div className="carousel-thumbnails" aria-label="Choose image">

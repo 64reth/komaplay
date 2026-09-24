@@ -4,10 +4,11 @@ import { readFile } from "node:fs/promises";
 
 const uiFiles=["router-app/components/FeatureStrip.tsx","router-app/components/IssueNavigation.tsx","router-app/components/CurrentIssueHeader.tsx","router-app/components/publication/ClosingPanels.tsx","router-app/routes/home.tsx"];
 
-test("KOMA runtime chrome uses text arrows without emoji presentation",async()=>{
+test("KOMA runtime chrome uses SVG controls without emoji presentation",async()=>{
   const chrome=(await Promise.all(uiFiles.map(file=>readFile(file,"utf8")))).join("\n");
   assert.doesNotMatch(chrome,/[↗→←↖↘↙]\uFE0F/);assert.doesNotMatch(chrome,/↗️|➡️|⬅️/);
-  assert.match(await readFile("router-app/app.css","utf8"),/\.feature-arrow[\s\S]*font-variant-emoji:\s*text/);
+  assert.match(chrome,/ArrowUpRight/);
+  assert.doesNotMatch(chrome,/>\s*↗\s*</);
 });
 
 test("Feature Strip category and mobile artwork composition have protected contracts",async()=>{

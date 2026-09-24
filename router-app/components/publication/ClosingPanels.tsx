@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { ArrowUpRight } from "lucide-react";
 import {
   panelState,
   type Catalogue,
@@ -28,7 +29,9 @@ export function ClosingPanels({
             issue={data.issues.find((i) => i.id === f.issue_id)!}
             now={data.now}
           />
-          <span aria-hidden="true">↗</span>
+          <span className="closing-panel-arrow" aria-hidden="true">
+            <ArrowUpRight className="koma-icon" />
+          </span>
         </Link>
       ))}
     </section>

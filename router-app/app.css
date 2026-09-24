@@ -485,7 +485,15 @@ body {
   border-left: 1px solid var(--ink);
   width: 48px;
   cursor: pointer;
-  font-size: 1.2rem;
+  display: grid;
+  place-items: center;
+}
+.koma-icon {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  stroke-width: 1.8;
 }
 .strip-controls button[aria-disabled="true"] {
   opacity: 0.3;
@@ -617,10 +625,14 @@ body {
   position: absolute;
   bottom: 18px;
   right: 16px;
-  font-size: 1.4rem;
-  font-family: Arial, Helvetica, sans-serif;
-  font-variant-emoji: text;
-  line-height: 1;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+}
+.feature-arrow .koma-icon {
+  width: 1.7rem;
+  height: 1.7rem;
 }
 .feature-panel:focus-visible {
   outline: 2px solid var(--ink);
@@ -1289,6 +1301,13 @@ body:has(.editorial-page) {
   border-top: 1px solid;
   padding: 20px 0;
   text-decoration: none;
+}
+.closing-panel-arrow {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
 }
 .panel-countdown {
   font: 700 0.65rem/1.8 monospace;
@@ -2541,7 +2560,7 @@ html {
   .feature-summary { max-width: 32ch; font-size: clamp(.72rem,3cqi,.88rem); -webkit-line-clamp: 3; }
   .feature-meta { inset: 14px 14px auto; align-items: start; }
   .feature-category { max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
-  .feature-arrow { right: 15px; bottom: 18px; font-size: 1.65rem; }
+  .feature-arrow { right: 15px; bottom: 18px; }
   .archive-entry { margin: 44px 14px; padding: 26px 22px; clip-path: polygon(0 0,95% 0,100% 10%,100% 100%,0 100%); }
   .archive-entry b { font-size: clamp(2rem,11vw,3.25rem); line-height: .92; }
   .op-footer,

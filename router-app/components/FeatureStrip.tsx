@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useId, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import type { FeatureItem } from "../lib/publication";
 export function FeatureStrip({
   items,
@@ -92,7 +93,7 @@ export function FeatureStrip({
             aria-disabled={edges.start}
             onClick={() => advance(-1)}
           >
-            ←
+            <ArrowLeft className="koma-icon" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -101,7 +102,7 @@ export function FeatureStrip({
             aria-disabled={edges.end}
             onClick={() => advance(1)}
           >
-            →
+            <ArrowRight className="koma-icon" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -163,7 +164,7 @@ export function FeatureStrip({
               <span className="feature-summary">{item.summary}</span>
             </span>
             <span className="feature-arrow" aria-hidden="true">
-              ↗
+              <ArrowUpRight className="koma-icon" />
             </span>
           </Link>
         ))}
