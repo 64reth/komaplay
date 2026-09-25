@@ -673,7 +673,8 @@ test("phase 4f editorial composer upload populates image path and keeps placehol
   assert.match(editorialRoute, /Upload a feature image/);
   assert.match(editorialRoute, /PNG, JPEG or WebP\. 5 MB max\./);
   assert.match(editorialRoute, /fetch\("\/member\/editorial\/upload"/);
-  assert.match(editorialRoute, /setImageMessage\("Image uploaded\."\)/);
+  assert.match(editorialRoute, /Uploaded\. Ready to save\./);
+  assert.match(editorialRoute, /LatestUploadCoordinator/);
   assert.match(editorialRoute, /payload\.url/);
   assert.match(editorialRoute, /className="editorial-image-preview"/);
   assert.match(editorialRoute, /errors\("imageAlt"\)/);

@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useRevalidator } from "react-router";
 import {
   contributionSchema,
@@ -9,6 +9,7 @@ import {
 } from "../../lib/open-panel";
 import { MarkdownText } from "../MarkdownText";
 import { WritingToolbar } from "../WritingToolbar";
+import { LatestUploadCoordinator } from "../../lib/latest-upload";
 
 type Activity = {
   public_credit: string;
@@ -46,42 +47,51 @@ export function WorkshopClient({
   const revalidator = useRevalidator();
   const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading,setUploading]=useState(false);
   const [screenshot, setScreenshot] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [bodyText, setBodyText] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const uploadCoordinator=useRef(new LatestUploadCoordinator());
+  useEffect(()=>()=>uploadCoordinator.current.cancelAll(),[]);
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     const invalid = screenshotError(file);
     if (invalid) return setError(invalid);
-    setBusy(true);
+    const ticket=uploadCoordinator.current.begin("screenshot");
+    setUploading(true);
     setError("");
+    setMessage(screenshot?"Replacing screenshot…":"Uploading screenshot…");
     try {
       const body = new FormData();
       body.set("file", file);
       const result = await responseJson(
-        await fetch("/member/workshop/upload", { method: "POST", body }),
+        await fetch("/member/workshop/upload", { method: "POST", body,signal:ticket.signal }),
       );
+      if(!ticket.current())return;
       setScreenshot(result.path ?? "");
-      setMessage("Screenshot attached privately to this proposal.");
+      setMessage(screenshot?"This screenshot was replaced. Submit again to keep the latest version.":"Screenshot attached privately to this proposal.");
     } catch (cause) {
+      if(!ticket.current()||(cause instanceof DOMException&&cause.name==="AbortError"))return;
       setError(
         cause instanceof Error
           ? cause.message
           : "The screenshot could not be uploaded.",
       );
     } finally {
-      setBusy(false);
+      if(ticket.current())setUploading(false);
+      ticket.finish();
+      event.target.value="";
     }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy||uploading) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -250,14 +260,14 @@ export function WorkshopClient({
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
-              disabled={busy}
               onChange={upload}
             />
           </label>
+          {uploading&&<p role="status">This image is still uploading.</p>}
           {screenshot && (
             <p role="status">
               Screenshot attached.{" "}
-              <button type="button" onClick={() => setScreenshot("")}>
+              <button type="button" onClick={() => {uploadCoordinator.current.cancel("screenshot");setUploading(false);setScreenshot("");setError("");setMessage("Screenshot removed. You can upload another image.");}}>
                 Remove attachment
               </button>
             </p>

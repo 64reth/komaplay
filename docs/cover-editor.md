@@ -8,6 +8,8 @@ Saving records a narrow audit entry. Moving an issue to `archived` is blocked at
 
 Native browser spellcheck is enabled for relevant Cover Editor, Editorial Dashboard, and Workshop writing fields. No writing is sent to an external service and no automatic correction is applied.
 
+Image uploads use latest-selection-wins coordination. Replacing or removing artwork cancels the active request and ignores stale completions. Incomplete cover metadata can be saved privately; the existing archive transition still requires complete artwork, alt text, lead panel and headline.
+
 ## Production verification
 
 1. Sign in as Moderator or Admin and open `/cover-editor`; confirm a lower role receives the access gate.

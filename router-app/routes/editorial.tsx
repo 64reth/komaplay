@@ -1,4 +1,5 @@
 import { prepareEditorialImage } from "../lib/prepare-image";
+import { LatestUploadCoordinator } from "../lib/latest-upload";
 import {
   turnstileSiteKey,
   verifyEditorialChallenge,
@@ -497,9 +498,11 @@ function FeatureComposer({
       status: current.status === "submitted" ? "draft" : current.status,
     }));
   const [slugEdited, setSlugEdited] = useState(Boolean(selectedFeatureId));
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [imageMessage, setImageMessage] = useState("");
-  const [imageErrorMessage, setImageErrorMessage] = useState("");
+  const uploadCoordinator=useRef(new LatestUploadCoordinator());
+  const [imageUploads,setImageUploads]=useState<Record<string,{status:"uploading"|"replacing"|"uploaded"|"failed";message:string}>>({});
+  useEffect(()=>()=>uploadCoordinator.current.cancelAll(),[]);
+  const uploadPending=Object.values(imageUploads).some(item=>item.status==="uploading"||item.status==="replacing");
+  const clearUpload=(key:string)=>{uploadCoordinator.current.cancel(key);setImageUploads(current=>{const next={...current};delete next[key];return next;});};
   const pending = navigation.state !== "idle";
   const response = routeActionData;
   const errorSummary = useRef<HTMLDivElement>(null);
@@ -652,31 +655,35 @@ function FeatureComposer({
   ) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setImageMessage("");
-    setImageErrorMessage("");
+    const key=sectionId??"hero";
+    clearUpload(key);
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      setImageErrorMessage("Use PNG, JPEG or WebP.");
+      setImageUploads(current=>({...current,[key]:{status:"failed",message:"Use PNG, JPEG or WebP."}}));
       event.target.value = "";
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setImageErrorMessage("Images must be 5 MB or smaller.");
+      setImageUploads(current=>({...current,[key]:{status:"failed",message:"Images must be 5 MB or smaller."}}));
       event.target.value = "";
       return;
     }
     if (!draft.slug.trim()) {
-      setImageErrorMessage("Add a panel address before uploading an image.");
+      setImageUploads(current=>({...current,[key]:{status:"failed",message:"Add a panel address before uploading an image."}}));
       event.target.value = "";
       return;
     }
-    setUploadingImage(true);
+    const replacing=sectionId?Boolean(sections.find(item=>item.id===sectionId)?.url):Boolean(draft.image);
+    const ticket=uploadCoordinator.current.begin(key);
+    setImageUploads(current=>({...current,[key]:{status:replacing?"replacing":"uploading",message:replacing?"Replacing image…":"Uploading image…"}}));
     try {
       const body = new FormData();
       body.set("file", await prepareEditorialImage(file));
+      if(!ticket.current())return;
       body.set("slug", draft.slug);
       const response = await fetch("/member/editorial/upload", {
         method: "POST",
         body,
+        signal:ticket.signal,
       });
       const payload = (await response.json()) as {
         url?: string;
@@ -684,6 +691,7 @@ function FeatureComposer({
       };
       if (!response.ok || !payload.url)
         throw new Error(payload.error ?? "The image could not be uploaded.");
+      if(!ticket.current())return;
       setDraft((current) => {
         if (sectionId) {
           const next = updateComposerSection(
@@ -703,13 +711,12 @@ function FeatureComposer({
           status: current.status === "submitted" ? "draft" : current.status,
         };
       });
-      setImageMessage("Image uploaded.");
-    } catch {
-      setImageErrorMessage(
-        "We couldn’t upload this image just now. Please try again.",
-      );
+      setImageUploads(current=>({...current,[key]:{status:"uploaded",message:replacing?"This image was replaced. Save again to keep the latest version.":"Uploaded. Ready to save."}}));
+    } catch(error) {
+      if(!ticket.current()||(error instanceof DOMException&&error.name==="AbortError"))return;
+      setImageUploads(current=>({...current,[key]:{status:"failed",message:"The image upload failed. Try again or remove it."}}));
     } finally {
-      setUploadingImage(false);
+      ticket.finish();
       event.target.value = "";
     }
   }
@@ -955,19 +962,10 @@ function FeatureComposer({
             type="file"
             accept="image/png,image/jpeg,image/webp"
             onChange={uploadFeatureImage}
-            disabled={uploadingImage || pending || isPublishReady}
+            disabled={pending || isPublishReady}
           />
         </label>
-        {imageMessage && (
-          <p className="field-help" role="status">
-            {imageMessage}
-          </p>
-        )}
-        {imageErrorMessage && (
-          <p className="field-error" role="alert">
-            {imageErrorMessage}
-          </p>
-        )}
+        {imageUploads.hero && <p className={imageUploads.hero.status==="failed"?"field-error":"field-help"} role={imageUploads.hero.status==="failed"?"alert":"status"}>{imageUploads.hero.message}</p>}
         {draft.image && (
           <img
             className="editorial-image-preview"
@@ -986,7 +984,7 @@ function FeatureComposer({
             name="image"
             placeholder="/assets/koma-feature-placeholder.svg"
             value={draft.image ?? ""}
-            onChange={update("image")}
+            onChange={event=>{clearUpload("hero");update("image")(event);}}
           />
         </label>
         {errors("image")}
@@ -1001,16 +999,20 @@ function FeatureComposer({
             name="imageAlt"
             maxLength={400}
             value={draft.imageAlt ?? ""}
-            onChange={update("imageAlt")}
+            onChange={event=>{if(imageUploads.hero?.status==="failed")clearUpload("hero");update("imageAlt")(event);}}
           />
         </label>
         {errors("imageAlt")}
+        {(draft.image||imageUploads.hero)&&<button type="button" className="op-button" onClick={()=>{clearUpload("hero");setDraft(current=>({...current,image:"",imageAlt:""}));}}>REMOVE FEATURE IMAGE</button>}
         <input type="hidden" name="sections" value={draft.sections} />
         <input type="hidden" name="sectionsJson" value={draft.sectionsJson} />
         <ArticleSectionBuilder
           sections={sections}
           onChange={changeSections}
           upload={uploadFeatureImage}
+          uploadStates={imageUploads}
+          onImageEdit={clearUpload}
+          onRemove={id=>clearUpload(id)}
         />
         <div className="composer-action-help">
           <p>Save keeps this private in MY PANELS.</p>
@@ -1035,7 +1037,7 @@ function FeatureComposer({
             name="intent"
             value="save"
             onClick={() => setSubmitIntent("save")}
-            disabled={pending || uploadingImage || isPublishReady}
+            disabled={pending || uploadPending || isPublishReady}
           >
             {pending && submitIntent === "save"
               ? "SAVING…"
@@ -1049,7 +1051,7 @@ function FeatureComposer({
             value="submit"
             onClick={() => setSubmitIntent("submit")}
             disabled={
-              pending || uploadingImage || isSubmitted || isPublishReady
+              pending || uploadPending || isSubmitted || isPublishReady
             }
           >
             {pending && submitIntent === "submit"
