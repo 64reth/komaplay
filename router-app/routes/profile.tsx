@@ -172,6 +172,9 @@ export default function Profile() {
             <Link to="/editorial">EDITORIAL DASHBOARD</Link>
           )}
           {result.capabilities.moderation && (
+            <Link to="/cover-editor">COVER EDITOR</Link>
+          )}
+          {result.capabilities.moderation && (
             <Link to="/moderation">MODERATION</Link>
           )}
         </nav>

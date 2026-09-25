@@ -871,6 +871,7 @@ function FeatureComposer({
           Title
           <input
             {...attrs("title")}
+            spellCheck
             name="title"
             required
             minLength={4}
@@ -903,6 +904,7 @@ function FeatureComposer({
           Standfirst / summary
           <textarea
             {...attrs("summary")}
+            spellCheck
             name="summary"
             required
             minLength={8}

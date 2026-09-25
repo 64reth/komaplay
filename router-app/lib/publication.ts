@@ -18,6 +18,16 @@ export type Issue = {
   title: string;
   subtitle: string;
   cover_label: string;
+  cover_art: string;
+  cover_art_alt: string;
+  cover_art_credit: string;
+  lead_feature_id: string | null;
+  lead_headline: string;
+  cover_theme: string;
+  secondary_cover_lines: { position: "left-rail"|"right-rail"|"bottom-strip"|"top-kicker"; headline:string }[];
+  editor_note_teaser: string;
+  featuring_line: string;
+  cover_preset: "minimal"|"feature-heavy"|"interview-special"|"archive-classic";
   introduction: string;
   year: number;
   month: number;
@@ -27,6 +37,7 @@ export type Issue = {
   archived_at: string | null;
   closing_days: number;
 };
+export const publicCoverArt = (path:string) => path.startsWith("editorial/") ? `/api/cover/image?path=${encodeURIComponent(path)}` : resolvePublicMediaPath(path);
 export type Drop = {
   id: string;
   issue_id: string;

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { Catalogue, Issue } from "../../lib/publication";
+import { publicCoverArt, type Catalogue, type Issue } from "../../lib/publication";
 export function ArchiveIssueCard({
   issue,
   data,
@@ -21,8 +21,8 @@ export function ArchiveIssueCard({
           { month: "long", year: "numeric", timeZone: "UTC" },
         )}
       </span>
-      <span className="archive-cover">
-        {String(issue.issue_number).padStart(2, "0")}
+      <span className={`archive-cover archive-cover-${issue.cover_preset}`}>
+        {issue.cover_art && <img src={publicCoverArt(issue.cover_art)} alt={issue.cover_art_alt}/>}<span className="archive-cover-masthead">KOMA://PLAY</span><span className="archive-cover-number">ISSUE {String(issue.issue_number).padStart(2, "0")}</span><strong>{issue.lead_headline||issue.title}</strong>{issue.cover_theme&&<em>{issue.cover_theme}</em>}
       </span>
       <h3>{issue.title}</h3>
       <p>{issue.subtitle}</p>
@@ -37,7 +37,7 @@ export function ArchiveIssueCard({
             })
           : "—"}
       </small>
-      <b>{issue.cover_label} ↗</b>
+      <b>{issue.cover_label || "READ THE ISSUE"} ↗</b>
     </Link>
   );
 }

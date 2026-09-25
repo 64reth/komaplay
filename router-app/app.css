@@ -3098,3 +3098,34 @@ html {
 
 .composer-module[aria-invalid="true"] { border: 2px solid var(--color-danger); }
 .op-form [aria-invalid="true"] { border-color: var(--color-danger); }
+
+.cover-editor-grid { display:grid; grid-template-columns:minmax(320px, 0.9fr) minmax(360px, 1.1fr); gap:clamp(24px,4vw,64px); align-items:start; margin-top:32px; }
+.cover-editor-controls form { display:grid; gap:18px; }
+.cover-editor-controls fieldset { display:grid; gap:14px; margin:0; padding:18px; border:1px solid var(--ink); }
+.cover-editor-controls legend { padding:0 8px; font:700 .72rem monospace; letter-spacing:.08em; text-transform:uppercase; }
+.cover-editor-controls label { display:grid; gap:7px; font:700 .68rem monospace; letter-spacing:.04em; text-transform:uppercase; }
+.cover-editor-controls label small { color:var(--color-danger); text-transform:none; letter-spacing:0; }
+.cover-field-pair { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.cover-preview-column { position:sticky; top:24px; min-width:0; }
+.cover-preview { container-type:inline-size; position:relative; isolation:isolate; display:grid; grid-template-rows:auto 1fr auto; width:min(100%,680px); aspect-ratio:3/4; overflow:hidden; border:1px solid var(--ink); background:var(--paper); color:var(--ink); }
+.cover-preview-art { position:absolute; inset:0; z-index:-2; display:grid; place-items:center; font:700 .7rem monospace; }
+.cover-preview-art img { width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.2); }
+.cover-preview::after { content:""; position:absolute; inset:0; z-index:-1; background:linear-gradient(180deg,var(--paper) 0%,color-mix(in srgb,var(--paper) 86%,transparent) 15%,transparent 44%,color-mix(in srgb,var(--paper) 78%,transparent) 75%,var(--paper) 100%); pointer-events:none; }
+.cover-preview header { display:flex; justify-content:space-between; gap:12px; padding:4cqi; border-bottom:1px solid; font:700 clamp(.55rem,2.1cqi,.85rem) monospace; }
+.cover-preview header strong { font-family:Impact,"Arial Narrow",Arial,sans-serif; font-size:clamp(2rem,10cqi,5rem); line-height:.8; letter-spacing:-.04em; }
+.cover-preview header span { max-width:14ch; text-align:right; }
+.cover-preview h2 { align-self:end; margin:0; padding:5cqi 4cqi; max-width:13ch; font-family:Impact,"Arial Narrow",Arial,sans-serif; font-size:clamp(2rem,11cqi,5.4rem); line-height:.88; letter-spacing:-.035em; text-wrap:balance; text-transform:uppercase; }
+.cover-preview p { margin:0; }
+.cover-theme { position:absolute; top:18cqi; left:4cqi; max-width:30ch; font:700 clamp(.55rem,2cqi,.8rem) monospace; letter-spacing:.12em; text-transform:uppercase; }
+.cover-line { position:absolute; max-width:20ch; font:700 clamp(.55rem,2.2cqi,.9rem)/1.2 monospace; text-transform:uppercase; }
+.cover-top { top:25cqi; left:4cqi; }.cover-left{left:4cqi;top:44%;}.cover-right{right:4cqi;top:38%;text-align:right}.cover-bottom{right:4cqi;bottom:15cqi;text-align:right}
+.cover-preview footer { display:flex; justify-content:space-between; gap:16px; align-items:end; padding:3cqi 4cqi; border-top:1px solid; font:700 clamp(.5rem,1.8cqi,.75rem)/1.3 monospace; }
+.cover-feature-heavy h2 { max-width:16ch; font-size:clamp(1.8rem,9cqi,4.6rem); }.cover-interview-special h2{text-align:right;margin-left:auto}.cover-archive-classic::after{background:linear-gradient(90deg,var(--paper),color-mix(in srgb,var(--paper) 84%,transparent) 55%,transparent)}
+.archive-cover { position:relative; isolation:isolate; display:grid; align-content:space-between; aspect-ratio:3/4; overflow:hidden; padding:12px; font-size:inherit; background:var(--paper); }
+.archive-cover::after { content:""; position:absolute; inset:0; z-index:-1; background:linear-gradient(var(--paper),transparent 35%,color-mix(in srgb,var(--paper) 82%,transparent),var(--paper)); }
+.archive-cover img { position:absolute; inset:0; z-index:-2; width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.2); }
+.archive-cover-masthead { font:900 clamp(1.7rem,3vw,3rem)/.85 Impact,"Arial Narrow",Arial,sans-serif; }
+.archive-cover-number { font:700 .58rem monospace; text-align:right; }
+.archive-cover strong { align-self:end; max-width:12ch; font:900 clamp(1.6rem,3vw,2.8rem)/.88 Impact,"Arial Narrow",Arial,sans-serif; text-transform:uppercase; }
+.archive-cover em { font:700 .58rem monospace; text-transform:uppercase; }
+@media(max-width:820px){.cover-editor-grid{grid-template-columns:1fr}.cover-preview-column{position:static}.cover-preview{width:min(100%,520px);margin-inline:auto}.cover-field-pair{grid-template-columns:1fr}.cover-editor{padding-inline:14px}}

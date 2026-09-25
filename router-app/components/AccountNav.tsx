@@ -460,6 +460,11 @@ export function AccountNav() {
             HANDBOOK
           </Link>
           {data.capabilities?.moderation && (
+            <Link role="menuitem" to="/cover-editor" onClick={() => setMenuOpen(false)}>
+              COVER EDITOR
+            </Link>
+          )}
+          {data.capabilities?.moderation && (
             <Link
               role="menuitem"
               to="/moderation"

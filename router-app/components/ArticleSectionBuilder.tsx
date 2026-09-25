@@ -19,14 +19,14 @@ function SectionFields({ section, change, upload, issues }: { issues: DocumentIs
     {errors("url")}
     <label>Alt text (required)<input {...attrs("alt")} value={section.alt ?? ""} onChange={e => change({ alt: e.target.value })} maxLength={400} /></label>
     {errors("alt")}
-    <label>Caption (optional)<input {...attrs("text")} value={section.text ?? ""} onChange={e => change({ text: e.target.value })} /></label>{errors("text")}
+    <label>Caption (optional)<input {...attrs("text")} spellCheck value={section.text ?? ""} onChange={e => change({ text: e.target.value })} /></label>{errors("text")}
   </>;
   if (section.type === "video") return <><label>YouTube/Twitch URL<input {...attrs("url")} value={section.url ?? ""} onChange={e => change({ url: e.target.value })} maxLength={2000} /></label>{errors("url")}</>;
-  if (section.type === "heading") return <><label>Heading text<input {...attrs("text")} value={section.text ?? ""} onChange={e => change({ text: e.target.value })} maxLength={20000} /></label>{errors("text")}</>;
+  if (section.type === "heading") return <><label>Heading text<input {...attrs("text")} spellCheck value={section.text ?? ""} onChange={e => change({ text: e.target.value })} maxLength={20000} /></label>{errors("text")}</>;
   return <>
     {section.type === "paragraph" && <WritingToolbar inlineOnly textareaRef={ref} value={section.text ?? ""} onChange={text => change({ text })} label="Paragraph writing tools" />}
     <label>{section.type.includes("list") ? "Items — one per line" : section.type === "quote" ? "Quote text" : "Paragraph text"}
-      <textarea {...attrs("text")} ref={ref} rows={5} maxLength={20000} value={section.text ?? ""} onChange={e => change({ text: e.target.value })} />
+      <textarea {...attrs("text")} ref={ref} rows={5} maxLength={20000} spellCheck value={section.text ?? ""} onChange={e => change({ text: e.target.value })} />
     </label>
     {errors("text")}
     {section.type === "quote" && <label>Attribution (optional)<input {...attrs("attribution")} maxLength={400} value={section.attribution ?? ""} onChange={e => change({ attribution: e.target.value })} /></label>}

@@ -1,7 +1,7 @@
 export const siteOrigin = "https://komaplay.com";
 export function privatePath(path: string) {
   return (
-    /^\/(?:editorial|moderation|publishing|profile|onboarding|auth|member|api)(?:\/|$)/.test(
+    /^\/(?:editorial|moderation|cover-editor|publishing|profile|onboarding|auth|member|api)(?:\/|$)/.test(
       path,
     ) || /^\/features\/[^/]+\/(workshop|correction)$/.test(path)
   );

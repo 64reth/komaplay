@@ -23,9 +23,11 @@ export default [
   route("profile/settings", "routes/profile-settings.tsx"),
   route("editorial", "routes/editorial.tsx"),
   route("moderation", "routes/moderation.tsx"),
+  route("cover-editor", "routes/cover-editor.tsx"),
   route("admin", "routes/admin.tsx"),
   route("api/open-panel/image", "routes/public-image.ts"),
   route("api/editorial/image", "routes/editorial-image.tsx"),
+  route("api/cover/image", "routes/cover-image.ts"),
   route("member/editorial/upload", "routes/editorial-upload.tsx"),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

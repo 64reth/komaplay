@@ -40,7 +40,7 @@ const empty = (): Catalogue => ({
 
 const publicColumns = {
   issues:
-    "id,issue_number,slug,title,subtitle,cover_label,introduction,year,month,status,opens_at,closes_at,archived_at,closing_days",
+    "id,issue_number,slug,title,subtitle,cover_label,introduction,year,month,status,opens_at,closes_at,archived_at,closing_days,cover_art,cover_art_alt,cover_art_credit,lead_feature_id,lead_headline,cover_theme,secondary_cover_lines,editor_note_teaser,featuring_line,cover_preset",
   weekly_drops:
     "id,issue_id,week_number,label,introduction,status,scheduled_at,published_at,display_order",
   features:
@@ -265,4 +265,13 @@ export async function signedPublishedImage(path: string) {
     .from("open-panel-screenshots")
     .createSignedUrl(path, 60);
   return error || !data ? null : data.signedUrl;
+}
+
+export async function signedArchivedCoverImage(path:string){
+  if(!/^editorial\/[0-9a-f-]{36}\/[a-z0-9-]{3,80}\/[0-9a-f-]{36}\.(?:png|jpg|webp)$/.test(path))return null;
+  const db=client();if(!db)return null;
+  const issue=await db.from("issues").select("id").eq("status","archived").eq("cover_art",path).maybeSingle();
+  if(issue.error||!issue.data)return null;
+  const signed=await db.storage.from("editorial-feature-images").createSignedUrl(path,60);
+  return signed.error||!signed.data?null:signed.data.signedUrl;
 }

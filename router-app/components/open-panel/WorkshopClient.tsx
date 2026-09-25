@@ -219,13 +219,14 @@ export function WorkshopClient({
           </label>
           <label>
             Title
-            <input name="title" required minLength={4} maxLength={120} />
+            <input name="title" required minLength={4} maxLength={120} spellCheck />
           </label>
           <label>
             Contribution
             <span className="field-help">Use the writing tools for simple Markdown-style formatting. Raw text stays editable.</span>
             <WritingToolbar textareaRef={bodyRef} value={bodyText} onChange={setBodyText} label="Workshop contribution writing tools" />
             <textarea
+              spellCheck
               ref={bodyRef}
               name="body"
               required
