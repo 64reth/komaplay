@@ -26,7 +26,7 @@ test('production missing-column error is reproduced, then narrow migration repai
       create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
       grant usage on schema public,auth,storage to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;
       create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-      create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);
+      create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text,owner_id text default auth.uid()::text);
       alter table storage.objects enable row level security; grant select,insert on storage.objects to anon,authenticated;
       create function storage.foldername(text) returns text[] language sql as $$select string_to_array($1,'/')$$;`);
     for (const file of (await readdir('supabase/migrations')).filter(f => f.endsWith('.sql') && f <= '202609140001_editorial_feature_image_upload.sql').sort()) {

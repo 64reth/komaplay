@@ -3132,3 +3132,5 @@ html {
 .archive-cover strong { align-self:end; max-width:12ch; font:900 clamp(1.6rem,3vw,2.8rem)/.88 Impact,"Arial Narrow",Arial,sans-serif; text-transform:uppercase; }
 .archive-cover em { font:700 .58rem monospace; text-transform:uppercase; }
 @media(max-width:900px){.cover-editor-grid{grid-template-columns:minmax(0,1fr)}.cover-preview-column{position:static;order:-1;justify-self:center}.cover-preview{margin-inline:auto}.cover-field-pair{grid-template-columns:1fr}.cover-editor{padding-inline:14px}}
+
+.cover-pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:24px;margin:24px 0}.cover-pool-card{min-width:0;overflow-wrap:anywhere}.cover-pool-card form{display:flex;flex-wrap:wrap;gap:8px}.cover-pool-card fieldset{min-width:0;max-width:100%}

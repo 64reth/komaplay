@@ -37,7 +37,7 @@ export type Issue = {
   archived_at: string | null;
   closing_days: number;
 };
-export const publicCoverArt = (path:string) => path.startsWith("editorial/") ? `/api/cover/image?path=${encodeURIComponent(path)}` : resolvePublicMediaPath(path);
+export const publicCoverArt = (path:string) => (path.startsWith("editorial/") || path.startsWith("cover-pool/")) ? `/api/cover/image?path=${encodeURIComponent(path)}` : resolvePublicMediaPath(path);
 export type Drop = {
   id: string;
   issue_id: string;

@@ -268,6 +268,11 @@ export async function signedPublishedImage(path: string) {
 }
 
 export async function signedArchivedCoverImage(path:string){
+  if(path.startsWith("cover-pool/")){
+    const db=client();if(!db)return null;
+    const result=await db.storage.from("issue-cover-pool").createSignedUrl(path,60);
+    return result.error||!result.data?null:result.data.signedUrl;
+  }
   if(!/^editorial\/[0-9a-f-]{36}\/[a-z0-9-]{3,80}\/[0-9a-f-]{36}\.(?:png|jpg|webp)$/.test(path))return null;
   const db=client();if(!db)return null;
   const issue=await db.from("issues").select("id").eq("status","archived").eq("cover_art",path).maybeSingle();
