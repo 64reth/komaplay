@@ -205,6 +205,7 @@ export function FeatureStrip({
         tabIndex={0}
         role="group"
         aria-label="Featured stories. Use left and right arrows to scroll."
+        onPointerEnter={() => setPaused(true)}
         onPointerDown={(e) => {
           if (e.pointerType === "mouse" && e.button === 0)
             drag.current = {
