@@ -40,7 +40,7 @@ test("documents hub links signed-out readers to available public documents", () 
 test("public navigation exposes About and Documents without dead ends", () => {
   assert.match(masthead, /to="\/about"/);
   assert.match(masthead, />\s*ABOUT\s*</);
-  assert.match(issueNavigation, /to="\/about"/);
+  assert.doesNotMatch(issueNavigation, /to="\/about"/);
   assert.match(home, /to="\/about"/);
   assert.match(home, /to="\/documents"/);
   assert.match(about, /to="\/documents"/);

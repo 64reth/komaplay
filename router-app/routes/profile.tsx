@@ -1,3 +1,5 @@
+import {contributionState} from "../lib/contribution-state";
+import {SaveFeature} from "../components/SaveFeature";
 import { data, Link, useLoaderData } from "react-router";
 import type { Route } from "./+types/profile";
 import { Masthead } from "../components/Masthead";
@@ -14,6 +16,7 @@ export const meta: Route.MetaFunction = () => [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const resolved = await resolveAuth(request);
+  resolved.headers.set("Cache-Control","private, no-store");
   if (
     resolved.auth.state === "unconfigured" ||
     resolved.auth.state === "signed-out"
@@ -46,7 +49,8 @@ export async function loader({ request }: Route.LoaderArgs) {
       .single(),
     resolved.client
       .from("contributions")
-      .select("id,status,feature_id,created_at")
+      .select("id,status,feature_id,created_at,incorporated_at")
+      .is("withdrawn_at",null)
       .eq("author_id", resolved.user.id)
       .order("created_at", { ascending: false }),
     memberCapabilities(resolved.client, member),
@@ -57,31 +61,25 @@ export async function loader({ request }: Route.LoaderArgs) {
       { state: "unavailable" as const },
       { headers: resolved.headers },
     );
-  const featureIds = [
-    ...new Set((contributionsResult.data ?? []).map((item) => item.feature_id)),
-  ];
-  const features = featureIds.length
-    ? await resolved.client
-        .from("features")
-        .select("id,title,slug")
-        .in("id", featureIds)
-    : { data: [], error: null };
-  const acceptedIds = (contributionsResult.data ?? [])
-    .filter((item) => item.status === "Accepted")
-    .map((item) => item.id);
-  const citationResult = acceptedIds.length
-    ? await resolved.client
-        .from("panel_citations")
-        .select("id,contribution_id")
-        .in("contribution_id", acceptedIds)
-    : { data: [], error: null };
-
+  const [draftResult,savedResult,states]=await Promise.all([
+    resolved.client.from("workshop_drafts").select("id,feature_id,payload,updated_at").eq("user_id",resolved.user.id).is("submitted_contribution_id",null).order("updated_at",{ascending:false}),
+    resolved.client.from("saved_features").select("feature_id,created_at").eq("user_id",resolved.user.id).order("created_at",{ascending:false}),
+    resolved.client.rpc("my_contribution_publication"),
+  ]);
+  if(draftResult.error||savedResult.error||states.error||(capabilities.editorial&&editorialWork.error))return data({state:"unavailable" as const},{headers:resolved.headers});
+  const featureIds=[...new Set([...(contributionsResult.data??[]).map(c=>c.feature_id),...(draftResult.data??[]).map(d=>d.feature_id),...(savedResult.data??[]).map(s=>s.feature_id)])];
+  const features=featureIds.length?await resolved.client.from("public_features").select("id,title,slug").in("id",featureIds):{data:[],error:null};
+  if(features.error)return data({state:"unavailable" as const},{headers:resolved.headers});
+  const publication=states.data as {contribution_id:string;published:boolean;cited:boolean}[];
   return data(
     {
       state: "accepted" as const,
       profile: profileResult.data,
       capabilities,
-      citations: citationResult.error ? 0 : (citationResult.data?.length ?? 0),
+      publication,
+      drafts:(draftResult.data??[]).map(d=>({...d,feature:features.data?.find(f=>f.id===d.feature_id)??null})),
+      saved:(savedResult.data??[]).map(s=>({...s,feature:features.data?.find(f=>f.id===s.feature_id)??null})),
+      citations:publication.filter(p=>p.published&&p.cited).length,
       editorialWork: editorialWork.error ? [] : (editorialWork.data ?? []),
       contributions: (contributionsResult.data ?? []).map((item) => ({
         ...item,
@@ -128,15 +126,13 @@ export default function Profile() {
       <main className="editorial-page">
         <Masthead />
         <section className="op-workspace">
-          <p role="status">VERIFYING MEMBERSHIP…</p>
+          <p role="status">{result.state==="unavailable"?"Your workspace could not be loaded. Please retry; your saved work is retained.":"VERIFYING MEMBERSHIP…"}</p>
           <Link to="/">RETURN TO PUBLICATION</Link>
         </section>
       </main>
     );
 
-  const published = result.contributions.filter(
-    (item) => item.status === "Accepted",
-  ).length;
+  const published = result.publication.filter(p=>p.published).length;
   const panelRows: PanelDirectoryRow[] = [
     ...(result.capabilities.editorial
       ? result.editorialWork.map((item: EditorialWorkItem) => ({
@@ -153,7 +149,7 @@ export default function Profile() {
       id: `contribution-${contribution.id}`,
       title: contribution.feature?.title ?? "Feature unavailable",
       type: "Open Panel Contribution",
-      status: contribution.status,
+      status: contributionState(contribution,result.publication.find(p=>p.contribution_id===contribution.id)?.published,result.publication.find(p=>p.contribution_id===contribution.id)?.cited),
       date: new Date(contribution.created_at).toLocaleDateString("en-GB"),
       meta: contribution.feature?.slug ?? "",
       action: contribution.feature ? <Link to={`/features/${contribution.feature.slug}/workshop`}>VIEW →</Link> : <span>Unavailable</span>,
@@ -188,12 +184,17 @@ export default function Profile() {
           {published} published contributions · {result.citations} Panel
           Citations
         </p>
+        {result.drafts.length>0&&<section><h2>WORKSHOP DRAFTS</h2>{result.drafts.map(d=><div key={d.id}>{String(d.payload.title||"Untitled proposal")} · {d.feature?<Link to={`/features/${d.feature.slug}/workshop?draft=${d.id}`}>CONTINUE →</Link>:<details><summary>Panel unavailable · recover your writing</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{String(d.payload.body||"")}</pre></details>}</div>)}</section>}
+        {result.contributions.some(c=>c.status==="Changes Requested")&&<section><h2>NEEDS YOUR ATTENTION</h2>{result.contributions.filter(c=>c.status==="Changes Requested").map(c=><p key={c.id}>{c.feature?<Link to={`/features/${c.feature.slug}/workshop`}>{c.feature.title} · REVISE →</Link>:"Panel unavailable"}</p>)}</section>}
+        <section><h2>SAVED</h2>{result.saved.length?result.saved.map(s=><p key={s.feature_id}>{s.feature?<Link to={`/features/${s.feature.slug}`}>{s.feature.title}</Link>:"This saved panel is no longer available."} <SaveFeature feature={s.feature_id}/></p>):<p>No saved panels yet. Use Save on a published panel.</p>}</section>
         <section id="panels">
-          <h2>MY PANELS</h2>
-          {!result.capabilities.editorial && <p>Editorial access is granted by moderators.</p>}
+          <h2>YOUR CONTRIBUTIONS</h2>
+
           <PanelDirectory label="My Panels" rows={panelRows} empty="No panels yet." />
         </section>
       </div>
     </main>
   );
 }
+
+export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};

@@ -1,3 +1,7 @@
-import type { Route } from "./+types/cover-image";
-import { signedArchivedCoverImage } from "../lib/publication.server";
-export async function loader({request}:Route.LoaderArgs){const path=new URL(request.url).searchParams.get("path")??"";const url=await signedArchivedCoverImage(path);return url?Response.redirect(url,302):new Response("Cover image unavailable.",{status:404});}
+// Legacy storage-path URLs are closed. Public covers use /api/public-media/:reference.
+export async function loader() {
+  return new Response("Cover image unavailable.", {
+    status: 404,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}

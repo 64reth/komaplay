@@ -153,11 +153,11 @@ test("published credits and Panel Citations expose only curated public provenanc
         additions: [
           {
             id: "addition-one",
-            contribution_id: "contribution-one",
+            addition_id: "addition-one",
             heading: "Hold meter",
             body: "A curated addition.",
             target_section: "Meter",
-            contributor_id: "person-one",
+            credit_id: "person-one",
             revision_number: 3,
             published_at: "2026-09-10T00:00:00Z",
             contributor: { id: "person-one", display_name: "Kai M." },
@@ -166,7 +166,7 @@ test("published credits and Panel Citations expose only curated public provenanc
         citations: [
           {
             id: "citation-one",
-            contribution_id: "contribution-one",
+            addition_id: "addition-one",
             public_credit: "Kai M.",
             contribution_type: "Strategy",
             source_url: "https://example.com/evidence",

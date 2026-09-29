@@ -105,7 +105,7 @@ export function CommunityAdditions({
             <p className="op-eyebrow">
               FROM THE OPEN PANEL ·{" "}
               {additionLabel(
-                citations.find((c) => c.contribution_id === a.contribution_id)
+                citations.find((c) => c.addition_id === a.id)
                   ?.contribution_type ?? "",
               )}
             </p>
@@ -115,7 +115,7 @@ export function CommunityAdditions({
               <figure>
                 <img
                   className="op-screenshot"
-                  src={`/api/open-panel/image?path=${encodeURIComponent(a.screenshot_path)}`}
+                  src={a.screenshot_path}
                   alt={`Published screenshot: ${a.heading}`}
                 />
               </figure>
@@ -144,7 +144,7 @@ export function CommunityAdditions({
               Contributor · Edited into Revision {a.revision_number} ·{" "}
               <PanelCitationDisclosure
                 citation={citations.find(
-                  (c) => c.contribution_id === a.contribution_id,
+                  (c) => c.addition_id === a.id,
                 )}
               />
             </small>
@@ -217,7 +217,7 @@ export function RevisionHistory({
             </b>
             <p>{r.summary}</p>
             <small>
-              {r.contributor_ids
+              {r.credit_ids
                 .map(
                   (id) =>
                     credits.find((c) => c.id === id)?.display_name ?? "Reader",

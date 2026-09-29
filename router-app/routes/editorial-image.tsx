@@ -14,5 +14,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!client) return new Response("Editorial image unavailable.", { status: 404 });
   const signed = await client.storage.from(editorialImageBucket).createSignedUrl(path, 60);
   if (signed.error || !signed.data) return new Response("Editorial image unavailable.", { status: 404 });
-  return redirect(signed.data.signedUrl);
+  resolved.headers.set("Cache-Control","private, no-store");
+  resolved.headers.set("Vary","Cookie");
+  return redirect(signed.data.signedUrl,{headers:resolved.headers});
 }

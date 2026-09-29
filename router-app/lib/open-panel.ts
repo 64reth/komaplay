@@ -132,18 +132,18 @@ export type Addition = {
   source_url?: string;
   media_url?: string;
   id: string;
-  contribution_id: string;
   heading: string;
   body: string;
   target_section: string;
-  contributor_id: string;
+  // Opaque publication-credit ID, never a profile/account ID. Null for anonymous work.
+  credit_id: string | null;
   revision_number: number;
   published_at: string;
   contributor?: Credit;
 };
 export type PanelCitation = {
+  addition_id: string;
   id: string;
-  contribution_id: string;
   public_credit: string;
   contribution_type: string;
   source_url: string;
@@ -158,7 +158,7 @@ export type Revision = {
   revision_number: number;
   summary: string;
   created_at: string;
-  contributor_ids: string[];
+  credit_ids: string[];
 };
 export type PanelData = {
   feature: {
@@ -190,6 +190,6 @@ export const publishedCredits = (additions: Addition[]) => [
   ...new Map(
     additions
       .filter((a) => a.contributor)
-      .map((a) => [a.contributor_id, a.contributor!]),
+      .map((a) => [a.credit_id, a.contributor!]),
   ).values(),
 ];

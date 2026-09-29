@@ -11,7 +11,7 @@ export function ArchiveIssueCard({
   const contributors = new Set(
     data.credits
       .filter((c) => features.some((f) => f.id === c.feature_id))
-      .map((c) => c.contributor_id),
+      .map((c) => c.credit_id),
   );
   return (
     <Link className="archive-issue" to={`/issues/${issue.slug}`}>

@@ -68,6 +68,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   );
   const open = publicOpen && !serverOpen.error && serverOpen.data === true;
   access = open ? "member" : "closed";
+  const publication=await resolved.client.rpc("my_contribution_publication");
   const [contributionResult, profileResult, activityResult] = await Promise.all(
     [
       resolved.client
@@ -85,15 +86,17 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         .eq("id", resolved.user.id)
         .single(),
       resolved.client
-        .from("panel_citations")
+        .from("public_citations")
         .select("public_credit,contribution_type,published_at")
         .eq("feature_id", feature.id)
         .order("published_at", { ascending: false })
         .limit(3),
     ],
   );
+  if(contributionResult.error||publication.error)throw data("Your contributions could not be loaded. Please retry; your drafts are retained.",{status:503,headers:resolved.headers});
   return data(
     {
+      ownerId:resolved.user.id,publication:publication.data??[],
       feature,
       issue,
       now: all.now,
@@ -137,9 +140,7 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
             <Link to="/profile">PROFILE</Link>
             <Link to="/handbook">COMMUNITY HANDBOOK</Link>
           </nav>
-          <p className="workshop-flow-status" role="status">
-            DRAFT · LIVE SOURCE · READY FOR PANEL
-          </p>
+          <Link to={`/features/${feature.slug}/report`}>REPORT A PROBLEM PRIVATELY</Link>
         </header>
         {access === "signed-out" && (
           <WorkshopInvitation slug={feature.slug} title={feature.title} />
@@ -176,6 +177,8 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
               </p>
             )}
             <WorkshopClient
+              ownerId={"ownerId" in loaderData?loaderData.ownerId:""}
+              publication={"publication" in loaderData?loaderData.publication:[]}
               featureId={feature.id}
               featureSlug={feature.slug}
               defaultCredit={loaderData.defaultCredit}
@@ -189,3 +192,5 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
     </main>
   );
 }
+
+export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};

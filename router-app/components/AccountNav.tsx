@@ -1,3 +1,4 @@
+import {clearPrivateRecovery} from "../lib/workshop-recovery";
 import {
   Link,
   useLocation,
@@ -317,7 +318,7 @@ export function AccountNav() {
         return;
       }
       if (event === "TOKEN_REFRESHED") return;
-      if (event === "SIGNED_OUT") setSessionArrived(false);
+      if (event === "SIGNED_OUT") {setSessionArrived(false);clearPrivateRecovery();}
       setDialog(null);
       setMenuOpen(false);
       if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "SIGNED_OUT")

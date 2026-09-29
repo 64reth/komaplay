@@ -20,9 +20,6 @@ const schema = z.object({
   penName: z.string().trim().max(80),
   bio: z.string().trim().max(280),
   defaultCredit: z.enum(["Display name", "Pen name", "Anonymous Panelist"]),
-  motionPreference: z.enum(["Follow system", "Reduce motion"]),
-  workshopDensity: z.enum(["Comfortable", "Compact"]),
-  interests: z.string().max(400),
 });
 
 async function acceptedContext(request: Request) {
@@ -100,15 +97,7 @@ export async function action({ request }: Route.ActionArgs) {
       penName: form.get("penName") ?? "",
       bio: form.get("bio") ?? "",
       defaultCredit: form.get("defaultCredit"),
-      motionPreference: form.get("motionPreference"),
-      workshopDensity: form.get("workshopDensity"),
-      interests: form.get("interests") ?? "",
     });
-    const interests = value.interests
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 20);
     const update = await resolved.client
       .from("profiles")
       .update({
@@ -116,14 +105,6 @@ export async function action({ request }: Route.ActionArgs) {
         pen_name: value.penName,
         bio: value.bio,
         default_credit: value.defaultCredit,
-        profile_public: form.get("profilePublic") === "on",
-        history_public: form.get("historyPublic") === "on",
-        workbench_visible: form.get("workbenchVisible") === "on",
-        interests,
-        motion_preference: value.motionPreference,
-        workshop_density: value.workshopDensity,
-        newsletter_opt_in: form.get("newsletterOptIn") === "on",
-        status_email_opt_in: form.get("statusEmailOptIn") === "on",
       })
       .eq("id", resolved.user.id);
     if (update.error) throw update.error;
@@ -214,74 +195,8 @@ export default function ProfileSettings() {
               <option>Anonymous Panelist</option>
             </select>
           </label>
-          <label>
-            Interests, separated by commas
-            <input
-              name="interests"
-              defaultValue={profile.interests.join(", ")}
-              maxLength={400}
-            />
-          </label>
-          <label>
-            Workshop density
-            <select
-              name="workshopDensity"
-              defaultValue={profile.workshop_density}
-            >
-              <option>Comfortable</option>
-              <option>Compact</option>
-            </select>
-          </label>
-          <label>
-            Motion
-            <select
-              name="motionPreference"
-              defaultValue={profile.motion_preference}
-            >
-              <option>Follow system</option>
-              <option>Reduce motion</option>
-            </select>
-          </label>
-          <label className="op-check">
-            <input
-              type="checkbox"
-              name="profilePublic"
-              defaultChecked={profile.profile_public}
-            />
-            Make my selected profile identity public
-          </label>
-          <label className="op-check">
-            <input
-              type="checkbox"
-              name="historyPublic"
-              defaultChecked={profile.history_public}
-            />
-            Show my published contribution history
-          </label>
-          <label className="op-check">
-            <input
-              type="checkbox"
-              name="workbenchVisible"
-              defaultChecked={profile.workbench_visible}
-            />
-            Allow my selected name in privacy-safe Workbench activity
-          </label>
-          <label className="op-check">
-            <input
-              type="checkbox"
-              name="newsletterOptIn"
-              defaultChecked={profile.newsletter_opt_in}
-            />
-            Receive the editorial newsletter
-          </label>
-          <label className="op-check">
-            <input
-              type="checkbox"
-              name="statusEmailOptIn"
-              defaultChecked={profile.status_email_opt_in}
-            />
-            Receive contribution status emails
-          </label>
+          <p className="field-help">Public credit is chosen for each contribution. Changing this default does not rename previously published work or reveal anonymous contributions.</p>
+          <p className="field-help">Category interests, email subscriptions and display preferences will return when their features are available. Existing choices are retained.</p>
           {actionResult?.error && <p role="alert">{actionResult.error}</p>}
           <button
             className="op-button action-primary"
@@ -297,3 +212,5 @@ export default function ProfileSettings() {
     </main>
   );
 }
+
+export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};

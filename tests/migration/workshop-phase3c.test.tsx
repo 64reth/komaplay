@@ -132,9 +132,12 @@ test("Workshop actions retain server membership, feature and duplicate boundarie
     "utf8",
   );
   assert.match(source, /membershipState/);
-  assert.match(source, /feature_accepts_contributions/);
+  const lifecycle = await readFile("supabase/migrations/202609100002_publication_lifecycle.sql", "utf8");
+  assert.match(lifecycle, /perform public.assert_open_panel/);
   assert.match(source, /save_contribution/);
   assert.match(source, /withdraw_contribution/);
-  assert.match(source, /\.gte\("created_at"/);
+  const migration = await readFile("supabase/migrations/202609290001_trust_continuity.sql", "utf8");
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /primary key\(user_id,request_key\)/);
   assert.match(source, /open-panel-screenshots/);
 });

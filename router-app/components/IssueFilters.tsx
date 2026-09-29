@@ -76,7 +76,7 @@ export function DiscoveryForm({
             <option value="">All contributors</option>
             {data.profiles
               .filter((p) =>
-                data.credits.some((c) => c.contributor_id === p.id),
+                data.credits.some((c) => c.credit_id === p.id),
               )
               .map((p) => (
                 <option key={p.id} value={p.id}>

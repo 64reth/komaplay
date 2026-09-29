@@ -36,8 +36,8 @@ test("submitted contributions are frozen until changes are requested", async () 
   assert.match(sql, /Only a changes-requested contribution can be revised/);
   const client = await readFile("router-app/components/open-panel/WorkshopClient.tsx", "utf8");
   assert.match(client, /REVISE AND RESUBMIT/);
-  assert.match(client, /ACCEPTED · AWAITING EDITORIAL INCORPORATION/);
-  assert.match(client, /INCORPORATED \/ PUBLISHED/);
+  assert.match(client, /contributionState/);
+  assert.match(client, /publication.find/);
 });
 
 test("moderation provides an obvious Open Panel queue and hides self-approval controls", async () => {

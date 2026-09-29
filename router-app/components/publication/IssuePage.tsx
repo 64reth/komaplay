@@ -22,7 +22,7 @@ export function IssuePage({ issue, data }: { issue: Issue; data: Catalogue }) {
   const ids = new Set(
     data.credits
       .filter((c) => features.some((f) => f.id === c.feature_id))
-      .map((c) => c.contributor_id),
+      .map((c) => c.credit_id),
   );
   return (
     <>

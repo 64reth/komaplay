@@ -9,6 +9,7 @@ function exposePublicSupabaseEnv(env: Env) {
   for (const name of [
     "TURNSTILE_SITE_KEY",
     "TURNSTILE_SECRET",
+    "SUPABASE_MEDIA_SERVICE_KEY",
     "TURNSTILE_HOSTNAMES",
     "SUPABASE_URL",
     "VITE_SUPABASE_URL",

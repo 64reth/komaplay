@@ -1,3 +1,4 @@
+import {SaveFeature} from "../components/SaveFeature";
 import { data, Link } from "react-router";
 import type { Route } from "./+types/feature";
 import { catalogue, publicEditorialDocument, publicPanel } from "../lib/publication.server";
@@ -61,7 +62,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
             / <Link to={`/issues/${issue.slug}`}>{issue.title}</Link>
           </p>
           <h1>{document.header.title}</h1>
-          <p className="published-dek">{feature.summary}</p>
+          <p className="published-dek">{feature.summary}</p><div className="profile-actions"><SaveFeature feature={feature.id}/><Link to={`/features/${feature.slug}/report`}>REPORT A PROBLEM</Link></div>
           {feature.lifecycle_status === "archived" ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
         </div>
         <div className="published-body">

@@ -1,6 +1,6 @@
 import { data, Form, Link, useActionData } from "react-router";
 import { z } from "zod";
-import type { Route } from "./+types/correction";
+import type { Route } from "./+types/report";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
 import { SignedOutMemberBoundary } from "../components/MemberBoundary";
@@ -91,18 +91,18 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
   return saved.error
     ? data(
-        { error: "The correction could not be submitted. Please retry." },
+        { error: "The report was not confirmed. Your writing remains here; please retry." },
         { status: 409, headers: value.resolved.headers },
       )
     : data(
-        { success: "Correction submitted privately for editorial review." },
+        { success: "Report received privately by Moderation. It will not appear in the Workshop." },
         { headers: value.resolved.headers },
       );
 }
 
 export default function Correction({ loaderData }: Route.ComponentProps) {
   const result = useActionData<typeof action>();
-  const returnTo = `/features/${loaderData.feature.slug}/correction`;
+  const returnTo = `/features/${loaderData.feature.slug}/report`;
   return (
     <main className="editorial-page">
       <Masthead slug={loaderData.feature.slug} />
@@ -111,11 +111,11 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
         <Link to={`/features/${loaderData.feature.slug}`}>
           ← RETURN TO COMMUNITY EDITION
         </Link>
-        <p className="op-eyebrow editorial-marker">PRIVATE CORRECTION</p>
-        <h1>Report a correction</h1><p>For abuse, harassment, unsafe material or moderation concerns, <Link to={`/features/${loaderData.feature.slug}/report`}>report a problem privately</Link>.</p>
+        <p className="op-eyebrow editorial-marker">PRIVATE SAFETY REPORT</p>
+        <h1>Report a problem</h1><p>Report abuse, harassment, unsafe or inappropriate material, or a moderation concern. This goes privately to Moderation. For editorial feedback, <Link to={`/features/${loaderData.feature.slug}/workshop`}>use the Workshop</Link>.</p>
         {loaderData.state === "signed-out" && (
           <SignedOutMemberBoundary
-            title="SIGN IN TO REPORT A CORRECTION"
+            title="SIGN IN TO REPORT A PROBLEM"
             returnTo={returnTo}
           />
         )}
@@ -141,17 +141,14 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
               proposal.
             </p>
             <label>
-              Correction type
-              <select name="kind" defaultValue="Factual error">
-                <option>Factual error</option>
-                <option>Incorrect attribution</option>
-                <option>Broken source</option>
+              Report type
+              <select name="kind" defaultValue="Safety concern">
                 <option>Safety concern</option>
                 <option>Legal or rights concern</option>
               </select>
             </label>
             <label>
-              What should be corrected?
+              What happened?
               <textarea
                 name="body"
                 minLength={20}
@@ -165,7 +162,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
               <input name="source" type="url" placeholder="https://" />
             </label>
             <button className="action-primary">
-              SUBMIT PRIVATE CORRECTION
+              SUBMIT PRIVATE SAFETY REPORT
             </button>
             {result && "error" in result && <p role="alert">{result.error}</p>}
             {result && "success" in result && (

@@ -123,10 +123,10 @@ test("saved draft cards can reopen the composer for editing", () => {
 });
 
 test("profile My Panels lists editorial work alongside Open Panel contributions", () => {
-  assert.match(profileRoute, /MY PANELS/);
+  assert.match(profileRoute, /YOUR CONTRIBUTIONS/);
   assert.match(profileRoute, /editorial_my_work/);
   assert.match(profileRoute, /Open Panel Contribution/);
-  assert.match(profileRoute, /Editorial access is granted by moderators/);
+  assert.match(profileRoute, /WORKSHOP DRAFTS/);
 });
 
 test("changes requested and publish-ready statuses are visible to editors", () => {
@@ -416,7 +416,7 @@ test("phase 4b publish makes canonical documents public and takedown removes the
 test("phase 4b public catalogue includes published editorial panels and excludes taken-down panels", () => {
   const publicationServer = readFileSync("router-app/lib/publication.server.ts", "utf8");
   assert.match(publicationServer, /publicEditorialDocument/);
-  assert.match(publicationServer, /public_editorial_document/);
+  assert.match(publicationServer, /public_attributed_document/);
   assert.match(publicationServer, /!\["draft", "taken_down"\]\.includes\(feature\.lifecycle_status\)/);
   assert.match(featureRoute, /publicEditorialDocument/);
   assert.match(featureRoute, /publishedDocument/);

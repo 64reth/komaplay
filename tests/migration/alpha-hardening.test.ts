@@ -80,7 +80,7 @@ test("complete migrations enforce direct-request quotas, active accounts, privat
     await assert.rejects(db.query('select bootstrap_member_profile()'),/permission denied/);
     await as(owner);
     const version = (
-      await db.query<any>("select * from handbook_versions where active")
+      await db.query<any>("select id,content_hash,statement_version from handbook_versions where active")
     ).rows[0];
     await db.query("select accept_handbook($1,$2,$3,true)", [
       version.id,
@@ -175,7 +175,10 @@ test("complete migrations enforce direct-request quotas, active accounts, privat
     await db.exec('reset role'); await db.exec('set role anon');
     const published=(await db.query<any>("select public_editorial_document('lifecycle-fixture') doc")).rows[0].doc;
     assert.deepEqual(published.modules.map((m:any)=>m.id),sections.map(m=>m.id));
-    assert.equal((await db.query("select * from storage.objects where name=$1",[asset])).rows.length,1);
+    assert.ok(!JSON.stringify(published).includes(owner));
+    assert.ok(!JSON.stringify(published).includes(asset));
+    assert.match(published.modules.find((m:any)=>m.type==='image').content.src,/^\/api\/public-media\/[0-9a-f-]{36}$/);
+    assert.equal((await db.query("select * from storage.objects where name=$1",[asset])).rows.length,0);
     await db.exec('reset role');await as(admin);
     await db.query('select take_down_editorial_panel($1)',[feature]);
     await db.exec('reset role'); await db.exec('set role anon');

@@ -84,7 +84,7 @@ export type Catalogue = {
   tags: Tag[];
   featureTags: { feature_id: string; tag_id: string }[];
   relationships: { feature_id: string; related_id: string; kind: string }[];
-  credits: { feature_id: string; contributor_id: string }[];
+  credits: { feature_id: string; credit_id: string | null }[];
   profiles: { id: string; display_name: string }[];
   message: string | null;
   now: string;
@@ -168,7 +168,7 @@ export function filterFeatures(data: Catalogue, filters: DiscoveryFilters) {
       filters.contributor &&
       !data.credits.some(
         (c) =>
-          c.feature_id === f.id && c.contributor_id === filters.contributor,
+          c.feature_id === f.id && c.credit_id === filters.contributor,
       )
     )
       return false;

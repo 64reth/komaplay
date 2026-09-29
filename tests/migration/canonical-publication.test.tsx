@@ -40,7 +40,7 @@ test('unconfigured publication stays empty, never a demo catalogue',async()=>{
 });
 
 test('public catalogue admits only canonical published documents and fails closed on RPC errors',async()=>{
- const fixture=publicationFixture();const tables:Record<string,unknown[]>={issues:fixture.issues,weekly_drops:fixture.drops,features:fixture.features,categories:fixture.categories,content_formats:fixture.formats,tags:[],feature_tags:[],feature_relationships:[],published_additions:[],public_profiles:[]};
+ const fixture=publicationFixture();const tables:Record<string,unknown[]>={public_issues:fixture.issues,weekly_drops:fixture.drops,public_features:fixture.features,categories:fixture.categories,content_formats:fixture.formats,tags:[],feature_tags:[],feature_relationships:[],public_additions:[],public_credit_profiles:[]};
  let fail=false;const calls:string[]=[];
  const db=createClient('https://catalogue.test','test-key',{auth:{persistSession:false},global:{fetch:async(input,init)=>{
   const url=new URL(String(input));let body:unknown=tables[url.pathname.split('/').pop()!];

@@ -58,6 +58,7 @@ import {
 
 async function editorialContext(request: Request, review = false) {
   const resolved = await resolveAuth(request);
+  resolved.headers.set("Cache-Control","private, no-store");
   if (
     resolved.auth.state !== "authenticated" ||
     !resolved.client ||
@@ -128,6 +129,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     {
       state: "accepted" as const,
       turnstileSiteKey: turnstileSiteKey(),
+      ownerId:resolved.user!.id,
       creationKey: crypto.randomUUID(),
       capabilities: context.capabilities,
       categories: categories.data ?? [],
@@ -435,6 +437,7 @@ type ComposerState = z.infer<typeof draftSchema>;
 
 type AcceptedLoaderData = {
   turnstileSiteKey?: string | null;
+  ownerId?:string;
   creationKey?: string;
   state: "accepted";
   capabilities: { editorial: boolean; moderation: boolean };
@@ -473,7 +476,7 @@ function FeatureComposer({
     );
     return selected ? composerFromWorkItem(selected) : initialComposer;
   });
-  const [creationKey] = useState(result.creationKey ?? "");
+  const [creationKey,setCreationKey] = useState(result.creationKey ?? "");
   const contentSignature = (value: ComposerState) => JSON.stringify({...value,featureId:"",status:"draft"});
   const [savedSignature,setSavedSignature] = useState(()=>contentSignature(draft));
   const sentSignature=useRef(savedSignature);
@@ -484,6 +487,13 @@ function FeatureComposer({
     result.drafts.find((item) => item.feature_id === selectedFeatureId)
       ?.updated_at ?? "",
   );
+  const recoveryPrefix=`koma:editorial:${result.ownerId??""}:${selectedFeatureId||"new"}:`;
+  const [localTab]=useState(()=>crypto.randomUUID());
+  const recoveryKey=recoveryPrefix+localTab;
+  const [recovery,setRecovery]=useState<{draft:ComposerState;version:string;creationKey:string;updated:number;key:string}|null>(null);
+  const [recoveryMessage,setRecoveryMessage]=useState("");
+  useEffect(()=>{try{const candidates=Object.keys(localStorage).filter(k=>k.startsWith(recoveryPrefix)).flatMap(key=>{try{return [{...JSON.parse(localStorage.getItem(key)??"null"),key}];}catch{return [];}}).filter(saved=>saved.updated>Date.now()-30*86400000&&saved.draft&&contentSignature(saved.draft)!==savedSignature).sort((a,b)=>b.updated-a.updated);setRecovery(candidates[0]??null);}catch{setRecoveryMessage("Local recovery unavailable. Save your draft before leaving.");}},[recoveryKey]);
+  useEffect(()=>{if(!dirty||!result.ownerId)return;try{localStorage.setItem(recoveryKey,JSON.stringify({draft,version:expectedUpdatedAt,creationKey,updated:Date.now()}));setRecoveryMessage("SAVED LOCALLY · Save draft to sync with your account.");}catch{setRecoveryMessage("Local recovery unavailable. Keep this tab open until saved to your account.");}},[draft,dirty,expectedUpdatedAt,creationKey,recoveryKey,result.ownerId]);
   const [submitIntent, setSubmitIntent] = useState<"save" | "submit">("save");
   const sections = useMemo(
     () =>
@@ -584,6 +594,8 @@ function FeatureComposer({
     ) {
       if ("savedVersion" in response && typeof response.savedVersion === "string")
         setSavedSignature(sentSignature.current);
+        try{for(const key of Object.keys(localStorage).filter(k=>k.startsWith(recoveryPrefix))){const local=JSON.parse(localStorage.getItem(key)??"null");if(local&&contentSignature(local.draft)===sentSignature.current)localStorage.removeItem(key);}}catch{/* Do not discard content on storage failure. */}
+        setRecoveryMessage("SAVED TO YOUR ACCOUNT");
       const savedWork = result.drafts.find(
         (item) => item.feature_id === response.featureId,
       );
@@ -858,6 +870,8 @@ function FeatureComposer({
           <p>{draft.slug}</p>
         </article>
       )}
+      {recovery&&<section className="op-notice"><p>Unsaved writing is available on this device. Recovering keeps its original server version so it cannot overwrite a newer saved draft.</p><button className="op-button" type="button" onClick={()=>{setDraft(recovery.draft);setExpectedUpdatedAt(recovery.version);setCreationKey(recovery.creationKey);setRecovery(null);setRecoveryMessage("RECOVERED");}}>RECOVER WRITING</button><button className="op-button" type="button" onClick={()=>{try{localStorage.removeItem(recovery.key);}catch{/* Storage may be unavailable. */}setRecovery(null);}}>DISCARD LOCAL RECOVERY</button></section>}
+      {recoveryMessage&&<p role="status">{recoveryMessage}</p>}
       {blocker.state==="blocked" && <section role="alert" className="composer-outcome composer-outcome-blocked"><h2>You have unsaved changes</h2><p>Stay here to save your draft, or leave and discard these changes.</p><button className="op-button" onClick={()=>blocker.reset()}>KEEP EDITING</button><button className="op-button" onClick={()=>blocker.proceed()}>LEAVE WITHOUT SAVING</button></section>}
       <Form method="post" action="/editorial" className="op-form" noValidate onSubmit={()=>{sentSignature.current=contentSignature(draft);}}>
         {result.turnstileSiteKey && (
@@ -1119,3 +1133,5 @@ export default function Editorial() {
     </main>
   );
 }
+
+export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};

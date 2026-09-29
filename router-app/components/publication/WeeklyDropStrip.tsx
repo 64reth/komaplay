@@ -55,7 +55,7 @@ export function WeeklyDropStrip({
         </span>
       </div>
       {items.length ? (
-        <FeatureStrip items={items} label={drop.label} />
+        <FeatureStrip items={items} label="" />
       ) : (
         <p className="op-notice">
           No features in this drop match the selected filters.

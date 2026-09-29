@@ -50,8 +50,8 @@ const publicColumns = {
   tags: "id,name,slug,kind",
   feature_tags: "feature_id,tag_id",
   feature_relationships: "feature_id,related_id,kind",
-  published_additions: "feature_id,contributor_id",
-  public_profiles: "id,display_name",
+  published_additions: "feature_id,credit_id",
+  public_credit_profiles: "id,display_name",
 } as const;
 
 type PublicTable = keyof typeof publicColumns;
@@ -59,7 +59,7 @@ type PublicTable = keyof typeof publicColumns;
 async function publicRows(db: SupabaseClient, name: PublicTable) {
   const rows: unknown[] = [];
   for (let offset = 0; ; offset += 1000) {
-    let query = db.from(name).select(publicColumns[name]);
+    let query = db.from(({features:"public_features",issues:"public_issues",published_additions:"public_additions"} as Partial<Record<PublicTable,string>>)[name]??name).select(publicColumns[name]);
     if (name === "feature_tags")
       query = query.order("feature_id").order("tag_id");
     else if (name === "feature_relationships") {
@@ -123,7 +123,7 @@ export async function catalogue(db: SupabaseClient | null = client()): Promise<C
     // The public RPC enforces publication state without exposing private documents.
     // A feature row alone is not a published editorial panel.
     const canonical = await Promise.all(result.features.map(async (feature) => {
-      const document = await db.rpc("public_editorial_document", { feature_slug: feature.slug });
+      const document = await db.rpc("public_attributed_document", { feature_slug: feature.slug });
       if (document.error) throw new Error("Public editorial query failed");
       return document.data ? feature : null;
     }));
@@ -141,7 +141,7 @@ export async function catalogue(db: SupabaseClient | null = client()): Promise<C
 export async function publicEditorialDocument(slug: string) {
   const db = client();
   if (!db) return null;
-  const result = await db.rpc("public_editorial_document", { feature_slug: slug });
+  const result = await db.rpc("public_attributed_document", { feature_slug: slug });
   return result.error ? null : result.data;
 }
 
@@ -158,7 +158,7 @@ export async function publicPanel(
   }
   try {
     const feature = await db
-      .from("features")
+      .from("public_features")
       .select("id,title,slug,current_revision,updated_at")
       .eq("slug", slug)
       .eq("status", "published")
@@ -173,21 +173,21 @@ export async function publicPanel(
     const [additionsResult, revisionsResult, citationsResult] =
       await Promise.all([
         db
-          .from("published_additions")
+          .from("public_additions")
           .select(
-            "id,contribution_id,feature_id,heading,body,target_section,display_order,contributor_id,screenshot_path,media_url,source_url,published_at,revision_number",
+            "id,feature_id,public_credit,anonymous,heading,body,target_section,display_order,credit_id,screenshot_path,media_url,source_url,published_at,revision_number",
           )
           .eq("feature_id", feature.data.id)
           .order("display_order"),
         db
-          .from("revisions")
-          .select("id,revision_number,summary,created_at,contributor_ids")
+          .from("public_revisions")
+          .select("id,revision_number,summary,created_at,credit_ids")
           .eq("feature_id", feature.data.id)
           .order("revision_number", { ascending: false }),
         db
-          .from("panel_citations")
+          .from("public_citations")
           .select(
-            "id,contribution_id,public_credit,contribution_type,source_url,submitted_at,reviewing_editor,published_at,revision_number,editorial_summary",
+            "id,addition_id,public_credit,contribution_type,source_url,submitted_at,reviewing_editor,published_at,revision_number,editorial_summary",
           )
           .eq("feature_id", feature.data.id),
       ]);
@@ -201,17 +201,15 @@ export async function publicPanel(
       );
     }
     const ids = [
-      ...new Set((additionsResult.data ?? []).map((row) => row.contributor_id)),
+      ...new Set((additionsResult.data ?? []).map((row) => row.credit_id).filter(Boolean)),
     ];
     const profiles = ids.length
-      ? await db.from("public_profiles").select("id,display_name").in("id", ids)
+      ? await db.from("public_credit_profiles").select("id,display_name").in("id", ids)
       : { data: [], error: null };
     if (profiles.error) throw profiles.error;
     const additions = (additionsResult.data ?? []).map((row) => ({
       ...row,
-      contributor: profiles.data?.find(
-        (profile) => profile.id === row.contributor_id,
-      ),
+      contributor: row.credit_id ? {id:row.credit_id,display_name:row.public_credit} : undefined,
     })) as Addition[];
     return {
       data: {
@@ -254,29 +252,4 @@ export async function publicHandbook() {
         message: "The active handbook is temporarily unavailable.",
       }
     : { version: result.data, message: null };
-}
-
-export async function signedPublishedImage(path: string) {
-  if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:png|jpg|webp)$/.test(path))
-    return null;
-  const db = client();
-  if (!db) return null;
-  const { data, error } = await db.storage
-    .from("open-panel-screenshots")
-    .createSignedUrl(path, 60);
-  return error || !data ? null : data.signedUrl;
-}
-
-export async function signedArchivedCoverImage(path:string){
-  if(path.startsWith("cover-pool/")){
-    const db=client();if(!db)return null;
-    const result=await db.storage.from("issue-cover-pool").createSignedUrl(path,60);
-    return result.error||!result.data?null:result.data.signedUrl;
-  }
-  if(!/^editorial\/[0-9a-f-]{36}\/[a-z0-9-]{3,80}\/[0-9a-f-]{36}\.(?:png|jpg|webp)$/.test(path))return null;
-  const db=client();if(!db)return null;
-  const issue=await db.from("issues").select("id").eq("status","archived").eq("cover_art",path).maybeSingle();
-  if(issue.error||!issue.data)return null;
-  const signed=await db.storage.from("editorial-feature-images").createSignedUrl(path,60);
-  return signed.error||!signed.data?null:signed.data.signedUrl;
 }

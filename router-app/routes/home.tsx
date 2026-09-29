@@ -81,10 +81,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       ))}
       <ClosingPanels data={data} features={features} />
-      <Link className="archive-entry" to="/archive">
+      {data.issues.some(i=>i.status==="archived")?<Link className="archive-entry" to="/archive">
         <span>EVERY ISSUE. EVERY REVISION.</span>
         <b>ENTER THE ARCHIVE →</b>
-      </Link>
+      </Link>:<p className="op-workspace">The first archived issue is still taking shape. <Link to="/archive">VIEW ARCHIVE →</Link></p>}
       <footer className="op-footer">
         <span>New panels every week. New issues every month.</span>
         {features[0] && <Link to={`/features/${features[0].slug}`}>Read a panel →</Link>}

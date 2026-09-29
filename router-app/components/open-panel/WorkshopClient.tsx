@@ -1,3 +1,6 @@
+import {useWorkshopRecovery} from "./useWorkshopRecovery";
+import type {DraftContent} from "../../lib/workshop-recovery";
+import {contributionState} from "../../lib/contribution-state";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useRevalidator } from "react-router";
 import {
@@ -30,6 +33,8 @@ async function responseJson(response: Response) {
 }
 
 export function WorkshopClient({
+  ownerId="",
+  publication=[],
   featureId,
   featureSlug,
   defaultCredit,
@@ -37,6 +42,8 @@ export function WorkshopClient({
   activity,
   readOnly,
 }: {
+  ownerId?:string;
+  publication?:{contribution_id:string;published:boolean;cited:boolean}[];
   featureId: string;
   featureSlug: string;
   defaultCredit: string;
@@ -56,6 +63,14 @@ export function WorkshopClient({
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const uploadCoordinator=useRef(new LatestUploadCoordinator());
   useEffect(()=>()=>uploadCoordinator.current.cancelAll(),[]);
+
+  const recovery=useWorkshopRecovery(ownerId,featureId,(content,target)=>{
+    const form=formRef.current;if(!form)return;
+    form.reset();setBodyText(String(content.body??""));setScreenshot(String(content.screenshot_path??""));setEditingId(target);
+    for(const [name,value] of Object.entries(content)){const field=form.elements.namedItem(name);if(field instanceof HTMLInputElement&&field.type==="checkbox")field.checked=value===true;else if(field instanceof HTMLInputElement||field instanceof HTMLSelectElement)field.value=String(value);}
+  });
+  function capture(){if(!formRef.current||busy||readOnly)return;const values=Object.fromEntries(new FormData(formRef.current));if(!values.title&&!bodyRef.current?.value&&!screenshot&&!recovery.hasWriting())return;recovery.change({...values,body:bodyRef.current?.value??bodyText,feature_id:featureId,target_section:genericContributionSection,screenshot_path:screenshot,publication_consent:values.publication_consent==="on"} as DraftContent,editingId);}
+  useEffect(()=>{if(recovery.ready)capture();},[screenshot,editingId,bodyText]);
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -110,13 +125,8 @@ export function WorkshopClient({
       return;
     }
     try {
-      const result = await responseJson(
-        await fetch("/member/workshop/save", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...parsed.data, id: editingId }),
-        }),
-      );
+      capture();
+      const result = await recovery.submit();
       form.reset();
       setBodyText("");
       setScreenshot("");
@@ -138,9 +148,10 @@ export function WorkshopClient({
     }
   }
 
-  function revise(item: Contribution) {
+  async function revise(item: Contribution) {
     const form = formRef.current;
     if (!form) return;
+    try{await recovery.startRevision();}catch{setError("Save or resolve your current draft before opening a revision.");return;}
     setEditingId(item.id);
     setBodyText(item.body);
     setScreenshot(item.screenshot_path);
@@ -207,14 +218,18 @@ export function WorkshopClient({
         )}
       </section>
 
-      {!readOnly && (
+      {(!readOnly||ownerId) && (
         <form
           ref={formRef}
           className="op-form"
+          onChange={()=>queueMicrotask(capture)}
           onSubmit={submit}
           aria-labelledby="proposal-heading"
         >
           <h2 id="proposal-heading">Propose a contribution</h2>
+          <p role="status">{recovery.state}</p>
+          {recovery.conflict&&<div><button type="button" onClick={recovery.keepAsNew}>KEEP LOCAL WRITING AS NEW DRAFT</button><button type="button" onClick={()=>{if(window.confirm("Replace this tab’s writing with the saved server version?"))void recovery.loadServer().catch(e=>setError(e.message));}}>LOAD SERVER VERSION</button></div>}
+          <fieldset disabled={readOnly||busy||!recovery.ready||recovery.conflict}>
           {editingId && <p className="op-notice"><b>REVISING RETURNED CONTRIBUTION</b></p>}
           <p>
             Offer one focused addition to this feature for editorial review.
@@ -289,6 +304,7 @@ export function WorkshopClient({
           <button className="action-primary" disabled={busy}>
             {busy ? "SUBMITTING…" : editingId ? "RESUBMIT TO WORKSHOP" : "SUBMIT TO WORKSHOP"}
           </button>
+          </fieldset>
         </form>
       )}
 
@@ -313,7 +329,7 @@ export function WorkshopClient({
               <h3>{item.title}</h3>
               <p><MarkdownText text={item.body} /></p>
               <p>
-                <b>{item.incorporated_at ? "INCORPORATED / PUBLISHED" : item.status === "Rejected" ? "DECLINED" : item.status === "Accepted" ? "ACCEPTED · AWAITING EDITORIAL INCORPORATION" : item.status.toUpperCase()}</b> ·{" "}
+                <b>{contributionState(item,publication.find(p=>p.contribution_id===item.id)?.published,publication.find(p=>p.contribution_id===item.id)?.cited)}</b> ·{" "}
                 {new Date(item.updated_at).toLocaleDateString("en-GB")}
               </p>
               {item.source_url && (
@@ -346,7 +362,7 @@ export function WorkshopClient({
                   <b>Editorial guidance:</b> {item.moderator_note}
                 </p>
               )}
-              {item.incorporated_at && (
+              {publication.some(p=>p.contribution_id===item.id&&p.published) && (
                 <Link to={`/features/${featureSlug}`}>
                   VIEW IN COMMUNITY EDITION →
                 </Link>

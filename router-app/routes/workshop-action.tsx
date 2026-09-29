@@ -12,6 +12,7 @@ function reply(body: unknown, status: number, headers: Headers) {
 
 async function member(request: Request) {
   const resolved = await resolveAuth(request);
+  resolved.headers.set("Cache-Control","private, no-store");
   if (
     resolved.auth.state !== "authenticated" ||
     !resolved.client ||
@@ -66,11 +67,16 @@ function databaseError(error: unknown, fallback: string) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  if (params.action !== "image")
-    return reply({ error: "Workshop endpoint not found." }, 404, new Headers());
   const access = await member(request);
   if (access.error) return access.error;
   const { resolved } = access;
+  if(params.action==="draft"){
+    const url=new URL(request.url);let q=resolved.client!.from("workshop_drafts").select("*").eq("user_id",resolved.user!.id).eq("feature_id",url.searchParams.get("feature"));
+    if(url.searchParams.get("id"))q=q.eq("id",url.searchParams.get("id"));else q=q.is("submitted_contribution_id",null);
+    const result=await q.order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    return reply(result.error?{error:"Draft could not be loaded. Your local work is retained."}:{draft:result.data},result.error?503:200,resolved.headers);
+  }
+  if(params.action!=="image")return reply({error:"Unknown endpoint"},404,resolved.headers);
   const path = new URL(request.url).searchParams.get("path") ?? "";
   if (
     !new RegExp(`^${resolved.user!.id}/[0-9a-f-]{36}\\.(?:png|jpg|webp)$`).test(
@@ -173,57 +179,23 @@ export async function action({ request, params }: Route.ActionArgs) {
       return reply({ error: "Request too large." }, 413, resolved.headers);
     const raw = z.record(z.string(), z.unknown()).parse(await request.json());
 
+    if(params.action==="draft"){
+      const input=z.object({id:z.string().uuid(),feature_id:z.string().uuid(),expected_version:z.number().int().min(0),payload:z.record(z.string(),z.union([z.string().max(8000),z.boolean()])),revision_target:z.string().uuid().nullable()}).parse(raw);
+      const result=await resolved.client!.rpc("save_workshop_draft",{draft_id:input.id,target_feature:input.feature_id,expected_version:input.expected_version,content:input.payload,target_contribution:input.revision_target});
+      return reply(result.error?{error:result.error.code==="P4090"?"Newer or submitted draft exists. Keep your local copy or load the server version.":actionFailure(result.error,"Draft could not be saved. Your local writing is retained.")}:{draft:result.data},result.error?409:200,resolved.headers);
+    }
+    if(params.action==="submit-draft"){
+      const input=z.object({id:z.string().uuid(),version:z.number().int().positive()}).parse(raw);
+      const row=await resolved.client!.from("workshop_drafts").select("payload,feature_id").eq("id",input.id).eq("user_id",resolved.user!.id).single();
+      if(row.error)return reply({error:"Draft unavailable."},404,resolved.headers);
+      contributionSchema.parse({...row.data.payload,feature_id:row.data.feature_id});
+      const result=await resolved.client!.rpc("submit_workshop_draft",{draft_id:input.id,expected_version:input.version});
+      return reply(result.error?{error:actionFailure(result.error,"Submission was not confirmed. Your draft is retained; retry safely.")}:{id:result.data},result.error?409:200,resolved.headers);
+    }
     if (params.action === "save") {
-      const parsed = contributionSchema.parse(raw);
-      const existingId = raw.id ? z.string().uuid().parse(raw.id) : null;
-      const accepts = await resolved.client!.rpc(
-        "feature_accepts_contributions",
-        {
-          target: parsed.feature_id,
-        },
-      );
-      if (accepts.error || accepts.data !== true)
-        return reply(
-          {
-            error:
-              "This Workshop is closed. Use Report a Correction for factual concerns.",
-          },
-          403,
-          resolved.headers,
-        );
-
-      if (!existingId) {
-        const recent = await resolved
-          .client!.from("contributions")
-          .select("id")
-          .eq("author_id", resolved.user!.id)
-          .eq("feature_id", parsed.feature_id)
-          .eq("title", parsed.title)
-          .eq("body", parsed.body)
-          .eq("status", "Submitted")
-          .is("withdrawn_at", null)
-          .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
-          .limit(1)
-          .maybeSingle();
-        if (!recent.error && recent.data)
-          return reply(
-            { id: recent.data.id, duplicate: true },
-            200,
-            resolved.headers,
-          );
-      }
-
-      const saved = await resolved.client!.rpc("save_contribution", {
-        payload: parsed,
-        contribution_id: existingId,
-      });
-      const failure = databaseError(
-        saved.error,
-        "The contribution was not saved. Refresh and check its current status.",
-      );
-      return failure
-        ? reply({ error: failure.message }, failure.status, resolved.headers)
-        : reply({ id: saved.data, duplicate: false }, 200, resolved.headers);
+      const parsed=contributionSchema.parse(raw);
+      const result=await resolved.client!.rpc("save_contribution",{payload:{...parsed,...(raw.request_key?{request_key:z.string().uuid().parse(raw.request_key)}:{})},contribution_id:raw.id?z.string().uuid().parse(raw.id):null});
+      return reply(result.error?{error:actionFailure(result.error,"Submission was not confirmed. Retry safely.")}:{id:result.data,duplicate:false},result.error?409:200,resolved.headers);
     }
 
     if (params.action === "withdraw") {

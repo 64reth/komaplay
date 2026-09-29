@@ -23,6 +23,7 @@ import { memberCapabilities, membershipState } from "../lib/membership.server";
 
 async function moderationContext(request: Request) {
   const resolved = await resolveAuth(request);
+  resolved.headers.set("Cache-Control","private, no-store");
   if (
     resolved.auth.state !== "authenticated" ||
     !resolved.client ||
@@ -81,6 +82,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       },
       { headers: resolved.headers },
     );
+  const canTriage=resolved.auth.state==="authenticated"&&["moderator","admin"].includes(resolved.auth.member.role);
+  const reports=canTriage?await resolved.client.from("correction_reports").select("id,feature_id,kind,body,source_url,status,created_at").in("status",["Submitted","In Review"]).order("created_at").limit(100):{data:[],error:null};
+  if(reports.error)throw data("Private reports unavailable. Retry shortly.",{status:503,headers:resolved.headers});
   const [grants, review, publication, closePreview, contributions, incorporations] = await Promise.all([
     resolved.client
       .from("editorial_access_grants")
@@ -103,6 +107,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (review.error || publication.error || closePreview.error || contributions.error || incorporations.error) throw data("The review desk could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
   return data(
     {
+      reports:reports.data??[],
       state: "accepted" as const,
       capabilities: context.capabilities,
       grants: grants.error ? [] : (grants.data ?? []),
@@ -133,6 +138,11 @@ export async function action({ request }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   try {
+    if(intent==="reviewReport"){
+      if(resolved.auth.state!=="authenticated"||!["moderator","admin"].includes(resolved.auth.member.role))return data({error:"Moderator access required"},{status:403,headers:resolved.headers});
+      const r=await resolved.client.rpc("review_correction",{target:String(form.get("reportId")),decision:String(form.get("decision")),note:String(form.get("note"))});if(r.error)throw r.error;
+      return data({success:"Private report updated. Review recorded."},{headers:resolved.headers});
+    }
     if (intent === "moderateAccount") {
       const result=await resolved.client.rpc("moderate_member_account",{target_email:String(form.get("email") ?? ""),next_status:String(form.get("accountStatus") ?? ""),review_note:String(form.get("reason") ?? "")});
       if(result.error)throw result.error;
@@ -374,6 +384,8 @@ export default function Moderation() {
     <main className="editorial-page">
       <Masthead />
       <div className="op-workspace profile-page">
+        {"reports" in result&&result.reports.length>0&&<section><h2>PRIVATE REPORTS</h2><p>Visible only to authorised Moderators/Admins. Reporting is separate from Workshop contribution review.</p>{result.reports.map(report=><details key={report.id}><summary>{report.kind} · {report.status} · {new Date(report.created_at).toLocaleDateString("en-GB")}</summary><p style={{whiteSpace:"pre-wrap"}}>{report.body}</p>{report.source_url&&<a href={report.source_url} rel="noreferrer" target="_blank">Supporting source</a>}<Form method="post"><input type="hidden" name="intent" value="reviewReport"/><input type="hidden" name="reportId" value={report.id}/><label>Decision<select name="decision"><option>In Review</option><option>Resolved</option><option>Dismissed</option></select></label><label>Review note<textarea name="note" required minLength={4} maxLength={2000}/></label><button className="op-button">RECORD REVIEW</button></Form></details>)}</section>}
+
         <nav className="profile-actions" aria-label="Moderation actions">
           <Link to="/profile">← RETURN TO PROFILE</Link>
           <Link to="/editorial">EDITORIAL DASHBOARD</Link>
@@ -748,3 +760,5 @@ export default function Moderation() {
     </main>
   );
 }
+
+export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};
