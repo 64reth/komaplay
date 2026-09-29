@@ -34,11 +34,11 @@ test("key-ring counts derive only from existing server role and grant fields",()
   assert.equal(keyRingAccess("member",true).badge,"editorial-contributor");
   assert.equal(keyRingAccess("moderator").badge,"moderator");
   assert.equal(keyRingAccess("admin").badge,"admin");
-  assert.equal(keyRingAccess("member",false,true).badge,"moderator");
+  assert.equal(keyRingAccess("member",false,true).badge,"editorial-contributor");
   assert.match(keyRingAccess("member",false,true).tooltip,/Legacy editorial access/);
 });
 
-test("key-ring SVG assets are small accessible monochrome vectors",async()=>{
+test("legacy experimental key-ring SVGs remain unused archived assets",async()=>{
   for(const name of ["member","editorial-contributor","moderator","admin"]){
     const svg=await readFile(`public/assets/badges/key-ring-${name}.svg`,"utf8");
     assert.match(svg,/<title id="title">/);assert.match(svg,/<desc id="desc">/);
@@ -67,6 +67,6 @@ test("rendered admin controls explain each visible classification",()=>{
   assert.match(html,/Cannot approve their own work/);
   assert.match(html,/<option value="moderator">Moderator<\/option>/);
   assert.match(html,/<option value="admin">Admin<\/option>/);
-  assert.match(html,/key-ring-member\.svg/);assert.match(html,/key-ring-editorial-contributor\.svg/);
-  assert.match(html,/key-ring-moderator\.svg/);assert.match(html,/key-ring-admin\.svg/);
+  assert.match(html,/keyring_badge_1key\.png/);assert.match(html,/keyring_badge_2key\.png/);
+  assert.match(html,/keyring_badge_3key\.png/);assert.match(html,/keyring_badge_4key\.png/);
 });

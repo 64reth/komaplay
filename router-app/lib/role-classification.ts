@@ -37,7 +37,7 @@ export type KeyRingAccess = {
 export function keyRingAccess(role: SiteRole, editor = false, legacyReviewer = false): KeyRingAccess {
   if (role === "admin") return { badge: "admin", tooltip: "Admin: Can manage users and site operations" };
   if (role === "moderator") return { badge: "moderator", tooltip: "Moderator: Can review, publish, and moderate" };
-  if (legacyReviewer) return { badge: "moderator", tooltip: "Legacy editorial access: Can review and publish canonical panels" };
+  if (legacyReviewer) return { badge: "editorial-contributor", tooltip: "Legacy editorial access: Can review and publish canonical panels" };
   if (editor) return { badge: "editorial-contributor", tooltip: "Editorial Contributor: Can create and submit panels" };
   return { badge: "member", tooltip: "Member: Workshop access" };
 }

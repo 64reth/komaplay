@@ -172,6 +172,14 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
         );
       },
     );
+    await t.test(
+      "ecosystem production RPC/RLS smoke rolls back safely",
+      async () => {
+        await db.exec(
+          await readFile("scripts/ecosystem-production-checks.sql", "utf8"),
+        );
+      },
+    );
     const feature = (
       await db.query<any>(
         "select id,issue_id from features where feature_is_public(id) limit 1",
@@ -840,6 +848,121 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
       },
     );
     await t.test(
+      "broad preferences, private duplicate-safe Inbox and mixed attribution remain isolated",
+      async () => {
+        await as(owner);
+        await db.query("select set_member_preferences($1)", [
+          ["gaming", "anime"],
+        ]);
+        assert.deepEqual(
+          (
+            await db.query<any>("select interests from profiles where id=$1", [
+              owner,
+            ])
+          ).rows[0].interests,
+          ["anime", "gaming"],
+        );
+        await assert.rejects(
+          db.query("select set_member_preferences($1)", [["franchise"]]),
+          /Invalid category/,
+        );
+        await assert.rejects(
+          db.query(
+            "update profiles set interests=array['franchise'] where id=$1",
+            [owner],
+          ),
+          /Choose Gaming/,
+        );
+        assert.equal(
+          (
+            await db.query<any>("select role from profiles where id=$1", [
+              owner,
+            ])
+          ).rows[0].role,
+          "member",
+        );
+        assert.ok(
+          (await db.query("select * from my_citation_history()")).rows.length >=
+            2,
+        );
+        const events = (
+          await db.query<any>("select * from my_editorial_inbox()")
+        ).rows;
+        assert.ok(events.some((e) => e.kind === "status"));
+        assert.ok(events.some((e) => e.kind === "cited"));
+        assert.ok(events.some((e) => e.kind === "published"));
+        assert.ok(events.some((e) => e.kind === "incorporated"));
+        assert.equal(
+          (await db.query("select * from my_editorial_inbox()")).rows.length,
+          events.length,
+        );
+        const event = events[0];
+        await db.query("select set_inbox_read($1,true)", [event.id]);
+        assert.ok(
+          (
+            await db.query<any>(
+              "select read_at from member_inbox where id=$1",
+              [event.id],
+            )
+          ).rows[0].read_at,
+        );
+        await as(other);
+        assert.equal(
+          (await db.query("select * from member_inbox")).rows.length,
+          0,
+        );
+        assert.equal(
+          (await db.query<any>("select set_inbox_read($1,true) ok", [event.id]))
+            .rows[0].ok,
+          false,
+        );
+        await assert.rejects(
+          db.query(
+            "select deliver_editorial_event($1,'fake','published',$2,null,'Forged')",
+            [owner, feature.id],
+          ),
+          /permission denied/,
+        );
+        await as(admin);
+        assert.equal(
+          (
+            await db.query("select * from member_inbox where user_id=$1", [
+              owner,
+            ])
+          ).rows.length,
+          0,
+        );
+        await as("", "anon");
+        await assert.rejects(
+          db.query("select * from member_inbox"),
+          /permission denied/,
+        );
+        for (const sql of [
+          "select * from my_editorial_inbox()",
+          "select * from my_editorial_publications()",
+          "select * from my_citation_history()",
+          "select set_member_preferences('{}')",
+        ]) {
+          await assert.rejects(db.query(sql), /permission denied/);
+        }
+        const publicRows = await db.query("select * from public_additions");
+        const publicJSON = JSON.stringify(publicRows.rows);
+        assert.ok(
+          !publicJSON.includes(owner) && !publicJSON.includes(event.id),
+        );
+        await as(owner);
+        await db.query("select set_member_preferences('{}')");
+        assert.deepEqual(
+          (
+            await db.query<any>("select interests from profiles where id=$1", [
+              owner,
+            ])
+          ).rows[0].interests,
+          [],
+        );
+      },
+    );
+    await t.test(
       "suspended account cannot read or mutate private continuity data",
       async () => {
         await as("", "anon");
@@ -858,6 +981,11 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
           0,
         );
         await assert.rejects(save(draft, 2, payload), /active membership/);
+        assert.equal(
+          (await db.query("select * from member_inbox")).rows.length,
+          0,
+        );
+        await assert.rejects(db.query("select * from my_editorial_inbox()"));
       },
     );
   } finally {

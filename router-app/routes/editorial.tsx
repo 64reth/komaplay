@@ -1,3 +1,4 @@
+import {MyKeyRing} from "../components/KeyRingBadge";
 import { prepareEditorialImage } from "../lib/prepare-image";
 import { LatestUploadCoordinator } from "../lib/latest-upload";
 import {
@@ -816,7 +817,7 @@ function FeatureComposer({
         )}
       </nav>
       <p className="editorial-marker">EDITORIAL DASHBOARD</p>
-      <h1>Feature composer</h1>
+      <h1><MyKeyRing/> Feature composer</h1>
       <section className="composer-status" aria-label="Composer status">
         <p className="editorial-marker">PANEL STATE</p>
         <strong>

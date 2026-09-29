@@ -146,7 +146,7 @@ test("panel directory pattern is shared by profile editorial and moderation queu
   assert.match(directory, /data-label="Status"/);
   assert.match(css, /\.panel-directory-row/);
   assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(profileRoute, /<PanelDirectory label="My Panels"/);
+  assert.match(profileRoute, /<PanelDirectory\s+label="My Panels"/);
   assert.match(editorialRoute, /<PanelDirectory label="Editorial panels"/);
   assert.match(moderationRoute, /<PanelDirectory label="Review Inbox"/);
 });

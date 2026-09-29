@@ -6,7 +6,7 @@ import React, {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { useLocation, useRevalidator, useRouteLoaderData } from "react-router";
+import { useLocation, useNavigate, useRevalidator, useRouteLoaderData } from "react-router";
 import type { AuthSnapshot } from "../../lib/auth";
 import type { HandbookState } from "../../lib/handbook";
 import {
@@ -45,6 +45,7 @@ export function MembershipOnboardingLayer({
 export function GlobalMembershipGate({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData("root") as RootData | undefined;
   const location = useLocation();
+  const navigate=useNavigate();
   const revalidator = useRevalidator();
   const background = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
@@ -154,6 +155,7 @@ export function GlobalMembershipGate({ children }: { children: ReactNode }) {
               onAccepted={() => {
                 setAcceptedLocally(true);
                 setAnnouncement("Workshop access is ready.");
+                navigate(`/profile/settings?welcome=1&returnTo=${encodeURIComponent(location.pathname+location.search)}`);
                 void revalidator.revalidate();
                 requestAnimationFrame(() =>
                   document

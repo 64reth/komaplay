@@ -3134,3 +3134,27 @@ html {
 @media(max-width:900px){.cover-editor-grid{grid-template-columns:minmax(0,1fr)}.cover-preview-column{position:static;order:-1;justify-self:center}.cover-preview{margin-inline:auto}.cover-field-pair{grid-template-columns:1fr}.cover-editor{padding-inline:14px}}
 
 .cover-pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:24px;margin:24px 0}.cover-pool-card{min-width:0;overflow-wrap:anywhere}.cover-pool-card form{display:flex;flex-wrap:wrap;gap:8px}.cover-pool-card fieldset{min-width:0;max-width:100%}
+/* One fixed-footprint image is the complete keyring; no inline rows of individual keys. */
+.key-ring-badge,.admin-badges .key-ring-badge{display:inline-flex;flex:none;width:40px;height:40px;padding:0;border:0;vertical-align:middle}
+.key-ring-badge.key-ring-profile{width:48px;height:48px}
+.key-ring-badge img{width:100%;height:100%;object-fit:contain}
+.identity-heading{display:flex;align-items:center;gap:12px;overflow-wrap:anywhere}
+.broad-preferences{border:1px solid var(--ink);padding:16px;margin:20px 0;min-width:0}
+.broad-preferences>div{display:flex;flex-wrap:wrap;gap:12px 24px}
+.broad-preferences label{display:flex!important;align-items:center;gap:8px}
+.broad-preferences input{width:20px!important;height:20px;accent-color:var(--ink)}
+.personal-briefing{margin:20px clamp(16px,3vw,48px);padding:20px 0;border-block:1px solid var(--ink)}
+.briefing-heading{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px}
+.briefing-heading h2,.briefing-grid h3{font:700 .8rem monospace;letter-spacing:.08em}
+.briefing-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.briefing-grid>div{min-width:0;overflow-wrap:anywhere}
+.personal-briefing a{font-weight:650}
+.editorial-inbox article{border-block-start:1px solid #8885;padding:16px 0;overflow-wrap:anywhere}
+.editorial-inbox article.inbox-unread{border-inline-start:3px solid var(--ink);padding-inline-start:14px}
+.editorial-inbox form{margin-top:12px}
+.editorial-inbox h2 small{font:400 .75rem monospace}
+.profile-page section{margin-block:28px;scroll-margin-top:90px}
+.feature-rail.is-drifting{scroll-snap-type:none;scroll-behavior:auto}
+.strip-controls .strip-motion{font:700 .6rem monospace;width:64px}
+@media(max-width:600px){.briefing-grid{grid-template-columns:1fr;gap:16px}.personal-briefing{padding-block:16px}.strip-toolbar{gap:8px}.strip-hint{display:none}}
+@media(prefers-reduced-motion:reduce){.feature-rail{scroll-behavior:auto!important}}

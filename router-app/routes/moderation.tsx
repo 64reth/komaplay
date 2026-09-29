@@ -1,3 +1,4 @@
+import {MyKeyRing} from "../components/KeyRingBadge";
 import { actionFailure } from "../lib/action-feedback";
 import {
   data,
@@ -392,7 +393,7 @@ export default function Moderation() {
           <Link to="/">VIEW PUBLICATION</Link>
         </nav>
         <p className="editorial-marker">MODERATION</p>
-        <h1>Editorial access and review</h1>
+        <h1><MyKeyRing/> Editorial access and review</h1>
         {result.capabilities.moderation && (
           <section aria-labelledby="open-panel-review-heading">
             <p className="editorial-marker">OPEN PANEL REVIEW</p>

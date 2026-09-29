@@ -5,10 +5,15 @@ import type { FeatureItem } from "../lib/publication";
 export function FeatureStrip({
   items,
   label,
+  drift = false,
 }: {
   items: FeatureItem[];
   label?: string;
+  drift?: boolean;
 }) {
+  const [paused, setPaused] = useState(false);
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  const [moving, setMoving] = useState(false);
   const id = useId(),
     rail = useRef<HTMLDivElement>(null),
     frame = useRef<number | null>(null),
@@ -52,7 +57,76 @@ export function FeatureStrip({
       if (frame.current !== null) cancelAnimationFrame(frame.current);
     };
   }, [items]);
+  useEffect(() => {
+    const query = matchMedia(
+      "(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)",
+    );
+    const update = () => setMotionAllowed(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    const el = rail.current;
+    if (!el || !drift || paused || !motionAllowed) return;
+    let animation = 0,
+      visible = false,
+      last = 0,
+      start = 0,
+      position = el.scrollLeft;
+    function stop() {
+      cancelAnimationFrame(animation);
+      animation = 0;
+      last = 0;
+      start = 0;
+      setMoving(false);
+    }
+    function tick(time: number) {
+      if (!el) return;
+      if (!start) start = time;
+      const delta = last ? Math.min(time - last, 64) : 0;
+      last = time;
+      if (time - start > 3000) {
+        position += delta * 0.006;
+        el.scrollLeft = position;
+        setMoving(true);
+      }
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
+        stop();
+        setPaused(true);
+        return;
+      }
+      animation = requestAnimationFrame(tick);
+    }
+    function sync() {
+      stop();
+      if (
+        visible &&
+        !document.hidden &&
+        el &&
+        el.scrollWidth > el.clientWidth + 2
+      ) {
+        position = el.scrollLeft;
+        animation = requestAnimationFrame(tick);
+      }
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        visible = entries[0].isIntersecting;
+        sync();
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(el);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      stop();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [drift, paused, motionAllowed, items.length]);
   const advance = (direction: number) => {
+    setPaused(true);
     const el = rail.current;
     if (!el) return;
     const positions = Array.from(el.children).map(
@@ -71,7 +145,12 @@ export function FeatureStrip({
     <section
       className="feature-strip"
       aria-label="Issue features"
+      onPointerEnter={() => setPaused(true)}
+      onPointerDown={() => setPaused(true)}
+      onFocusCapture={() => setPaused(true)}
+      onWheel={() => setPaused(true)}
       onKeyDown={(e) => {
+        setPaused(true);
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
         e.preventDefault();
         if (e.key === "Home" || e.key === "End")
@@ -86,6 +165,19 @@ export function FeatureStrip({
         <span>{label ?? "ISSUE 000 / READ THE CLUES"}</span>
         <span className="strip-hint">SCROLL TO EXPLORE →</span>
         <div className="strip-controls">
+          {drift && motionAllowed && (
+            <button
+              className="strip-motion"
+              type="button"
+              aria-label={
+                paused ? "Resume slow discovery" : "Pause slow discovery"
+              }
+              aria-pressed={!paused}
+              onClick={() => setPaused((p) => !p)}
+            >
+              {paused ? "PLAY" : "PAUSE"}
+            </button>
+          )}
           <button
             type="button"
             aria-label="Previous features"
@@ -109,7 +201,7 @@ export function FeatureStrip({
       <div
         id={id}
         ref={rail}
-        className="feature-rail"
+        className={`feature-rail${moving ? " is-drifting" : ""}`}
         tabIndex={0}
         role="group"
         aria-label="Featured stories. Use left and right arrows to scroll."
@@ -157,7 +249,20 @@ export function FeatureStrip({
               <span className="feature-category">{item.category}</span>
             </span>
             <span className="feature-art">
-              <img src={item.image} alt={item.imageAlt} onError={event => { if (!event.currentTarget.src.endsWith("/assets/koma-feature-placeholder.svg")) event.currentTarget.src="/assets/koma-feature-placeholder.svg"; }} draggable={false} />
+              <img
+                src={item.image}
+                alt={item.imageAlt}
+                onError={(event) => {
+                  if (
+                    !event.currentTarget.src.endsWith(
+                      "/assets/koma-feature-placeholder.svg",
+                    )
+                  )
+                    event.currentTarget.src =
+                      "/assets/koma-feature-placeholder.svg";
+                }}
+                draggable={false}
+              />
             </span>
             <span className="feature-caption">
               <strong>{item.title}</strong>

@@ -1,3 +1,6 @@
+import { BroadPreferences } from "../components/BroadPreferences";
+import { broadPreferences } from "../lib/preferences";
+import { safeReturnPath } from "../lib/handbook";
 import { actionFailure } from "../lib/action-feedback";
 import {
   data,
@@ -19,6 +22,7 @@ const schema = z.object({
   displayName: z.string().trim().min(1).max(80),
   penName: z.string().trim().max(80),
   bio: z.string().trim().max(280),
+  interests: z.array(z.enum(broadPreferences)).max(4),
   defaultCredit: z.enum(["Display name", "Pen name", "Anonymous Panelist"]),
 });
 
@@ -64,14 +68,22 @@ export async function loader({ request }: Route.LoaderArgs) {
   const profile = await resolved.client
     .from("profiles")
     .select(
-      "display_name,pen_name,bio,default_credit,profile_public,history_public,workbench_visible,interests,motion_preference,workshop_density,newsletter_opt_in,status_email_opt_in",
+      "display_name,pen_name,bio,default_credit,preferences_chosen_at,profile_public,history_public,workbench_visible,interests,motion_preference,workshop_density,newsletter_opt_in,status_email_opt_in",
     )
     .eq("id", resolved.user.id)
     .single();
   return profile.error
     ? data({ state: "unavailable" as const }, { headers: resolved.headers })
     : data(
-        { state: "accepted" as const, profile: profile.data },
+        {
+          state: "accepted" as const,
+          profile: profile.data,
+          welcome: new URL(request.url).searchParams.get("welcome") === "1",
+          returnTo: safeReturnPath(
+            new URL(request.url).searchParams.get("returnTo"),
+            "/",
+          ),
+        },
         { headers: resolved.headers },
       );
 }
@@ -92,7 +104,24 @@ export async function action({ request }: Route.ActionArgs) {
     );
   try {
     const form = await request.formData();
+    if (form.get("intent") === "preferences") {
+      const choices =
+        form.get("skip") === "true"
+          ? []
+          : z
+              .array(z.enum(broadPreferences))
+              .max(4)
+              .parse(form.getAll("interests"));
+      const saved = await resolved.client.rpc("set_member_preferences", {
+        choices,
+      });
+      if (saved.error) throw saved.error;
+      return redirect(safeReturnPath(form.get("returnTo"), "/"), {
+        headers: resolved.headers,
+      });
+    }
     const value = schema.parse({
+      interests: form.getAll("interests"),
       displayName: form.get("displayName"),
       penName: form.get("penName") ?? "",
       bio: form.get("bio") ?? "",
@@ -108,6 +137,10 @@ export async function action({ request }: Route.ActionArgs) {
       })
       .eq("id", resolved.user.id);
     if (update.error) throw update.error;
+    const preferences = await resolved.client.rpc("set_member_preferences", {
+      choices: value.interests,
+    });
+    if (preferences.error) throw preferences.error;
     return redirect("/profile?updated=1", { headers: resolved.headers });
   } catch (error) {
     return data(
@@ -155,6 +188,36 @@ export default function ProfileSettings() {
       </main>
     );
   const profile = result.profile;
+  if (result.welcome)
+    return (
+      <main className="editorial-page">
+        <Masthead />
+        <section className="op-workspace">
+          <p className="editorial-marker">WELCOME TO KOMA</p>
+          <h1>Find your next panel</h1>
+          <Form method="post">
+            <input type="hidden" name="intent" value="preferences" />
+            <input type="hidden" name="returnTo" value={result.returnTo} />
+            <BroadPreferences selected={profile.interests} />
+            {actionResult?.error && <p role="alert">{actionResult.error}</p>}
+            <button
+              className="op-button"
+              disabled={navigation.state !== "idle"}
+            >
+              CONTINUE →
+            </button>{" "}
+            <button
+              className="op-button"
+              name="skip"
+              value="true"
+              disabled={navigation.state !== "idle"}
+            >
+              SKIP
+            </button>
+          </Form>
+        </section>
+      </main>
+    );
   return (
     <main className="editorial-page">
       <Masthead />
@@ -195,8 +258,12 @@ export default function ProfileSettings() {
               <option>Anonymous Panelist</option>
             </select>
           </label>
-          <p className="field-help">Public credit is chosen for each contribution. Changing this default does not rename previously published work or reveal anonymous contributions.</p>
-          <p className="field-help">Category interests, email subscriptions and display preferences will return when their features are available. Existing choices are retained.</p>
+          <p className="field-help">
+            Public credit is chosen for each contribution. Changing this default
+            does not rename previously published work or reveal anonymous
+            contributions.
+          </p>
+          <BroadPreferences selected={profile.interests} />
           {actionResult?.error && <p role="alert">{actionResult.error}</p>}
           <button
             className="op-button action-primary"
@@ -213,4 +280,13 @@ export default function ProfileSettings() {
   );
 }
 
-export const headers:Route.HeadersFunction=({loaderHeaders,actionHeaders})=>{const h=new Headers(loaderHeaders);actionHeaders.forEach((v,k)=>h.set(k,v));h.set("Cache-Control","private, no-store");h.set("Vary","Cookie");return h;};
+export const headers: Route.HeadersFunction = ({
+  loaderHeaders,
+  actionHeaders,
+}) => {
+  const h = new Headers(loaderHeaders);
+  actionHeaders.forEach((v, k) => h.set(k, v));
+  h.set("Cache-Control", "private, no-store");
+  h.set("Vary", "Cookie");
+  return h;
+};

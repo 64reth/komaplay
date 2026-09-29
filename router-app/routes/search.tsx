@@ -33,6 +33,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
         {data.message && <p className="op-notice">{data.message}</p>}
         <DiscoveryForm data={data} filters={filters} />
         <p role="status">{features.length} matching panels</p>
+        {data.issues.filter(i=>(!filters.issue||i.slug===filters.issue)&&(!filters.q||`${i.title} ${i.slug} ${i.subtitle}`.toLowerCase().includes(filters.q.toLowerCase()))&&(!filters.category&&!filters.tag&&!filters.format&&!filters.status||features.some(f=>f.issue_id===i.id))).slice(0,6).map(i=><p key={i.id}><Link to={`/issues/${i.slug}`}>ISSUE · {i.title} →</Link></p>)}
+        {!features.length&&<p>Try another topic or category. <Link to="/search">EXPLORE ALL PANELS →</Link></p>}
         {features.map((f) => {
           const issue = data.issues.find((i) => i.id === f.issue_id)!;
           return (

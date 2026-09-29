@@ -16,7 +16,7 @@ test('small canonical strips keep real links; empty strips do not invent panels'
   const html=renderToStaticMarkup(<MemoryRouter><WeeklyDropStrip data={data} drop={data.drops[0]} features={data.features.slice(0,count)}/></MemoryRouter>);
   assert.equal((html.match(/class="feature-panel /g)||[]).length,count);
   if(count)assert.match(html,/href="\/features\/first"/);
-  else assert.match(html,/No features in this drop match the selected filters/);
+  else assert.equal(html, "");
  }
 });
 

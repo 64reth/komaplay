@@ -179,7 +179,7 @@ export function filterFeatures(data: Catalogue, filters: DiscoveryFilters) {
       !["final_panel", "archived"].includes(panelState(f, issue, data.now))
     )
       return false;
-    if (filters.filter === "gaming" && category?.slug !== "gaming")
+    if (["gaming","anime","manga","culture"].includes(filters.filter??"") && category?.slug !== filters.filter)
       return false;
     if (
       filters.filter === "anime-manga" &&
@@ -192,6 +192,7 @@ export function filterFeatures(data: Catalogue, filters: DiscoveryFilters) {
     const search = [
       f.title,
       f.summary,
+      issue.title,issue.slug,category?.name,format?.name,
       f.editorial_body,
       ...tags.map((t) => t.name),
     ]

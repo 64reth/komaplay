@@ -25,6 +25,7 @@ export function WeeklyDropStrip({
       issue &&
       acceptsContributions(f, issue, data.now),
   ).length;
+  if(!items.length)return null;
   return (
     <section
       className={`weekly-drop ${quiet ? "quiet-drop" : ""}`}
@@ -55,7 +56,7 @@ export function WeeklyDropStrip({
         </span>
       </div>
       {items.length ? (
-        <FeatureStrip items={items} label="" />
+        <FeatureStrip items={items} label="" drift />
       ) : (
         <p className="op-notice">
           No features in this drop match the selected filters.

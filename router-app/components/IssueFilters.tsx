@@ -6,7 +6,9 @@ export function IssueFilters({ selected = "latest" }: { selected?: string }) {
       {[
         ["latest", "Latest"],
         ["gaming", "Gaming"],
-        ["anime-manga", "Anime + Manga"],
+        ["anime", "Anime"],
+        ["manga", "Manga"],
+        ["culture", "Culture"],
         ["guides", "Guides"],
         ["open", "Open Panels"],
       ].map(([key, label]) => (

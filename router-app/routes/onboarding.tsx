@@ -69,8 +69,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     );
 
   const membership = await membershipState(resolved.client, resolved.user.id);
-  if (membership.status === "accepted")
-    return redirect(returnTo, { headers: resolved.headers });
+  if (membership.status === "accepted") {
+    const preferences=await resolved.client.from("profiles").select("preferences_chosen_at").eq("id",resolved.user.id).single();
+    return redirect(!preferences.error&&!preferences.data.preferences_chosen_at?`/profile/settings?welcome=1&returnTo=${encodeURIComponent(returnTo)}`:returnTo,{headers:resolved.headers});
+  }
   return data(
     {
       state: membership.status,
@@ -116,7 +118,7 @@ export default function Onboarding() {
               initialStep={result.step}
               onAccepted={() => {
                 void revalidator.revalidate();
-                navigate(result.returnTo, { replace: true });
+                navigate(`/profile/settings?welcome=1&returnTo=${encodeURIComponent(result.returnTo)}`, { replace: true });
               }}
             />
           </section>
