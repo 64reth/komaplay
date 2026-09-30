@@ -3154,6 +3154,8 @@ html {
 .editorial-inbox form{margin-top:12px}
 .editorial-inbox h2 small{font:400 .75rem monospace}
 .profile-page section{margin-block:28px;scroll-margin-top:90px}
+/* Keep snapping off across pause/resume so the rail retains its exact position. */
+.feature-rail[data-drift="true"]{scroll-snap-type:none}
 .feature-rail.is-drifting{scroll-snap-type:none;scroll-behavior:auto}
 .strip-controls .strip-motion{font:700 .6rem monospace;width:64px}
 @media(max-width:600px){.briefing-grid{grid-template-columns:1fr;gap:16px}.personal-briefing{padding-block:16px}.strip-toolbar{gap:8px}.strip-hint{display:none}}

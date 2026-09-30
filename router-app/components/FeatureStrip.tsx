@@ -201,6 +201,7 @@ export function FeatureStrip({
       <div
         id={id}
         ref={rail}
+        data-drift={drift || undefined}
         className={`feature-rail${moving ? " is-drifting" : ""}`}
         tabIndex={0}
         role="group"
