@@ -111,7 +111,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
         <Link to={`/features/${loaderData.feature.slug}`}>
           ← RETURN TO COMMUNITY EDITION
         </Link>
-        <p className="op-eyebrow editorial-marker">PRIVATE SAFETY REPORT</p>
+        <p className="op-eyebrow editorial-marker">PRIVATE REPORT</p>
         <h1>Report a problem</h1><p>Request an editorial correction or report abuse, unsafe material, or a moderation concern. This goes privately to Moderation. For a new contribution, <Link to={`/features/${loaderData.feature.slug}/workshop`}>use the Workshop</Link>.</p>
         {loaderData.state === "signed-out" && (
           <SignedOutMemberBoundary
@@ -143,6 +143,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
             <label>
               Report type
               <select name="kind" defaultValue={loaderData.kind}>
+                <option>Factual error</option>
                 <option>Safety concern</option>
                 <option>Legal or rights concern</option>
               </select>
@@ -162,7 +163,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
               <input name="source" type="url" placeholder="https://" />
             </label>
             <button className="action-primary">
-              SUBMIT PRIVATE SAFETY REPORT
+              SUBMIT PRIVATE REPORT
             </button>
             {result && "error" in result && <p role="alert">{result.error}</p>}
             {result && "success" in result && (
