@@ -12,15 +12,11 @@ export function EditorialInbox({
   const navigation = useNavigation();
   return (
     <section id="inbox" className="editorial-inbox">
-      <h2>
-        INBOX <small>{events.filter((e) => !e.read_at).length} unread</small>
-      </h2>
-      <p>Private editorial updates. Your most recent 50 messages.</p>
+      <h2 className="sr-only">Editorial messages</h2>
       {error && <p role="alert">{error}</p>}
       {events.length === 0 && (
         <p>
-          Your desk tray is clear. Editorial responses and publication updates
-          will arrive here.
+          No messages in this view. Editorial responses and publication updates will arrive here.
         </p>
       )}
       {events.map((event) => {
@@ -38,7 +34,7 @@ export function EditorialInbox({
                 </time>
               </span>
             </p>
-            <p>{event.message}</p>
+            <p className="inbox-message">{event.message}</p>
             {feature ? (
               <Link
                 to={`/features/${feature.slug}${event.kind === "status" || event.kind === "response" ? "/workshop" : ""}`}

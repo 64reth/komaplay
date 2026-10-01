@@ -446,6 +446,7 @@ export function AccountNav() {
           >
             VIEW PROFILE
           </Link>
+          <Link role="menuitem" to="/profile/inbox" onClick={() => setMenuOpen(false)}>My Inbox</Link>
           <Link
             role="menuitem"
             to="/profile/settings"

@@ -57,7 +57,7 @@ async function context(request: Request, slug?: string) {
 export async function loader({ request, params }: Route.LoaderArgs) {
   const value = await context(request, params.slug);
   return data(
-    { feature: value.feature, state: value.state },
+    { feature: value.feature, state: value.state,kind:new URL(request.url).searchParams.get("kind")==="Factual error"?"Factual error":"Safety concern" },
     { headers: value.resolved.headers },
   );
 }
@@ -112,7 +112,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
           ← RETURN TO COMMUNITY EDITION
         </Link>
         <p className="op-eyebrow editorial-marker">PRIVATE SAFETY REPORT</p>
-        <h1>Report a problem</h1><p>Report abuse, harassment, unsafe or inappropriate material, or a moderation concern. This goes privately to Moderation. For editorial feedback, <Link to={`/features/${loaderData.feature.slug}/workshop`}>use the Workshop</Link>.</p>
+        <h1>Report a problem</h1><p>Request an editorial correction or report abuse, unsafe material, or a moderation concern. This goes privately to Moderation. For a new contribution, <Link to={`/features/${loaderData.feature.slug}/workshop`}>use the Workshop</Link>.</p>
         {loaderData.state === "signed-out" && (
           <SignedOutMemberBoundary
             title="SIGN IN TO REPORT A PROBLEM"
@@ -142,7 +142,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
             </p>
             <label>
               Report type
-              <select name="kind" defaultValue="Safety concern">
+              <select name="kind" defaultValue={loaderData.kind}>
                 <option>Safety concern</option>
                 <option>Legal or rights concern</option>
               </select>

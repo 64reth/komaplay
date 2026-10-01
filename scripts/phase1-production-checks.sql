@@ -41,7 +41,7 @@ begin
  perform set_config('request.jwt.claim.sub',moderator_id::text,true);
  if not exists(select 1 from public.open_panel_review_inbox() where contribution_id=contribution and author_id=member_id) then raise exception 'Moderator provenance unavailable';end if;
  if not exists(select 1 from public.correction_reports where id=report) then raise exception 'Moderator report unavailable';end if;
- perform public.moderate_contribution(contribution,'Accepted','','','Rollback-only review');
+ perform public.moderate_contribution_current(contribution,(select edit_version from public.contributions where id=contribution),'Accepted','Rollback-only review');
  perform set_config('request.jwt.claim.sub',member_id::text,true);
  if exists(select 1 from public.my_contribution_publication() where published) then raise exception 'Accepted incorrectly published';end if;
  perform set_config('request.jwt.claim.sub',moderator_id::text,true);

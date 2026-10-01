@@ -74,7 +74,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       resolved.client
         .from("contributions")
         .select(
-          "id,feature_id,author_id,type,target_section,title,body,screenshot_path,media_url,source_url,public_credit,publication_consent,status,moderator_note,incorporated_at,created_at,updated_at",
+          "id,edit_version,feature_id,author_id,type,target_section,title,body,screenshot_path,media_url,source_url,public_credit,publication_consent,status,moderator_note,incorporated_at,created_at,updated_at",
         )
         .eq("author_id", resolved.user.id)
         .eq("feature_id", feature.id)
@@ -164,7 +164,7 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
         {(access === "member" || access === "closed") && (
           <>
             <p className="op-notice" role="status">
-              {open ? "WORKSHOP ACCESS GRANTED" : "FINAL PANEL · READ ONLY"}
+              {open ? "WORKSHOP ACCESS GRANTED" : "NEW SUBMISSIONS CLOSED · PENDING SUBMISSIONS CAN STILL BE CORRECTED"}
             </p>
             {!open && (
               <p>

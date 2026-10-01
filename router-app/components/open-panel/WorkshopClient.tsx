@@ -59,6 +59,7 @@ export function WorkshopClient({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editVersion,setEditVersion]=useState("");
   const [bodyText, setBodyText] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const uploadCoordinator=useRef(new LatestUploadCoordinator());
@@ -66,11 +67,11 @@ export function WorkshopClient({
 
   const recovery=useWorkshopRecovery(ownerId,featureId,(content,target)=>{
     const form=formRef.current;if(!form)return;
-    form.reset();setBodyText(String(content.body??""));setScreenshot(String(content.screenshot_path??""));setEditingId(target);
+    form.reset();setBodyText(String(content.body??""));setScreenshot(String(content.screenshot_path??""));setEditingId(target);setEditVersion(String(content.expected_edit_version??""));
     for(const [name,value] of Object.entries(content)){const field=form.elements.namedItem(name);if(field instanceof HTMLInputElement&&field.type==="checkbox")field.checked=value===true;else if(field instanceof HTMLInputElement||field instanceof HTMLSelectElement)field.value=String(value);}
   });
-  function capture(){if(!formRef.current||busy||readOnly)return;const values=Object.fromEntries(new FormData(formRef.current));if(!values.title&&!bodyRef.current?.value&&!screenshot&&!recovery.hasWriting())return;recovery.change({...values,body:bodyRef.current?.value??bodyText,feature_id:featureId,target_section:genericContributionSection,screenshot_path:screenshot,publication_consent:values.publication_consent==="on"} as DraftContent,editingId);}
-  useEffect(()=>{if(recovery.ready)capture();},[screenshot,editingId,bodyText]);
+  function capture(){if(!formRef.current||busy||(readOnly&&!editingId))return;const values=Object.fromEntries(new FormData(formRef.current));if(!values.title&&!bodyRef.current?.value&&!screenshot&&!recovery.hasWriting())return;recovery.change({...values,body:bodyRef.current?.value??bodyText,feature_id:featureId,...(editingId?{expected_edit_version:editVersion}:{}),target_section:genericContributionSection,screenshot_path:screenshot,publication_consent:values.publication_consent==="on"} as DraftContent,editingId);}
+  useEffect(()=>{if(recovery.ready)capture();},[screenshot,editingId,editVersion,bodyText]);
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -153,6 +154,7 @@ export function WorkshopClient({
     if (!form) return;
     try{await recovery.startRevision();}catch{setError("Save or resolve your current draft before opening a revision.");return;}
     setEditingId(item.id);
+    setEditVersion(String(item.edit_version??""));
     setBodyText(item.body);
     setScreenshot(item.screenshot_path);
     for (const [name, value] of Object.entries({ type: item.type, title: item.title, source_url: item.source_url, media_url: item.media_url, public_credit: item.public_credit })) {
@@ -162,7 +164,7 @@ export function WorkshopClient({
     const consent = form.elements.namedItem("publication_consent");
     if (consent instanceof HTMLInputElement) consent.checked = true;
     form.scrollIntoView({ behavior: "smooth", block: "start" });
-    setMessage("Revise the returned proposal, then resubmit it for independent review.");
+    setMessage("Edit your submission, then resubmit it for independent review. If review starts meanwhile, your correction stays in recovery and cannot overwrite the reviewed version.");
   }
 
   async function withdraw(id: string) {
@@ -229,8 +231,8 @@ export function WorkshopClient({
           <h2 id="proposal-heading">Propose a contribution</h2>
           <p role="status">{recovery.state}</p>
           {recovery.conflict&&<div><button type="button" onClick={recovery.keepAsNew}>KEEP LOCAL WRITING AS NEW DRAFT</button><button type="button" onClick={()=>{if(window.confirm("Replace this tab’s writing with the saved server version?"))void recovery.loadServer().catch(e=>setError(e.message));}}>LOAD SERVER VERSION</button></div>}
-          <fieldset disabled={readOnly||busy||!recovery.ready||recovery.conflict}>
-          {editingId && <p className="op-notice"><b>REVISING RETURNED CONTRIBUTION</b></p>}
+          <fieldset disabled={(readOnly&&!editingId)||busy||!recovery.ready||recovery.conflict}>
+          {editingId && <p className="op-notice"><b>EDITING SUBMISSION · RESUBMISSION REQUIRES REVIEW</b></p>}
           <p>
             Offer one focused addition to this feature for editorial review.
           </p>
@@ -367,10 +369,10 @@ export function WorkshopClient({
                   VIEW IN COMMUNITY EDITION →
                 </Link>
               )}
-              {!readOnly &&
-                ["Submitted", "Changes Requested"].includes(item.status) && (
+              {(item.incorporated_at||["In Review","Accepted"].includes(item.status))&&<p><Link to={`/features/${featureSlug}/report?kind=Factual%20error`}>REQUEST EDITORIAL CORRECTION →</Link><span className="field-help"> Reviewed work is not edited in place.</span></p>}
+              {["Submitted", "Changes Requested"].includes(item.status) && (
                   <div className="profile-actions">
-                    {item.status === "Changes Requested" && <button type="button" disabled={busy} onClick={() => revise(item)}>REVISE AND RESUBMIT</button>}
+                    {!item.incorporated_at && <button type="button" disabled={busy} onClick={() => revise(item)}>{item.status==="Submitted"?"EDIT SUBMISSION":"REVISE AND RESUBMIT"}</button>}
                     <button type="button" disabled={busy} onClick={() => withdraw(item.id)}>WITHDRAW</button>
                   </div>
                 )}

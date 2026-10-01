@@ -1,11 +1,12 @@
+import { MarkdownText } from "../components/MarkdownText";
+import { catalogue } from "../lib/publication.server";
+import { broadInterests } from "../lib/preferences";
+import { acceptsContributions } from "../lib/publication";
 import { MyKeyRing } from "../components/KeyRingBadge";
-import { EditorialInbox } from "../components/EditorialInbox";
 import type { InboxEvent } from "../lib/inbox";
-import { privateMember } from "../lib/private-member.server";
-import { z } from "zod";
 import { contributionState } from "../lib/contribution-state";
 import { SaveFeature } from "../components/SaveFeature";
-import { data, Link, useLoaderData, useActionData } from "react-router";
+import { data, Link, useLoaderData } from "react-router";
 import type { Route } from "./+types/profile";
 import { Masthead } from "../components/Masthead";
 import {
@@ -57,12 +58,16 @@ export async function loader({ request }: Route.LoaderArgs) {
     await Promise.all([
       resolved.client
         .from("profiles")
-        .select("display_name,pen_name,bio,created_at,default_credit")
+        .select(
+          "display_name,pen_name,bio,created_at,default_credit,interests,preferences_chosen_at",
+        )
         .eq("id", resolved.user.id)
         .single(),
       resolved.client
         .from("contributions")
-        .select("id,status,feature_id,created_at,incorporated_at")
+        .select(
+          "id,title,body,moderator_note,status,feature_id,created_at,incorporated_at",
+        )
         .is("withdrawn_at", null)
         .eq("author_id", resolved.user.id)
         .order("created_at", { ascending: false }),
@@ -125,6 +130,31 @@ export async function loader({ request }: Route.LoaderArgs) {
   const issues = await resolved.client
     .from("public_issues")
     .select("id,title,slug");
+  const discovery = await catalogue();
+  const interests = broadInterests(profileResult.data.interests);
+  const nextPanels = discovery.features
+    .filter((f) => {
+      const i = discovery.issues.find((i) => i.id === f.issue_id);
+      return i && acceptsContributions(f, i, discovery.now);
+    })
+    .sort(
+      (a, b) =>
+        Number(
+          interests.some((p) =>
+            discovery.categories.some(
+              (c) => c.id === b.category_id && c.slug === p,
+            ),
+          ),
+        ) -
+        Number(
+          interests.some((p) =>
+            discovery.categories.some(
+              (c) => c.id === a.category_id && c.slug === p,
+            ),
+          ),
+        ),
+    )
+    .slice(0, 3);
   const publication = states.data as {
     contribution_id: string;
     published: boolean;
@@ -135,6 +165,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       state: "accepted" as const,
       profile: profileResult.data,
       capabilities,
+      nextPanels,
       inbox: (inbox.data ?? []) as InboxEvent[],
       inboxError: inbox.error
         ? "Inbox could not be loaded. Please retry."
@@ -173,38 +204,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   );
 }
 
-export async function action({ request }: Route.ActionArgs) {
-  const { client, headers } = await privateMember(request);
-  if (
-    request.headers.get("origin") &&
-    request.headers.get("origin") !== new URL(request.url).origin
-  )
-    return data(
-      { error: "Same-origin request required" },
-      { status: 403, headers },
-    );
-  const form = await request.formData();
-  const parsed = z
-    .object({ inboxId: z.string().uuid(), seen: z.enum(["true", "false"]) })
-    .safeParse(Object.fromEntries(form));
-  if (!parsed.success)
-    return data({ error: "Invalid Inbox action" }, { status: 400, headers });
-  const r = await client.rpc("set_inbox_read", {
-    target: parsed.data.inboxId,
-    seen: parsed.data.seen === "true",
-  });
-  return data(
-    {
-      error:
-        r.error || !r.data
-          ? "Inbox could not be updated. Please retry."
-          : undefined,
-    },
-    { status: r.error ? 503 : 200, headers },
-  );
-}
 export default function Profile() {
-  const actionResult = useActionData<typeof action>();
   const result = useLoaderData<typeof loader>();
   if (result.state === "signed-out")
     return (
@@ -270,7 +270,7 @@ export default function Profile() {
       : []),
     ...result.contributions.map((contribution) => ({
       id: `contribution-${contribution.id}`,
-      title: contribution.feature?.title ?? "Feature unavailable",
+      title: contribution.title,
       type: "Open Panel Contribution",
       status: contributionState(
         contribution,
@@ -280,20 +280,22 @@ export default function Profile() {
           ?.cited,
       ),
       date: new Date(contribution.created_at).toLocaleDateString("en-GB"),
-      meta: contribution.feature?.slug ?? "",
+      meta:
+        contribution.feature?.title ??
+        "Panel not currently public · your submission is retained",
       action: contribution.feature ? (
         <Link to={`/features/${contribution.feature.slug}/workshop`}>
           VIEW →
         </Link>
       ) : (
-        <span>Unavailable</span>
+        <a href={`#submission-${contribution.id}`}>VIEW OWN SUBMISSION →</a>
       ),
     })),
   ];
   return (
     <main className="editorial-page">
       <Masthead />
-      <div className="op-workspace profile-page">
+      <div className="op-workspace profile-page member-hub">
         <p className="op-eyebrow editorial-marker">PANEL IDENTITY</p>
         <h1 tabIndex={-1} className="identity-heading">
           <MyKeyRing profile />
@@ -306,9 +308,9 @@ export default function Profile() {
         <nav className="profile-actions" aria-label="Profile actions">
           <Link to="/">← RETURN TO PUBLICATION</Link>
           <Link to="/profile/settings">SETTINGS</Link>
-          <a href="#inbox">
-            INBOX{result.inbox.some((e) => !e.read_at) ? " · UNREAD" : ""}
-          </a>
+          <Link to="/profile/inbox">
+            My Inbox{result.inbox.some((e) => !e.read_at) ? " · UNREAD" : ""}
+          </Link>
           {result.capabilities.editorial && (
             <Link to="/editorial">EDITORIAL DASHBOARD</Link>
           )}
@@ -472,11 +474,43 @@ export default function Profile() {
               </p>
             ))}
         </section>
-        <EditorialInbox
-          events={result.inbox}
-          features={result.features}
-          error={actionResult?.error ?? result.inboxError}
-        />
+        <section className="member-activity">
+          <h2>MY INBOX</h2>
+          <p className="hub-meta">
+            {result.inbox.filter((e) => !e.read_at).length} unread · private
+            editorial updates
+          </p>
+          {result.inboxError && <p role="status">{result.inboxError}</p>}
+          {result.inbox.slice(0, 2).map((e) => (
+            <p key={e.id}>
+              {e.message.length > 160
+                ? `${e.message.slice(0, 157)}…`
+                : e.message}
+            </p>
+          ))}
+          <Link className="hub-action" to="/profile/inbox">
+            VIEW MY INBOX →
+          </Link>
+        </section>
+        {result.contributions
+          .filter((c) => !c.feature)
+          .map((c) => (
+            <details
+              className="retained-submission"
+              id={`submission-${c.id}`}
+              key={c.id}
+            >
+              <summary>{c.title} · VIEW OWN SUBMISSION</summary>
+              <p>
+                {contributionState(c)} · Panel not currently public. Your
+                submission has been retained.
+              </p>
+              <MarkdownText text={c.body} />
+              {c.moderator_note && (
+                <p>Editorial guidance: {c.moderator_note}</p>
+              )}
+            </details>
+          ))}
         <section id="panels">
           <h2>YOUR CONTRIBUTIONS</h2>
 
@@ -485,6 +519,22 @@ export default function Profile() {
             rows={panelRows}
             empty="No panels yet."
           />
+        </section>
+        <section>
+          <h2>WHAT NEXT?</h2>
+          {result.nextPanels.map((f) => (
+            <p key={f.id}>
+              <Link to={`/features/${f.slug}`}>{f.title} →</Link>
+            </p>
+          ))}
+          <div className="profile-actions">
+            <Link className="hub-action" to="/search?status=open">
+              EXPLORE OPEN PANELS →
+            </Link>
+            <Link className="hub-action" to="/profile/settings">
+              EDIT INTERESTS →
+            </Link>
+          </div>
         </section>
       </div>
     </main>

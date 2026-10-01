@@ -24,7 +24,7 @@ export type Role = "member" | "contributor" | "moderator" | "admin";
 export const canModerate = (role?: string) =>
   role === "moderator" || role === "admin";
 export const canEdit = (status: string) =>
-  status === "Changes Requested";
+  ["Submitted","Changes Requested"].includes(status);
 export const canTransition = (from: string, to: string) =>
   ["Submitted", "In Review", "Changes Requested"].includes(from) &&
   ["In Review", "Changes Requested", "Accepted", "Rejected"].includes(to) &&
@@ -117,6 +117,7 @@ export function screenshotError(file: { size: number; type: string }) {
 export type ContributionInput = z.infer<typeof contributionSchema>;
 export type Credit = { id: string; display_name: string };
 export type Contribution = ContributionInput & {
+  edit_version?: number;
   id: string;
   author_id: string;
   status: string;

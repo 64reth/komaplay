@@ -1,6 +1,4 @@
-import {personalBriefing} from "../lib/briefing.server";
-import {PersonalBriefing} from "../components/PersonalBriefing";
-import { data as routeData, Link } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/home";
 import { catalogue } from "../lib/publication.server";
 import {
@@ -19,8 +17,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const filters = Object.fromEntries(
     new URL(request.url).searchParams,
   ) as DiscoveryFilters;
-  const personal=await personalBriefing(request);
-  return routeData({data,filters,briefing:personal.briefing},{headers:personal.headers});
+  return {data,filters};
 }
 export const meta: Route.MetaFunction = () => [
   { title: "KOMA://PLAY — Issue Zero" },
@@ -31,7 +28,7 @@ export const meta: Route.MetaFunction = () => [
   { tagName: "link", rel: "canonical", href: "https://komaplay.com" },
 ];
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { data, filters, briefing } = loaderData;
+  const { data, filters } = loaderData;
   const issue =
     data.issues.find((i) => i.status === "current") ??
     data.issues.find((i) => i.status === "finalising");
@@ -67,7 +64,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <Masthead />
       <IssueNavigation />
       <CurrentIssueHeader issue={issue} categories={data.categories} />
-      {briefing&&<PersonalBriefing briefing={briefing} data={data}/>}
       <IssueFilters selected={filters.filter} />
       {data.message && (
         <p className="publication-setup" role="status">
@@ -101,5 +97,3 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     </main>
   );
 }
-
-export const headers:Route.HeadersFunction=({loaderHeaders})=>loaderHeaders;

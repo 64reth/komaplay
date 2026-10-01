@@ -22,6 +22,7 @@ export default [
   route("member/saves", "routes/saves.ts"),
   route("features/:slug/report", "routes/report.tsx"),
   route("profile", "routes/profile.tsx"),
+  route("profile/inbox", "routes/inbox.tsx"),
   route("profile/settings", "routes/profile-settings.tsx"),
   route("editorial", "routes/editorial.tsx"),
   route("moderation", "routes/moderation.tsx"),

@@ -99,7 +99,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       ? resolved.client.rpc("issue_close_preview")
       : Promise.resolve({ data: null, error: null }),
     context.capabilities.moderation
-      ? resolved.client.rpc("open_panel_review_inbox")
+      ? resolved.client.rpc("open_panel_review_inbox_current")
       : Promise.resolve({ data: [], error: null }),
     context.capabilities.moderation
       ? resolved.client.rpc("contribution_incorporation_inbox")
@@ -253,7 +253,7 @@ export async function action({ request }: Route.ActionArgs) {
       const note = String(form.get("note") ?? "").trim();
       if (decision !== "Accepted" && note.length < 4)
         return data({ error: "Add useful feedback for the contributor." }, { status: 400, headers: resolved.headers });
-      const result = await resolved.client.rpc("moderate_contribution", { target: String(form.get("contributionId") ?? ""), decision, published_heading: "", published_body: "", note });
+      const result = await resolved.client.rpc("moderate_contribution_current", { target: String(form.get("contributionId") ?? ""), expected_version:Number(form.get("editVersion")),decision,note });
       if (result.error) throw result.error;
       return data({ success: decision === "Accepted" ? "Contribution accepted for editorial incorporation." : decision === "Rejected" ? "Contribution declined." : "Changes requested from the contributor." }, { headers: resolved.headers });
     }
@@ -418,6 +418,7 @@ export default function Moderation() {
                 ) : (
                   <Form method="post" className="op-form">
                     <input type="hidden" name="contributionId" value={item.contribution_id} />
+                    <input type="hidden" name="editVersion" value={item.edit_version}/>
                     <label>Reviewer feedback<textarea name="note" maxLength={2000} rows={3} /></label>
                     <div className="profile-actions">
                       <button className="op-button action-primary" name="intent" value="reviewContribution">ACCEPT</button>

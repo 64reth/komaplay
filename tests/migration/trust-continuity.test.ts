@@ -180,6 +180,14 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
         );
       },
     );
+    await t.test(
+      "polish correction workflow protects original text and concurrent review",
+      async () => {
+        await db.exec(
+          await readFile("scripts/polish-production-checks.sql", "utf8"),
+        );
+      },
+    );
     const feature = (
       await db.query<any>(
         "select id,issue_id from features where feature_is_public(id) limit 1",
@@ -422,7 +430,7 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
       async () => {
         await as(admin);
         await db.query(
-          "select moderate_contribution($1,'Accepted','','','Suitable')",
+          "select moderate_contribution_current($1,(select edit_version from contributions where id=$1),'Accepted','Suitable')",
           [canonical!],
         );
         await as(owner);
@@ -601,7 +609,7 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
           owner,
         );
         await db.query(
-          "select moderate_contribution($1,'Accepted','','','Suitable')",
+          "select moderate_contribution_current($1,(select edit_version from contributions where id=$1),'Accepted','Suitable')",
           [named],
         );
         await db.query(
