@@ -90,3 +90,15 @@ test("private Profile identifies retained submissions even when their Panel is n
     /MARK READ|YOUR KOMA BRIEFING|href="\/features\/hidden/,
   );
 });
+
+test("publication-first Home retains private cache headers for root account navigation", async () => {
+  const { headers } = await import("../../router-app/routes/home");
+  const result = new Headers(headers({
+    loaderHeaders: new Headers(),
+    actionHeaders: new Headers(),
+    parentHeaders: new Headers(),
+    errorHeaders: undefined,
+  }));
+  assert.equal(result.get("Cache-Control"), "private, no-store");
+  assert.equal(result.get("Vary"), "Cookie");
+});

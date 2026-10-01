@@ -97,3 +97,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     </main>
   );
 }
+
+// The root account navigation is personalised even though this page's content is public.
+export const headers: Route.HeadersFunction = () => ({
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie",
+});
