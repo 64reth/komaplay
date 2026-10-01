@@ -372,7 +372,7 @@ export function WorkshopClient({
               {(item.incorporated_at||["In Review","Accepted"].includes(item.status))&&<p><Link to={`/features/${featureSlug}/report?kind=Factual%20error`}>REQUEST EDITORIAL CORRECTION →</Link><span className="field-help"> Reviewed work is not edited in place.</span></p>}
               {["Submitted", "Changes Requested"].includes(item.status) && (
                   <div className="profile-actions">
-                    {!item.incorporated_at && <button type="button" disabled={busy} onClick={() => revise(item)}>{item.status==="Submitted"?"EDIT SUBMISSION":"REVISE AND RESUBMIT"}</button>}
+                    {!item.incorporated_at && <button type="button" disabled={busy||!recovery.ready} onClick={() => revise(item)}>{item.status==="Submitted"?"EDIT SUBMISSION":"REVISE AND RESUBMIT"}</button>}
                     <button type="button" disabled={busy} onClick={() => withdraw(item.id)}>WITHDRAW</button>
                   </div>
                 )}

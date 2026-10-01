@@ -35,8 +35,10 @@ try {
     const req = route.request(),
       url = new URL(req.url());
     if (url.pathname.startsWith("/member/workshop/")) {
-      if (req.method() === "GET")
+      if (req.method() === "GET") {
+        await new Promise(resolve => setTimeout(resolve, 1200));
         return route.fulfill({ json: { draft: null } });
+      }
       const input = req.postDataJSON();
       if (url.pathname.endsWith("submit-draft")) {
         submissions++;
@@ -84,7 +86,10 @@ try {
       ),
     );
     await p.goto("https://polish.test/workshop");
-    await p.getByRole("button", { name: "EDIT SUBMISSION" }).click();
+    const edit = p.getByRole("button", { name: "EDIT SUBMISSION" });
+    await edit.waitFor();
+    assert.equal(await edit.isDisabled(), true, "wait for recovery before editing");
+    await edit.click();
     const title = p.getByRole("textbox", { name: "Title", exact: true });
     await title.fill("Corrected title");
     await p
