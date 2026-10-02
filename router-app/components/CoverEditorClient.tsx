@@ -10,7 +10,7 @@ type Result={error?:string;success?:string;field?:string};
 const label=(value:string)=>value.replaceAll("-"," ").replace(/(^|\s)\S/g,c=>c.toUpperCase());
 const media=(path:string)=>path.startsWith("cover-pool/")?`/member/cover-pool/image?path=${encodeURIComponent(path)}`:path.startsWith("editorial/")?`/api/editorial/image?path=${encodeURIComponent(path)}`:path;
 
-export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateId }: { issues:IssueRow[];panelsByIssue:Record<string,Panel[]>;initialId:string;candidateId?:string|null }) {
+export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateId, rollover=[] }: { issues:IssueRow[];panelsByIssue:Record<string,Panel[]>;initialId:string;candidateId?:string|null; rollover?:{issue_id:string;phase:string;message:string}[] }) {
   const action=useActionData<Result>(), navigation=useNavigation();
   const [issueId,setIssueId]=useState(initialId);
   const issue=issues.find(item=>item.id===issueId) ?? issues[0];
@@ -31,6 +31,7 @@ export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateI
     <section className="cover-editor-controls">
       {action?.error&&<p role="alert" className="op-notice">{action.error}</p>}{action?.success&&<p role="status" className="op-notice">{action.success}</p>}
       <label>Issue<select disabled={Boolean(candidateId)} value={issue.id} onChange={event=>setIssueId(event.target.value)}>{issues.map(item=><option key={item.id} value={item.id}>{item.title} · {label(item.status)}</option>)}</select></label>
+      {!candidateId&&<section aria-label="Monthly Issue rollover"><h2>Monthly rollover</h2><p role="status">{rollover.find(r=>r.issue_id===issue.id)?.message??"Confirm the saved official cover and lead panel to enable rollover after month-end and the Issue deadline (UTC)."}</p>{issue.status!=="archived"&&<Form method="post"><input type="hidden" name="issue_id" value={issue.id}/><label><input type="checkbox" name="confirmed" value="yes"/> I confirm the saved cover and lead panel are official.</label><div className="profile-actions"><button className="op-button" name="intent" value="confirm-rollover" disabled={navigation.state!=="idle"}>CONFIRM SAVED COVER &amp; ENABLE ROLLOVER</button><button className="op-button" name="intent" value="pause-rollover" disabled={navigation.state!=="idle"}>PAUSE ROLLOVER</button></div></Form>}</section>}
       <Form method="post" noValidate onSubmit={event=>{const intent=(event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement|null;if(intent?.value==="archive"&&Object.keys(errors).length){event.preventDefault();const first=event.currentTarget.querySelector<HTMLElement>(`[name="${Object.keys(errors)[0]}"]`);first?.focus();}}}>
         <input type="hidden" name="candidate_id" value={candidateId==="new"?"":candidateId??""}/><input type="hidden" name="issue_id" value={issue.id}/><input type="hidden" name="secondary_cover_lines" value={JSON.stringify(draft.secondary_cover_lines)}/>
         <fieldset disabled={issue.status==="archived"||Boolean(candidateId)}><legend>Issue identity</legend>

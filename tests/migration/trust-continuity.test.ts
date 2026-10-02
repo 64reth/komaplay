@@ -229,6 +229,26 @@ test("complete SQL chain: private drafts, atomic submission receipts, saves and 
       public_credit: "Anonymous Panelist",
       publication_consent: true,
     };
+    await t.test("atomic access transitions and safe monthly rollover", async () => {
+      await db.exec("reset role");
+      await db.exec(await readFile("scripts/access-rollover-production-checks.sql", "utf8"));
+      await as(owner);
+    });
+    await t.test("a mid-archive failure rolls back membership and retries cleanly", async () => {
+      await db.exec("reset role");
+      const sql = (await readFile("scripts/access-rollover-production-checks.sql", "utf8")).replace(
+        "update public.features set deadline_override=null where id=fid;",
+        `update public.features set deadline_override=null where id=fid;
+         alter table public.issue_cover_audit add constraint simulated_archive_failure check(action<>'archive-validated') not valid;
+         perform public.run_issue_rollover();
+         if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='error') then raise exception 'Failure not visible';end if;
+         if exists(select 1 from public.features where id=fid and lifecycle_status='archived') then raise exception 'Partial archive survived failure';end if;
+         alter table public.issue_cover_audit drop constraint simulated_archive_failure;`,
+      );
+      await db.exec(sql);
+      await as(owner);
+    });
+
     await t.test(
       "incomplete autosave, same-content retry and stale-tab rejection",
       async () => {

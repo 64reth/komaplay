@@ -1,11 +1,12 @@
+import { runIssueRollover } from "./issue-rollover";
 import { createRequestHandler } from "react-router";
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
   import.meta.env.MODE,
 );
 function exposePublicSupabaseEnv(env: Env) {
-  const runtime = env as Record<string, string | undefined>;
-  const processEnv = process.env as Record<string, string | undefined>;
+  const runtime = env as Env & Record<string, string | undefined>;
+  const processEnv = process.env as Env & Record<string, string | undefined>;
   for (const name of [
     "TURNSTILE_SITE_KEY",
     "TURNSTILE_SECRET",
@@ -26,6 +27,12 @@ function exposePublicSupabaseEnv(env: Env) {
 }
 
 export default {
+  async scheduled(_event, env) {
+    if (String(env.ISSUE_ROLLOVER_ENABLED) !== "true") return;
+    const runtime = env as Env & Record<string, string | undefined>;
+    const result = await runIssueRollover(runtime.SUPABASE_URL ?? runtime.VITE_SUPABASE_URL ?? runtime.NEXT_PUBLIC_SUPABASE_URL, runtime.SUPABASE_MEDIA_SERVICE_KEY);
+    console.log(JSON.stringify({ event: "monthly-issue-rollover", result }));
+  },
   fetch(request, env) {
     exposePublicSupabaseEnv(env);
     return requestHandler(request);

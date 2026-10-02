@@ -22,11 +22,12 @@ async function context(request:Request){
 export async function loader({request}:Route.LoaderArgs){
   const ctx=await context(request), {resolved}=ctx;
   if(ctx.state!=="accepted"||!resolved.client)return data({state:ctx.state,issues:[],panelsByIssue:{},initialId:""},{status:ctx.state==="signed-out"?401:403,headers:resolved.headers});
-  const [issuesResult,panelsResult]=await Promise.all([
+  const [issuesResult,panelsResult,rolloverResult]=await Promise.all([
     resolved.client.from("issues").select(issueColumns).order("year",{ascending:false}).order("month",{ascending:false}),
     resolved.client.from("features").select("id,issue_id,title,image,image_alt,lifecycle_status,status").eq("status","published").not("lifecycle_status","in",'(draft,taken_down)').order("strip_position"),
+    resolved.client.from("issue_rollover").select("issue_id,phase,message"),
   ]);
-  if(issuesResult.error||panelsResult.error)throw data("The Cover Editor could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
+  if(issuesResult.error||panelsResult.error||rolloverResult.error)throw data("The Cover Editor could not be loaded. Please try again shortly.",{status:503,headers:resolved.headers});
   const issues=(issuesResult.data??[]).map((row:any)=>({...row,issue_id:row.id,issue_number:String(row.issue_number),year:String(row.year),month:String(row.month),lead_feature_id:row.lead_feature_id??"",secondary_cover_lines:Array.isArray(row.secondary_cover_lines)?row.secondary_cover_lines:[]}));
   const panelsByIssue:Record<string,unknown[]>={};for(const panel of panelsResult.data??[])(panelsByIssue[panel.issue_id]??=[]).push(panel);
   let requested=new URL(request.url).searchParams.get("issue");
@@ -39,7 +40,7 @@ export async function loader({request}:Route.LoaderArgs){
     if(index<0)throw data("Issue unavailable.",{status:404,headers:resolved.headers});
     issues[index]={...issues[index],...candidate.data.payload,id:candidate.data.issue_id,status:issues[index].status};
   }
-  return data({state:"accepted" as const,candidateId,issues,panelsByIssue,initialId:issues.some(row=>row.id===requested)?requested!:issues.find(row=>row.status!=="archived")?.id??issues[0]?.id??""},{headers:resolved.headers});
+  return data({state:"accepted" as const,candidateId,rollover:rolloverResult.data??[],issues,panelsByIssue,initialId:issues.some(row=>row.id===requested)?requested!:issues.find(row=>row.status!=="archived")?.id??issues[0]?.id??""},{headers:resolved.headers});
 }
 
 export async function action({request}:Route.ActionArgs){
@@ -51,6 +52,14 @@ export async function action({request}:Route.ActionArgs){
   if(panels.error)return data({error:"Published panels could not be verified."},{status:503,headers:resolved.headers});
   const errors=coverErrors(draft,(panels.data??[]).map(row=>row.id));if(form.get("intent")==="archive"&&Object.keys(errors).length)return data({error:Object.values(errors)[0],field:Object.keys(errors)[0]},{status:400,headers:resolved.headers});
   try{
+    if(form.get("intent")==="confirm-rollover"||form.get("intent")==="pause-rollover"){
+      const enabled=form.get("intent")==="confirm-rollover";
+      if(enabled&&form.get("confirmed")!=="yes")return data({error:"Confirm the saved official cover before enabling rollover."},{status:400,headers:resolved.headers});
+      const result=await resolved.client.rpc("confirm_issue_rollover",{target:String(form.get("issue_id")??""),enabled});
+      if(result.error)throw result.error;
+      return data({success:enabled?"Official cover confirmed. Monthly rollover enabled.":"Monthly rollover paused."},{headers:resolved.headers});
+    }
+
     if(form.get("intent")==="save-candidate"){
       const saved=await resolved.client.rpc("cover_pool_action",{operation:"save",target_issue:draft.issue_id,target_candidate:form.get("candidate_id")||null,draft});if(saved.error)throw saved.error;
       return redirect(`/cover-editor/pool?issue=${draft.issue_id}`,{headers:resolved.headers});
@@ -64,7 +73,7 @@ export async function action({request}:Route.ActionArgs){
 export const meta:Route.MetaFunction=()=>[{title:"Cover Editor — KOMA://PLAY"},{name:"robots",content:"noindex, nofollow"}];
 export default function CoverEditor({loaderData}:Route.ComponentProps){
   if(loaderData.state!=="accepted")return <main className="editorial-page"><Masthead/><section className="op-workspace"><p className="editorial-marker">COVER EDITOR</p><h1>{loaderData.state==="signed-out"?"Sign in to continue.":"Cover Editor access is restricted."}</h1><p>Only active Moderators and Admins can package and archive issues.</p><Link to="/">RETURN TO PUBLICATION →</Link></section></main>;
-  return <main className="editorial-page"><Masthead/><section className="op-workspace cover-editor"><p className="op-eyebrow editorial-marker">ISSUE PACKAGING</p><h1>Cover Editor</h1><Link className="op-button" to="/cover-editor/pool">PRIVATE COVER POOL →</Link><p>Create a restrained magazine cover, validate its published panels, then archive through the existing issue-close workflow.</p>{loaderData.issues.length?<CoverEditorClient issues={loaderData.issues as any} panelsByIssue={loaderData.panelsByIssue as any} initialId={loaderData.initialId} candidateId={"candidateId" in loaderData?loaderData.candidateId:undefined}/>:<p className="op-notice">No issues are available.</p>}</section></main>;
+  return <main className="editorial-page"><Masthead/><section className="op-workspace cover-editor"><p className="op-eyebrow editorial-marker">ISSUE PACKAGING</p><h1>Cover Editor</h1><Link className="op-button" to="/cover-editor/pool">PRIVATE COVER POOL →</Link><p>Create a restrained magazine cover, validate its published panels, then archive through the existing issue-close workflow.</p>{loaderData.issues.length?<CoverEditorClient issues={loaderData.issues as any} panelsByIssue={loaderData.panelsByIssue as any} initialId={loaderData.initialId} rollover={"rollover" in loaderData?loaderData.rollover as {issue_id:string;phase:string;message:string}[]:[]} candidateId={"candidateId" in loaderData?loaderData.candidateId:undefined}/>:<p className="op-notice">No issues are available.</p>}</section></main>;
 }
 
 export const headers: Route.HeadersFunction = ({loaderHeaders,actionHeaders,errorHeaders}) => {

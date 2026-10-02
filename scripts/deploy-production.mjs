@@ -19,5 +19,5 @@ if(mode!=='--check'){
  const built=JSON.parse(readFileSync(new URL('../'+config,import.meta.url),'utf8'));
  if(built.main!=='index.js' || built.assets?.directory!=='../client' || !['komaplay-canary','komaplay'].includes(built.name))throw Error('Unexpected React Router Worker configuration.');
  if(output('git',['status','--porcelain']))throw Error('Build changed source; review and commit before deployment.');
- run('pnpm',['exec','wrangler','deploy','--config',config,'--name','komaplay','--keep-vars','--message',`${sha} React Router Alpha`,...(mode==='--dry-run'?['--dry-run']:[])]);
+ run('pnpm',['exec','wrangler','deploy','--config',config,'--name','komaplay','--keep-vars','--var','ISSUE_ROLLOVER_ENABLED:true','--triggers','*/15 * * * *','--message',`${sha} React Router Alpha`,...(mode==='--dry-run'?['--dry-run']:[])]);
 }

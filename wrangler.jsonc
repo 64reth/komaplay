@@ -3,8 +3,18 @@
   "name": "komaplay-canary",
   "main": "./workers/app.ts",
   "compatibility_date": "2026-08-18",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": true,
-  "observability": { "enabled": true },
-  "upload_source_maps": true
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "vars": {
+    "ISSUE_ROLLOVER_ENABLED": "false"
+  },
+  "triggers": {
+    "crons": []
+  }
 }
