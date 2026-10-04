@@ -1,3 +1,4 @@
+import {closeIssue} from "../lib/issue-close.server";
 import {MyKeyRing} from "../components/KeyRingBadge";
 import { actionFailure } from "../lib/action-feedback";
 import {
@@ -187,12 +188,8 @@ export async function action({ request }: Route.ActionArgs) {
           { status: 403, headers: resolved.headers },
         );
       if (intent === "closeIssue") {
-        const result = await resolved.client.rpc("close_current_issue");
-        if (result.error) throw result.error;
-        return data(
-          { success: "Issue closed and archived." },
-          { headers: resolved.headers },
-        );
+        const result = await closeIssue(resolved.client,String(form.get("issue_id")??""));
+        return data(result,{headers:resolved.headers});
       }
       const featureId = String(form.get("featureId") ?? "");
       const rpcName =
@@ -278,7 +275,7 @@ export async function action({ request }: Route.ActionArgs) {
       {
         error: actionFailure(
           error,
-          "We couldn’t complete this action just now. No confirmation was received. Refresh the panel to check its current state before trying again.",
+          "The action failed. Refresh the panel state before retrying.",
         ),
       },
       { status: 400, headers: resolved.headers },
@@ -314,6 +311,7 @@ export default function Moderation() {
   const [confirmation, setConfirmation] = useState<null | {
     kind: "publish" | "takeDown" | "archive" | "closeIssue";
     featureId?: string;
+    issueId?: string;
     title: string;
     slug: string;
   }>(null);
@@ -547,6 +545,7 @@ export default function Moderation() {
                       : "Take down this feature? It will be removed from public feature pages and live issue listings, but its history will be kept."}
               </p>
               <Form method="post" className="profile-actions">
+                {confirmation.issueId&&<input type="hidden" name="issue_id" value={confirmation.issueId}/>}
                 {confirmation.featureId && (
                   <input
                     type="hidden"
@@ -623,16 +622,16 @@ export default function Moderation() {
                 <p className="editorial-marker">MONTHLY RESET</p>
                 <h3>CLOSE CURRENT ISSUE</h3>
                 <p>
-                  {result.closePreview?.status === "ready"
+                  {result.closePreview?.status === "READY_TO_CLOSE"
                     ? `${result.closePreview.includedPanelCount ?? result.closePreview.eligiblePanelCount ?? 0} total public panels will be included in ${result.closePreview.issueTitle ?? "the current issue"}. ${result.closePreview.editorialPanelCount ?? result.closePreview.publishedPanelCount ?? 0} editorial panels are ready to archive. ${result.closePreview.staticPanelCount ?? 0} static/seeded panels are already part of this issue and will remain read-only.`
-                    : (result.closePreview?.message ??
+                    : (result.closePreview?.reason ??
                       "No published panels are ready to close for this issue.")}
                 </p>
                 <button
                   className="op-button"
                   type="button"
-                  disabled={navigation.state !== "idle" || result.closePreview?.status !== "ready"}
-                  onClick={(event) => openConfirmation({ kind: "closeIssue", title: `${result.closePreview?.issueTitle ?? "Current issue"}`, slug: "" }, event.currentTarget)}
+                  disabled={navigation.state !== "idle" || !result.closePreview?.issueId}
+                  onClick={(event) => openConfirmation({ kind: "closeIssue", issueId: result.closePreview?.issueId, title: `${result.closePreview?.issueTitle ?? "Current issue"}`, slug: "" }, event.currentTarget)}
                 >
                   CLOSE CURRENT ISSUE
                 </button>

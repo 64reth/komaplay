@@ -1,3 +1,4 @@
+import type {IssueCloseState} from "../lib/issue-close";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form, useActionData, useNavigation } from "react-router";
 import { CoverPreview } from "./CoverPreview";
@@ -10,7 +11,7 @@ type Result={error?:string;success?:string;field?:string};
 const label=(value:string)=>value.replaceAll("-"," ").replace(/(^|\s)\S/g,c=>c.toUpperCase());
 const media=(path:string)=>path.startsWith("cover-pool/")?`/member/cover-pool/image?path=${encodeURIComponent(path)}`:path.startsWith("editorial/")?`/api/editorial/image?path=${encodeURIComponent(path)}`:path;
 
-export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateId, rollover=[] }: { issues:IssueRow[];panelsByIssue:Record<string,Panel[]>;initialId:string;candidateId?:string|null; rollover?:{issue_id:string;phase:string;message:string}[] }) {
+export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateId, rollover=[] }: { issues:IssueRow[];panelsByIssue:Record<string,Panel[]>;initialId:string;candidateId?:string|null; rollover?:IssueCloseState[] }) {
   const action=useActionData<Result>(), navigation=useNavigation();
   const [issueId,setIssueId]=useState(initialId);
   const issue=issues.find(item=>item.id===issueId) ?? issues[0];
@@ -31,8 +32,8 @@ export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateI
     <section className="cover-editor-controls">
       {action?.error&&<p role="alert" className="op-notice">{action.error}</p>}{action?.success&&<p role="status" className="op-notice">{action.success}</p>}
       <label>Issue<select disabled={Boolean(candidateId)} value={issue.id} onChange={event=>setIssueId(event.target.value)}>{issues.map(item=><option key={item.id} value={item.id}>{item.title} · {label(item.status)}</option>)}</select></label>
-      {!candidateId&&<section aria-label="Monthly Issue rollover"><h2>Monthly rollover</h2><p role="status">{rollover.find(r=>r.issue_id===issue.id)?.message??"Confirm the saved official cover and lead panel to enable rollover after month-end and the Issue deadline (UTC)."}</p>{issue.status!=="archived"&&<Form method="post"><input type="hidden" name="issue_id" value={issue.id}/><label><input type="checkbox" name="confirmed" value="yes"/> I confirm the saved cover and lead panel are official.</label><div className="profile-actions"><button className="op-button" name="intent" value="confirm-rollover" disabled={navigation.state!=="idle"}>CONFIRM SAVED COVER &amp; ENABLE ROLLOVER</button><button className="op-button" name="intent" value="pause-rollover" disabled={navigation.state!=="idle"}>PAUSE ROLLOVER</button></div></Form>}</section>}
-      <Form method="post" noValidate onSubmit={event=>{const intent=(event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement|null;if(intent?.value==="archive"&&Object.keys(errors).length){event.preventDefault();const first=event.currentTarget.querySelector<HTMLElement>(`[name="${Object.keys(errors)[0]}"]`);first?.focus();}}}>
+      {!candidateId&&<section aria-label="Issue closure"><h2>Issue state: {rollover.find(r=>r.issueId===issue.id)?.lifecycle_state??"Unavailable"}</h2><p role="status">{rollover.find(r=>r.issueId===issue.id)?.reason}</p><p>Automatic closure uses calendar month end and a submitted cover. A lead Panel is optional.</p><Form method="post"><input type="hidden" name="issue_id" value={issue.id}/><button className="op-button" name="intent" value="archive" disabled={navigation.state!=="idle"}>{issue.status==="archived"?"VERIFY ARCHIVED ISSUE":"CLOSE ISSUE"}</button>{rollover.find(r=>r.issueId===issue.id)?.status!=="ALREADY_ARCHIVED"&&<><label><input type="checkbox" name="confirmed" value="yes"/> Submit this saved cover artwork to Cover Pool.</label><button className="op-button" name="intent" value="submit-saved-cover" disabled={navigation.state!=="idle"}>SUBMIT SAVED COVER TO COVER POOL</button></>}</Form></section>}
+      <Form method="post" noValidate>
         <input type="hidden" name="candidate_id" value={candidateId==="new"?"":candidateId??""}/><input type="hidden" name="issue_id" value={issue.id}/><input type="hidden" name="secondary_cover_lines" value={JSON.stringify(draft.secondary_cover_lines)}/>
         <fieldset disabled={issue.status==="archived"||Boolean(candidateId)}><legend>Issue identity</legend>
           <label>Issue title<input name="title" required maxLength={150} spellCheck value={draft.title} onChange={e=>update("title",e.target.value)}/>{errors.title&&<small role="alert">{errors.title}</small>}</label>
@@ -40,7 +41,7 @@ export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateI
           <label>Issue slug<input name="slug" pattern="[a-z0-9-]{3,80}" value={draft.slug} onChange={e=>update("slug",e.target.value)}/>{errors.slug&&<small role="alert">{errors.slug}</small>}</label>
         </fieldset>
         <fieldset disabled={issue.status==="archived"}><legend>Artwork and lead</legend>
-          <label>Lead panel<select name="lead_feature_id" value={draft.lead_feature_id} onChange={e=>{const panel=panels.find(item=>item.id===e.target.value);update("lead_feature_id",e.target.value);if(panel&&!draft.lead_headline)update("lead_headline",panel.title);}}><option value="">Choose published panel…</option>{panels.map(panel=><option key={panel.id} value={panel.id}>{panel.title}</option>)}</select>{errors.lead_feature_id&&<small role="alert">{errors.lead_feature_id}</small>}</label>
+          <label>Lead panel (optional)<select name="lead_feature_id" value={draft.lead_feature_id} onChange={e=>{const panel=panels.find(item=>item.id===e.target.value);update("lead_feature_id",e.target.value);if(panel&&!draft.lead_headline)update("lead_headline",panel.title);}}><option value="">No lead Panel</option>{panels.map(panel=><option key={panel.id} value={panel.id}>{panel.title}</option>)}</select>{errors.lead_feature_id&&<small role="alert">{errors.lead_feature_id}</small>}</label>
           {!candidateId&&<label>Use panel artwork<select value={draft.cover_art} onChange={e=>{clearUpload();const panel=panels.find(item=>item.image===e.target.value);update("cover_art",e.target.value);if(panel&&!draft.cover_art_alt)update("cover_art_alt",panel.image_alt);}}><option value="">Choose artwork…</option>{panels.filter(panel=>panel.image).map(panel=><option key={panel.id} value={panel.image}>{panel.title}</option>)}</select></label>}
           <label>Upload new cover artwork<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={upload}/></label>
           <input type="hidden" name="cover_art" value={draft.cover_art}/>{errors.cover_art&&<small role="alert">{errors.cover_art}</small>}
@@ -58,7 +59,7 @@ export function CoverEditorClient({ issues, panelsByIssue, initialId, candidateI
           <label>Editor’s note teaser<textarea name="editor_note_teaser" maxLength={240} spellCheck value={draft.editor_note_teaser} onChange={e=>update("editor_note_teaser",e.target.value)}/></label>
         </fieldset>
         {Object.keys(errors).length>0&&<p className="op-notice">Complete {Object.keys(errors).length} cover requirement{Object.keys(errors).length===1?"":"s"} before archiving.</p>}
-        <div className="profile-actions"><button className="op-button" name="intent" value={candidateId?"save-candidate":"save"} disabled={navigation.state!=="idle"||uploading||issue.status==="archived"}>{candidateId?"SAVE PRIVATE DRAFT":"SAVE COVER"}</button>{!candidateId&&["current","finalising"].includes(issue.status)&&<button className="op-button action-primary" name="intent" value="archive" disabled={navigation.state!=="idle"||uploading||Object.keys(errors).length>0}>SAVE &amp; ARCHIVE ISSUE</button>}</div>
+        <div className="profile-actions"><button className="op-button" name="intent" value={candidateId?"save-candidate":"save"} disabled={navigation.state!=="idle"||uploading||issue.status==="archived"}>{candidateId?"SAVE PRIVATE DRAFT":"SAVE COVER"}</button></div>
       </Form>
     </section>
     <aside className="cover-preview-column"><p className="op-eyebrow">LIVE COVER PREVIEW</p><CoverPreview draft={draft} imageUrl={imageUrl} panelCount={panels.length}/><p className="field-help">Template-controlled alignment keeps every slot readable. Resize the window to inspect the responsive cover.</p></aside>

@@ -18,9 +18,8 @@ export function coverErrors(draft: CoverDraft, publishedPanelIds: string[]) {
   if (!/^[a-z0-9-]{3,80}$/.test(draft.slug)) errors.slug="Use lowercase letters, numbers and hyphens.";
   if (!draft.cover_art.trim()) errors.cover_art="Choose cover artwork.";
   if (!draft.cover_art_alt.trim()) errors.cover_art_alt="Add cover alt text so the issue is accessible.";
-  if (!draft.lead_feature_id || !publishedPanelIds.includes(draft.lead_feature_id)) errors.lead_feature_id="Choose a published panel from this issue.";
+  if (draft.lead_feature_id && !publishedPanelIds.includes(draft.lead_feature_id)) errors.lead_feature_id="Choose a published panel from this issue.";
   if (!draft.lead_headline.trim()) errors.lead_headline="Add a lead headline or use the lead panel title.";
-  if (!publishedPanelIds.length) errors.lead_feature_id="Choose at least one published panel before archiving this issue.";
   if (draft.lead_headline.length>120) errors.lead_headline="This headline is too long for the selected cover slot.";
   draft.secondary_cover_lines.forEach((line,index)=>{if(line.headline.length>80)errors[`secondary_${index}`]="This headline is too long for the selected cover slot.";});
   return errors;

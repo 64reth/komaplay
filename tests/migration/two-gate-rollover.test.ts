@@ -33,8 +33,44 @@ test('monthly rollover has exactly calendar and submitted-cover gates',async(t)=
   const run=async()=>{await db.exec("select set_config('request.jwt.claim.sub','',false);set role service_role;select run_issue_rollover();reset role");};
   const status=async(i:string)=>(await db.query<{status:string}>(`select status from issues where id=$1`,[i])).rows[0].status;
   const check=async(name:string,fn:()=>Promise<void>)=>t.test(name,async()=>{await db.exec('begin');try{await fn();}finally{await db.exec('rollback;reset role');}});
+  await check('manual close uses exact identity before month end and retries report ALREADY_ARCHIVED',async()=>{
+   const i=await issue(2199);await candidate(i);
+   await db.exec(`select set_config('request.jwt.claim.sub','${actor}',false);set role authenticated`);
+   const result=await db.query<{result:{status:string;issueId:string;issue_status:string}}>('select close_issue($1) result',[i]);
+   assert.equal(result.rows[0].result.status,'ARCHIVED');assert.equal(result.rows[0].result.issueId,i);assert.equal(result.rows[0].result.issue_status,'archived');
+   assert.equal((await db.query<{result:{status:string}}>('select close_issue($1) result',[i])).rows[0].result.status,'ALREADY_ARCHIVED');
+   await db.exec('reset role');await run();assert.equal((await db.query('select * from issue_cover_audit where issue_id=$1',[i])).rows.length,2);
+  });
+  await check('manual missing-cover and legacy no-ID callers return explicit states without guessing',async()=>{
+   const i=await issue();await db.exec(`select set_config('request.jwt.claim.sub','${actor}',false);set role authenticated`);
+   assert.equal((await db.query<{result:{status:string}}>('select close_issue($1) result',[i])).rows[0].result.status,'AWAITING_COVER');
+   assert.equal((await db.query<{result:{status:string}}>('select close_current_issue() result')).rows[0].result.status,'BLOCKED');
+  });
+  await check('saved artwork requires explicit submission and retains author/art through close',async()=>{
+   const i=await issue(),art=`editorial/${actor}/saved/${crypto.randomUUID()}.png`;
+   await db.query("insert into storage.objects(bucket_id,name,owner_id) values('editorial-feature-images',$1,$2)",[art,actor]);
+   await db.query("update issues set cover_art=$1,cover_art_alt='Drawing desk',lead_headline='Saved cover',cover_updated_by=$2 where id=$3",[art,actor,i]);
+   await run();assert.notEqual(await status(i),'archived');
+   await db.exec(`select set_config('request.jwt.claim.sub','${actor}',false);set role authenticated`);
+   const a=(await db.query<{result:{status:string;candidate_id:string}}>('select submit_saved_issue_cover($1,true) result',[i])).rows[0].result;
+   const b=(await db.query<{result:{status:string;candidate_id:string}}>('select submit_saved_issue_cover($1,true) result',[i])).rows[0].result;assert.deepEqual(a,b);
+   assert.equal((await db.query<{result:{status:string}}>('select close_issue($1) result',[i])).rows[0].result.status,'ARCHIVED');
+   await db.exec('reset role');assert.deepEqual((await db.query('select created_by,payload->>\'cover_art\' as art from issue_cover_candidates where id=$1',[a.candidate_id])).rows,[{created_by:actor,art}]);
+  });
+  await check('legacy archives reconcile the same submitted artwork without reopening or duplicate snapshots',async()=>{
+   const i=await issue(),art=`editorial/${actor}/saved/${crypto.randomUUID()}.png`;
+   await db.query("insert into storage.objects(bucket_id,name,owner_id) values('editorial-feature-images',$1,$2)",[art,actor]);
+   await db.query("update issues set cover_art=$1,cover_art_alt='Drawing',lead_headline='Saved cover',cover_updated_by=$2 where id=$3",[art,actor,i]);
+   await db.exec(`select set_config('request.jwt.claim.sub','${actor}',false)`);
+   await db.query("update issues set status='archived',archived_at=now() where id=$1",[i]);
+   const before=(await db.query('select archived_at from issues where id=$1',[i])).rows;
+   await db.exec('set role authenticated');await db.query('select submit_saved_issue_cover($1,true)',[i]);
+   assert.equal((await db.query<{result:{status:string}}>('select close_issue($1) result',[i])).rows[0].result.status,'ARCHIVED');
+   assert.equal((await db.query<{result:{status:string}}>('select close_issue($1) result',[i])).rows[0].result.status,'ALREADY_ARCHIVED');
+   await db.exec('reset role');assert.deepEqual((await db.query('select archived_at from issues where id=$1',[i])).rows,before);assert.equal((await db.query("select * from issue_cover_audit where issue_id=$1 and action='archive-validated'",[i])).rows.length,1);
+  });
   await check('month not ended remains open even with a submitted cover',async()=>{const i=await issue(2199);await candidate(i);await run();assert.equal(await status(i),'finalising');});
-  await check('saved artwork and private drafts are not submissions; visibly AWAITING COVER',async()=>{const i=await issue();await candidate(i,'draft');await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/^AWAITING COVER:/);});
+  await check('saved artwork and private drafts are not submissions; visibly AWAITING COVER',async()=>{const i=await issue();await candidate(i,'draft');await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/waiting for a valid submitted cover/);});
   await check('one cover archives without a lead, published Panel, deadline or extra confirmation; retries do not duplicate',async()=>{
    const i=await issue(),c=await candidate(i);await db.query(`insert into issue_rollover(issue_id,phase) values($1,'paused')`,[i]);
    const count=(await db.query('select count(*) from issues')).rows;
@@ -42,7 +78,7 @@ test('monthly rollover has exactly calendar and submitted-cover gates',async(t)=
    await run();assert.equal((await db.query('select * from issue_cover_audit where issue_id=$1',[i])).rows.length,2);assert.deepEqual((await db.query('select count(*) from issues')).rows,count);
   });
   await check('multiple tied submissions wait; a unique vote leader resolves using existing votes',async()=>{
-   const i=await issue();await candidate(i);const b=await candidate(i);await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/^AWAITING COVER SELECTION:/);
+   const i=await issue();await candidate(i);const b=await candidate(i);await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/Cover submissions are tied/);
    await db.query('insert into issue_cover_votes(issue_id,voter_id,candidate_id) values($1,$2,$3)',[i,actor,b.id]);await run();assert.equal(await status(i),'archived');assert.equal((await db.query<{cover_art:string}>('select cover_art from issues where id=$1',[i])).rows[0].cover_art,b.art);
   });
   await check('valid confirmed selection is preserved',async()=>{const i=await issue(),a=await candidate(i,'selected');await candidate(i);await run();assert.equal(await status(i),'archived');assert.equal((await db.query<{cover_art:string}>('select cover_art from issues where id=$1',[i])).rows[0].cover_art,a.art);assert.equal((await db.query("select * from issue_cover_audit where issue_id=$1 and details ? 'selection'",[i])).rows.length,0);});
@@ -53,8 +89,9 @@ test('monthly rollover has exactly calendar and submitted-cover gates',async(t)=
    await db.query(`insert into weekly_drops(id,issue_id,week_number,label,status,published_at) values($1,$2,1,'Published drop','published',now())`,[drop,i]);
    await db.query(`insert into features(id,issue_id,slug,title,status,lifecycle_status,deadline_override,weekly_drop_id) values($1,$2,$3,'Published','published','open_panel',now()+interval '1 year',$6),($4,$2,$5,'Hidden','published','taken_down',null,$6)`,[f,i,'rollover-'+f,hidden,'rollover-'+hidden,drop]);
    await db.query(`insert into editorial_documents(feature_id,author_id,schema_version,working_document,lifecycle_status) values($1,$2,1,'{"schemaVersion":1,"modules":[]}','published')`,[f,actor]);
-   await db.exec("alter table issue_cover_audit add constraint forced_failure check(action<>'archive-validated') not valid");await run();assert.equal(await status(i),'finalising');assert.equal((await db.query<{status:string}>('select status from issue_cover_candidates where id=$1',[c.id])).rows[0].status,'submitted');assert.equal((await db.query<{phase:string}>('select phase from issue_rollover where issue_id=$1',[i])).rows[0].phase,'error');
+   await db.exec("alter table issue_cover_audit add constraint forced_failure check(action<>'archive-validated') not valid");await run();assert.equal(await status(i),'finalising');assert.equal((await db.query<{status:string}>('select status from issue_cover_candidates where id=$1',[c.id])).rows[0].status,'submitted');assert.equal((await db.query<{phase:string}>('select phase from issue_rollover where issue_id=$1',[i])).rows[0].phase,'error');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/archive-issue/);
    await db.exec("alter table issue_cover_audit drop constraint forced_failure;set timezone='Pacific/Honolulu'");await run();assert.equal(await status(i),'archived');assert.deepEqual((await db.query('select id from public_features where issue_id=$1',[i])).rows,[{id:f}]);assert.equal((await db.query('select * from editorial_document_snapshots where feature_id=$1',[f])).rows.length,1);
+   await db.exec('savepoint frozen');await assert.rejects(db.query("insert into features(issue_id,weekly_drop_id,slug,title,status,lifecycle_status) values($1,$2,'late-published-panel','Late','published','open_panel')",[i,drop]),/Choose an open Issue/);await db.exec('rollback to savepoint frozen');
   });
  }finally{await db.close();}
 });

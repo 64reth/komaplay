@@ -1,3 +1,4 @@
+import {closeIssue} from "../lib/issue-close.server";
 import { data, Form, Link, useActionData, useNavigation } from "react-router";
 import type { Route } from "./+types/cover-pool";
 import { requireCoverCommittee } from "../lib/cover-pool.server";
@@ -26,11 +27,7 @@ export async function action({request}:Route.ActionArgs) {
   const form=await request.formData(),operation=String(form.get("intent"));
   if(!["submit","withdraw","vote","select","archive"].includes(operation))return data({error:"Unknown action."},{status:400,headers});
   if(operation==="archive") {
-    const issue=await client.from("issues").select("id,status").eq("id",String(form.get("issue_id"))).single();
-    const selected=await client.from("issue_cover_candidates").select("id").eq("issue_id",String(form.get("issue_id"))).eq("status","selected").single();
-    if(issue.error||selected.error||!["current","finalising"].includes(issue.data.status))return data({error:"Select the current issue’s official cover first."},{status:400,headers});
-    const result=await client.rpc("close_current_issue");
-    return data(result.error?{error:actionFailure(result.error,"Archiving failed.")}:{success:"Issue archived with its official cover."},{status:result.error?400:200,headers});
+    return data(await closeIssue(client,String(form.get("issue_id")??"")),{headers});
   }
   const result=await client.rpc("cover_pool_action",{operation,target_issue:String(form.get("issue_id")),target_candidate:String(form.get("candidate_id")),confirmed:form.get("confirmed")==="yes"});
   return data(result.error?{error:actionFailure(result.error,"Cover action failed.")}:{success:operation==="select"?"Official cover selected. Committee voting is now closed.":"Cover Pool updated."},{status:result.error?400:200,headers});
@@ -51,7 +48,7 @@ export default function CoverPool({loaderData:d}:Route.ComponentProps) {
     {!d.candidates.length&&<p>No candidates yet.</p>}
     <div className="cover-pool-grid">{d.candidates.map(c=><article key={c.id} className="cover-pool-card">
       <p><strong>{c.status.replaceAll("-"," ")}</strong> · {c.created_by===d.userId?"You":`Editor ${c.created_by}`} · {count(c.id)} votes</p>
-      <CoverPreview draft={c.payload} imageUrl={c.payload.cover_art?`/member/cover-pool/image?path=${encodeURIComponent(c.payload.cover_art)}`:""} panelCount={0}/>
+      <CoverPreview draft={c.payload} imageUrl={c.payload.cover_art?`${c.payload.cover_art.startsWith("editorial/")?"/api/editorial/image":"/member/cover-pool/image"}?path=${encodeURIComponent(c.payload.cover_art)}`:""} panelCount={0}/>
       {c.status==="selected"&&<p>✓ Official selected cover</p>}
       {!closed&&<Form method="post"><input type="hidden" name="issue_id" value={c.issue_id}/><input type="hidden" name="candidate_id" value={c.id}/>
         {c.status==="draft"&&c.created_by===d.userId&&<><Link className="op-button" to={`/cover-editor?issue=${c.issue_id}&candidate=${c.id}`}>EDIT DRAFT</Link><button className="op-button" name="intent" value="submit" disabled={busy}>SUBMIT CANDIDATE</button></>}
@@ -59,7 +56,7 @@ export default function CoverPool({loaderData:d}:Route.ComponentProps) {
           {count(c.id)===max&&<fieldset><legend>Confirm official selection</legend><p>Selecting a cover makes it the official archive cover. This replaces the existing cover and closes voting. It becomes public when the issue is archived.</p><label><input type="checkbox" name="confirmed" value="yes"/> I confirm this official cover selection.</label><button className="op-button" name="intent" value="select" disabled={busy}>SELECT OFFICIAL COVER</button></fieldset>}</>}
       </Form>}
     </article>)}</div>
-    {selected&&d.issue&&["current","finalising"].includes(d.issue.status)&&<Form method="post"><input type="hidden" name="issue_id" value={d.issue.id}/><button className="op-button" name="intent" value="archive" disabled={busy}>ARCHIVE ISSUE WITH OFFICIAL COVER</button></Form>}
+    {d.issue&&["current","finalising"].includes(d.issue.status)&&<Form method="post"><input type="hidden" name="issue_id" value={d.issue.id}/><button className="op-button" name="intent" value="archive" disabled={busy}>ARCHIVE ISSUE WITH OFFICIAL COVER</button></Form>}
     <Link to="/cover-editor">RETURN TO COVER EDITOR</Link>
   </section></main>;
 }

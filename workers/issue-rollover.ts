@@ -6,5 +6,5 @@ export async function runIssueRollover(url: string | undefined, key: string | un
     body: "{}", signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) throw new Error(`Issue rollover RPC failed (${response.status}); next scheduled run will retry`);
-  return await response.json() as {issue: number; phase: string}[];
+  return await response.json() as {issue: number; status: string; reason: string}[];
 }

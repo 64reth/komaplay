@@ -34,7 +34,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (result.error)
     return data({ state: "unavailable" as const, members: [] as MemberRow[], total: 0 }, { status: 503, headers: resolved.headers });
   const members = (result.data ?? []) as MemberRow[];
-  return data({ state: "accepted" as const, members, total: Number(members[0]?.total_count ?? 0), page, params }, { headers: resolved.headers });
+  const closeState=await resolved.client.rpc("issue_close_preview");
+  return data({ state: "accepted" as const, closure:closeState.error?null:closeState.data, members, total: Number(members[0]?.total_count ?? 0), page, params }, { headers: resolved.headers });
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -69,6 +70,7 @@ export default function AdminDashboard() {
   const query = result.params.search_term;
   return <main className="editorial-page"><Masthead/><section className="op-workspace admin-dashboard">
     <p className="editorial-marker">ADMINISTRATION · USER ACCESS</p><h1>Member permissions</h1>
+    <section aria-label="Issue closure"><h2>Issue: {result.closure?.issueTitle??"Unavailable"} · {result.closure?.lifecycle_state??"Unavailable"}</h2><p>{result.closure?.reason??"Issue closure state could not be loaded. Refresh to retry."}</p><Link to={result.closure?.issueId?`/cover-editor?issue=${result.closure.issueId}`:"/cover-editor"}>VIEW ISSUE / RETRY CLOSE →</Link></section>
     <div className="admin-role-guide"><h2>Access levels</h2><dl><div><dt><KeyRingBadge access={keyRingAccess("member")}/>Member</dt><dd>{rolePresentation.member.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("member",true)}/>{editorialContributor.label}</dt><dd>{editorialContributor.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("moderator")}/>Moderator</dt><dd>{rolePresentation.moderator.description}</dd></div><div><dt><KeyRingBadge access={keyRingAccess("admin")}/>Admin</dt><dd>{rolePresentation.admin.description}</dd></div></dl><p>Key-rings show operational access, not status. Publisher and Owner are not separate roles in the current system. Publishing is bundled into Moderator; Admin is the highest access level.</p></div>
     {feedback && "error" in feedback && <p role="alert" className="form-error">{feedback.error}</p>}{feedback && "success" in feedback && <p role="status" className="form-success">{feedback.success}</p>}
     <Form method="get" className="admin-toolbar">

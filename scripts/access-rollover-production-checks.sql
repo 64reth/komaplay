@@ -37,7 +37,7 @@ begin
  insert into public.editorial_documents(feature_id,author_id,schema_version,working_document,lifecycle_status) values(fid,actor,1,'{"schemaVersion":1,"modules":[]}','published');
  select count(*) into n from public.issues;
  perform public.run_issue_rollover();
- if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='needs_editorial' and message like 'AWAITING COVER:%') then raise exception 'Missing submitted cover not surfaced';end if;
+ if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='needs_editorial' and message like 'Issue is waiting for a valid submitted cover%') then raise exception 'Missing submitted cover not surfaced';end if;
  -- Only the calendar identity is a time gate.
  update public.issues set closes_at=make_timestamptz(y,2,1,0,0,0,'UTC'),year=2199 where id=iid;
  perform public.run_issue_rollover();
