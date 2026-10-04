@@ -96,7 +96,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       .order("granted_at", { ascending: false }),
     resolved.client.rpc("editorial_review_inbox"),
     resolved.client.rpc("editorial_publication_panels"),
-    context.capabilities.moderation
+    canTriage
       ? resolved.client.rpc("issue_close_preview")
       : Promise.resolve({ data: null, error: null }),
     context.capabilities.moderation
