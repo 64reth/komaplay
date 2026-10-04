@@ -37,20 +37,8 @@ begin
  insert into public.editorial_documents(feature_id,author_id,schema_version,working_document,lifecycle_status) values(fid,actor,1,'{"schemaVersion":1,"modules":[]}','published');
  select count(*) into n from public.issues;
  perform public.run_issue_rollover();
- if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='needs_editorial') then raise exception 'Missing lead not surfaced';end if;
- set local role authenticated;
- begin perform public.confirm_issue_rollover(iid,true);raise exception 'Missing lead confirmed';exception when raise_exception then if sqlerrm='Missing lead confirmed' then raise;end if;end;
- reset role;update public.issues set lead_feature_id=fid where id=iid;
- set local role authenticated;perform public.confirm_issue_rollover(iid,true);perform public.confirm_issue_rollover(iid,false);
- reset role;perform public.run_issue_rollover();
- if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='paused') then raise exception 'Pause ignored';end if;
- set local role authenticated;perform public.confirm_issue_rollover(iid,true);
- reset role;update public.issues set lead_headline='Changed since confirmation' where id=iid;perform public.run_issue_rollover();
- if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='needs_editorial') then raise exception 'Changed cover archived';end if;
- -- Explicitly delayed deadlines and future calendar identities must not close early.
- update public.issues set closes_at=now()+interval '1 day' where id=iid;
- perform public.run_issue_rollover();
- if exists(select 1 from public.issues where id=iid and status='archived') then raise exception 'Delayed Issue archived';end if;
+ if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='needs_editorial' and message like 'AWAITING COVER:%') then raise exception 'Missing submitted cover not surfaced';end if;
+ -- Only the calendar identity is a time gate.
  update public.issues set closes_at=make_timestamptz(y,2,1,0,0,0,'UTC'),year=2199 where id=iid;
  perform public.run_issue_rollover();
  if exists(select 1 from public.issues where id=iid and status='archived') then raise exception 'Future month archived';end if;
@@ -58,11 +46,8 @@ begin
  -- Selected cover becomes public only at archive; non-selected artwork stays private.
  chosen:='cover-pool/'||actor||'/'||gen_random_uuid()||'.png';unchosen:='cover-pool/'||actor||'/'||gen_random_uuid()||'.png';
  insert into storage.objects(bucket_id,name,owner_id) values('issue-cover-pool',chosen,actor::text),('issue-cover-pool',unchosen,actor::text);
- insert into public.issue_cover_candidates(id,issue_id,created_by,payload,status,selected_at) values(selected_id,iid,actor,jsonb_build_object('cover_art',chosen),'selected',now()),(rejected_id,iid,actor,jsonb_build_object('cover_art',unchosen),'not-selected',null);
+ insert into public.issue_cover_candidates(id,issue_id,created_by,payload,status,selected_at,submitted_at) values(selected_id,iid,actor,jsonb_build_object('cover_art',chosen,'cover_art_alt','Fixture cover','lead_headline','Fixture headline','cover_preset','minimal','secondary_cover_lines','[]'::jsonb),'selected',now(),now()),(rejected_id,iid,actor,jsonb_build_object('cover_art',unchosen),'not-selected',null,now());
  update public.issues set cover_art=chosen where id=iid;
- set local role authenticated;perform public.confirm_issue_rollover(iid,true);
- reset role;update public.features set deadline_override=now()+interval '1 hour' where id=fid;perform public.run_issue_rollover();
- if not exists(select 1 from public.issue_rollover where issue_id=iid and phase='waiting') then raise exception 'Panel extension ignored';end if;
  update public.features set deadline_override=null where id=fid;
  set local timezone='Pacific/Honolulu';perform public.run_issue_rollover();
  if not exists(select 1 from public.issues where id=iid and status='archived') or not exists(select 1 from public.features where id=fid and lifecycle_status='archived') then raise exception 'Issue did not archive: %',(select message from public.issue_rollover where issue_id=iid);end if;
@@ -82,4 +67,4 @@ begin
  reset role;
 end $$;
 rollback;
-select 'PASS: all 16 access-level transitions, real grants, confirmation/self-lockout, legacy review downgrade; missing editorial completion, pause, changed cover, Panel extension, UTC archive, retries, selected-only cover, private operational state and browsable archive. All fixtures rolled back.' as result;
+select 'PASS: all 16 access-level transitions, real grants, confirmation/self-lockout, legacy review downgrade; missing submitted cover, future calendar month, optional lead, UTC archive, retries, selected-only cover, private operational state and browsable archive. All fixtures rolled back.' as result;

@@ -15,3 +15,10 @@ For operational verification, invoke the same `run_issue_rollover` RPC with auth
 Initial production audit: Issue 00's deadline was 2026-10-01 00:00 UTC; its saved drawing-desk cover lacked a lead Panel and no Cover Pool candidate was selected. The user confirmed that saved artwork, with the lead decision pending. No lead or cover is inferred by automation.
 
 Cloudflare trigger reference: https://developers.cloudflare.com/workers/configuration/cron-triggers/
+
+
+## Two-gate correction — 4 October 2026
+
+Migration `202610040001_two_gate_issue_rollover.sql` supersedes the original rollover gates described above. Automatic archive requires only the end of the Issue’s UTC calendar month and a valid submitted Cover Pool cover. A lead Panel, deadline extension, pause flag, or separate rollover confirmation is not an archival gate. Saved artwork and drafts do not count as submissions. A sole eligible submission is selected automatically; an existing valid selection is preserved. Multiple submissions use the existing vote totals: a unique leader resolves automatically and a tie reports `AWAITING COVER SELECTION`. Zero valid submissions reports `AWAITING COVER`. The service RPC remains private, locks exact Issue identity, rolls back failures per Issue, and creates no Issues.
+
+Targeted validation: `node --import tsx --test tests/migration/two-gate-rollover.test.ts tests/migration/issue-rollover.test.ts`. Worker code and canonical badge assets are unchanged.
