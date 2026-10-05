@@ -3180,3 +3180,14 @@ html {
 .member-hub .editorial-inbox article{padding-block:16px}
 .member-hub .editorial-inbox form{display:inline-block;margin-inline-start:12px}
 @media(max-width:600px){.member-hub .editorial-inbox form{display:block;margin-inline-start:0}.member-hub .profile-actions{gap:12px}.inbox-controls .profile-actions{display:flex;flex-wrap:wrap}}
+
+/* The strip remains part of the publication when its editorial contents are empty. */
+.feature-rail-empty,.feature-rail-single{overflow-x:hidden}
+.feature-rail-single .feature-panel{cursor:pointer;max-width:100%}
+.feature-panel.feature-panel-empty{flex-basis:100%;border-right:0;cursor:default;container-type:normal;display:flex;align-items:center;padding:clamp(22px,3vw,44px);height:clamp(245px,32svh,340px);border-bottom:1px solid var(--ink)}
+.feature-empty-copy{max-width:48ch}
+.feature-empty-copy .editorial-marker{margin:0 0 14px}
+.feature-empty-copy h2{font-family:Impact,"Arial Narrow",Arial,sans-serif;font-size:clamp(2.2rem,4vw,3.6rem);font-weight:900;letter-spacing:-.045em;line-height:.95;margin:0 0 14px;text-wrap:balance}
+.feature-empty-copy>p:not(.editorial-marker){font-size:.9rem;line-height:1.5;margin:0 0 20px;max-width:44ch}
+.feature-empty-copy>a{font:700 .7rem monospace;letter-spacing:.08em}
+@media(max-width:760px){.feature-panel.feature-panel-empty{height:clamp(300px,45svh,400px)}}

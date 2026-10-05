@@ -1,11 +1,9 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/home";
 import { catalogue } from "../lib/publication.server";
-import {
-  filterFeatures,
-  orderedDrops,
-  type DiscoveryFilters,
-} from "../lib/publication";
+import {type DiscoveryFilters} from "../lib/publication";
+import {homePublication,homeIssueLabel} from "../lib/home-publication";
+import {FeatureStrip} from "../components/FeatureStrip";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
 import { CurrentIssueHeader } from "../components/CurrentIssueHeader";
@@ -17,10 +15,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const filters = Object.fromEntries(
     new URL(request.url).searchParams,
   ) as DiscoveryFilters;
-  return {data,filters};
+  return {data,filters,publication:homePublication(data,filters)};
 }
 export const meta: Route.MetaFunction = () => [
-  { title: "KOMA://PLAY — Issue Zero" },
+  { title: "KOMA://PLAY — A living publication" },
   {
     name: "description",
     content: "A living publication for games, manga and anime.",
@@ -28,40 +26,11 @@ export const meta: Route.MetaFunction = () => [
   { tagName: "link", rel: "canonical", href: "https://komaplay.com" },
 ];
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { data, filters } = loaderData;
-  const issue =
-    data.issues.find((i) => i.status === "current") ??
-    data.issues.find((i) => i.status === "finalising");
-  if (!issue)
-    return (
-      <main className="editorial-page">
-        <Masthead />
-        <IssueNavigation />
-        <section className="op-workspace">
-          <h1>
-            {data.message
-              ? "Publication temporarily unavailable."
-              : "The next issue is taking shape."}
-          </h1>
-          {data.message && (
-            <p className="op-notice" role="status">
-              {data.message}
-            </p>
-          )}
-          <Link to="/archive">Enter the archive →</Link>
-        </section>
-      </main>
-    );
-  const features = filterFeatures(data, { ...filters, issue: issue.slug }).filter(
-    (feature) => !["archived", "taken_down"].includes(feature.lifecycle_status),
-  );
-  const drops = orderedDrops(
-    data.drops.filter((d) => d.issue_id === issue.id&&d.week_number>=1&&d.week_number<=4&&features.some(f=>f.weekly_drop_id===d.id)),
-    false,
-  );
+  const { data, filters, publication } = loaderData;
+  const {issue,features,drops,hasArchive,publishedPanelCount,stripItemCount}=publication;
   return (
     <main className="editorial-page issue-home">
-      <Masthead />
+      <Masthead issueLabel={issue?`ISSUE ${String(issue.issue_number).padStart(2,"0")}`:"OPEN PANEL"} />
       <IssueNavigation />
       <CurrentIssueHeader issue={issue} categories={data.categories} />
       <IssueFilters selected={filters.filter} />
@@ -70,7 +39,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           {data.message}
         </p>
       )}
-      {features.length === 0 && <p className="op-notice">No published panels match this view yet. Explore the archive or check back soon.</p>}
+      {stripItemCount===0&&<FeatureStrip items={[]} label={homeIssueLabel(issue)} empty={publishedPanelCount>0?{title:"No Panels match this view.",description:"Try another filter to explore the current Issue.",to:"/",action:"SHOW ALL PANELS →"}:undefined}/>}
       {drops.map((drop, i) => (
         <WeeklyDropStrip
           key={drop.id}
@@ -81,7 +50,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       ))}
       <ClosingPanels data={data} features={features} />
-      {data.issues.some(i=>i.status==="archived")?<Link className="archive-entry" to="/archive">
+      {hasArchive?<Link className="archive-entry" to="/archive">
         <span>EVERY ISSUE. EVERY REVISION.</span>
         <b>ENTER THE ARCHIVE →</b>
       </Link>:<p className="op-workspace">The first archived issue is still taking shape. <Link to="/archive">VIEW ARCHIVE →</Link></p>}

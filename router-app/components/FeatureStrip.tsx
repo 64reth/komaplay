@@ -6,10 +6,12 @@ export function FeatureStrip({
   items,
   label,
   drift = false,
+  empty,
 }: {
   items: FeatureItem[];
   label?: string;
   drift?: boolean;
+  empty?: {title:string;description:string;to:string;action:string};
 }) {
   const [paused, setPaused] = useState(false);
   const [motionAllowed, setMotionAllowed] = useState(false);
@@ -19,6 +21,8 @@ export function FeatureStrip({
     frame = useRef<number | null>(null),
     measured = useRef({ start: true, end: false, width: 0, scrollWidth: 0 });
   const drag = useRef({ x: 0, scroll: 0, active: false, moved: false });
+  const [overflowing,setOverflowing]=useState(false);
+  const explore=items.length>1&&overflowing;
   const [edges, setEdges] = useState({ start: true, end: false });
   const reduced = () =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -44,6 +48,7 @@ export function FeatureStrip({
         )
           return;
         measured.current = next;
+        setOverflowing(next.scrollWidth>next.width+2);
         setEdges({ start: next.start, end: next.end });
       });
     };
@@ -68,7 +73,7 @@ export function FeatureStrip({
   }, []);
   useEffect(() => {
     const el = rail.current;
-    if (!el || !drift || paused || !motionAllowed) return;
+    if (!el || items.length<2 || !drift || paused || !motionAllowed) return;
     let animation = 0,
       visible = false,
       last = 0,
@@ -150,6 +155,7 @@ export function FeatureStrip({
       onFocusCapture={() => setPaused(true)}
       onWheel={() => setPaused(true)}
       onKeyDown={(e) => {
+        if(!explore)return;
         setPaused(true);
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
         e.preventDefault();
@@ -163,8 +169,8 @@ export function FeatureStrip({
     >
       <div className="strip-toolbar">
         <span>{label ?? "ISSUE 000 / READ THE CLUES"}</span>
-        <span className="strip-hint">SCROLL TO EXPLORE →</span>
-        <div className="strip-controls">
+        {explore&&<span className="strip-hint">SCROLL TO EXPLORE →</span>}
+        {explore&&<div className="strip-controls">
           {drift && motionAllowed && (
             <button
               className="strip-motion"
@@ -196,19 +202,19 @@ export function FeatureStrip({
           >
             <ArrowRight className="koma-icon" aria-hidden="true" />
           </button>
-        </div>
+        </div>}
       </div>
       <div
         id={id}
         ref={rail}
-        data-drift={drift || undefined}
-        className={`feature-rail${moving ? " is-drifting" : ""}`}
-        tabIndex={0}
+        data-drift={(drift&&explore) || undefined}
+        className={`feature-rail${moving ? " is-drifting" : ""}${items.length===0?" feature-rail-empty":items.length===1?" feature-rail-single":""}`}
+        tabIndex={explore?0:undefined}
         role="group"
-        aria-label="Featured stories. Use left and right arrows to scroll."
+        aria-label={explore?"Featured stories. Use left and right arrows to scroll.":"Current Issue panels"}
         onPointerEnter={() => setPaused(true)}
         onPointerDown={(e) => {
-          if (e.pointerType === "mouse" && e.button === 0)
+          if (explore && e.pointerType === "mouse" && e.button === 0)
             drag.current = {
               x: e.clientX,
               scroll: e.currentTarget.scrollLeft,
@@ -237,6 +243,7 @@ export function FeatureStrip({
           rail.current?.classList.remove("is-dragging");
         }}
       >
+        {items.length===0&&<div className="feature-panel feature-panel-empty"><div className="feature-empty-copy"><p className="editorial-marker">OPEN PANEL</p><h2>{empty?.title??"The next issue starts here."}</h2><p>{empty?.description??"Ideas are being written, challenged and shaped in the Workshop."}</p><Link className="active-underline" to={empty?.to??"/profile"}>{empty?.action??"ENTER THE WORKSHOP →"}</Link></div></div>}
         {items.map((item) => (
           <Link
             to={`/features/${item.id}`}

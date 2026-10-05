@@ -1,16 +1,17 @@
+import {homeIssueLabel} from "../lib/home-publication";
 import { Link } from "react-router";
 import type { Issue, Taxonomy } from "../lib/publication";
 export function CurrentIssueHeader({
   issue,
   categories,
 }: {
-  issue: Issue;
+  issue?: Issue;
   categories: Taxonomy[];
 }) {
   return (
     <section className="cover-brand issue-masthead">
       <p className="editorial-marker">
-        {issue.subtitle || "A LIVING PUBLICATION FOR GAMES / MANGA / ANIME"}
+        {issue?.subtitle || "A LIVING PUBLICATION FOR GAMES / MANGA / ANIME"}
       </p>
       <h1 aria-label="KOMA://PLAY">
         <span aria-hidden="true">KOMA</span>
@@ -18,14 +19,7 @@ export function CurrentIssueHeader({
         <span aria-hidden="true">//PLAY</span>
       </h1>
       <small className="text-accent">
-        ISSUE {String(issue.issue_number).padStart(2, "0")} /{" "}
-        {new Date(Date.UTC(issue.year, issue.month - 1))
-          .toLocaleDateString("en-GB", {
-            month: "long",
-            year: "numeric",
-            timeZone: "UTC",
-          })
-          .toUpperCase()}
+        {homeIssueLabel(issue)}
       </small>
       <nav aria-label="Categories">
         {categories.map((c) => (
