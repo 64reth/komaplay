@@ -40,6 +40,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
   const { all, feature, panel } = loaderData;
   const document = loaderData.publishedDocument as EditorialDocument;
   const issue = all.issues.find((item) => item.id === feature.issue_id)!;
+  const archived=issue.status==="archived"||feature.lifecycle_status==="archived";
   const open = acceptsContributions(feature, issue, all.now);
   const related = all.relationships.filter(
     (relationship) =>
@@ -53,7 +54,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
       <article className="published-panel">
         <div className="published-heading">
           <p className="op-eyebrow">
-            {feature.lifecycle_status === "archived" ? "ARCHIVED PANEL" : "PUBLISHED PANEL"} /{" "}
+            {archived ? "ARCHIVED PANEL" : "PUBLISHED PANEL"} /{" "}
             {
               all.categories.find((item) => item.id === feature.category_id)
                 ?.name
@@ -63,7 +64,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           </p>
           <h1>{document.header.title}</h1>
           <p className="published-dek">{feature.summary}</p><div className="profile-actions"><SaveFeature feature={feature.id}/><Link to={`/features/${feature.slug}/report`}>REPORT A PROBLEM</Link></div>
-          {feature.lifecycle_status === "archived" ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
+          {archived ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
         </div>
         <div className="published-body">
           <ArticleRenderer document={document} presentation="publication" />
@@ -75,6 +76,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           </p>
         )}
         <CommunityAdditions
+          open={open}
           additions={panel.data?.additions ?? []}
           citations={panel.data?.citations ?? []}
         />

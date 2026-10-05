@@ -1,4 +1,4 @@
-import { data, Link } from "react-router";
+import { data, Link, redirect } from "react-router";
 import type { Route } from "./+types/workshop";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
@@ -26,6 +26,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const feature = all.features.find((item) => item.slug === params.slug);
   if (!feature) throw data("Workshop not found", { status: 404 });
   const issue = all.issues.find((item) => item.id === feature.issue_id)!;
+  if(issue.status==="archived")throw redirect(`/features/${feature.slug}`);
   const publicOpen = acceptsContributions(feature, issue, all.now);
   const resolved = await resolveAuth(request);
   let handbook: "accepted" | "required" | "unavailable" | undefined;

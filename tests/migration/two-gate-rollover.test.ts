@@ -32,7 +32,7 @@ test('monthly rollover has exactly calendar and submitted-cover gates',async(t)=
   };
   const run=async()=>{await db.exec("select set_config('request.jwt.claim.sub','',false);set role service_role;select run_issue_rollover();reset role");};
   const status=async(i:string)=>(await db.query<{status:string}>(`select status from issues where id=$1`,[i])).rows[0].status;
-  const check=async(name:string,fn:()=>Promise<void>)=>t.test(name,async()=>{await db.exec('begin');try{await fn();}finally{await db.exec('rollback;reset role');}});
+  const check=async(name:string,fn:()=>Promise<void>)=>t.test(name,async()=>{await db.exec("begin;update issues set status='finalising' where status='current'");try{await fn();}finally{await db.exec('rollback;reset role');}});
   await check('manual close uses exact identity before month end and retries report ALREADY_ARCHIVED',async()=>{
    const i=await issue(2199);await candidate(i);
    await db.exec(`select set_config('request.jwt.claim.sub','${actor}',false);set role authenticated`);
@@ -73,9 +73,9 @@ test('monthly rollover has exactly calendar and submitted-cover gates',async(t)=
   await check('saved artwork and private drafts are not submissions; visibly AWAITING COVER',async()=>{const i=await issue();await candidate(i,'draft');await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/waiting for a valid submitted cover/);});
   await check('one cover archives without a lead, published Panel, deadline or extra confirmation; retries do not duplicate',async()=>{
    const i=await issue(),c=await candidate(i);await db.query(`insert into issue_rollover(issue_id,phase) values($1,'paused')`,[i]);
-   const count=(await db.query('select count(*) from issues')).rows;
+   const count=Number((await db.query<{count:number}>('select count(*) from issues')).rows[0].count);
    await run();assert.equal(await status(i),'archived');assert.deepEqual((await db.query('select cover_art,lead_feature_id from issues where id=$1',[i])).rows,[{cover_art:c.art,lead_feature_id:null}]);
-   await run();assert.equal((await db.query('select * from issue_cover_audit where issue_id=$1',[i])).rows.length,2);assert.deepEqual((await db.query('select count(*) from issues')).rows,count);
+   await run();assert.equal((await db.query('select * from issue_cover_audit where issue_id=$1',[i])).rows.length,2);assert.equal(Number((await db.query<{count:number}>('select count(*) from issues')).rows[0].count),count+1);
   });
   await check('multiple tied submissions wait; a unique vote leader resolves using existing votes',async()=>{
    const i=await issue();await candidate(i);const b=await candidate(i);await run();assert.equal(await status(i),'finalising');assert.match((await db.query<{message:string}>('select message from issue_rollover where issue_id=$1',[i])).rows[0].message,/Cover submissions are tied/);

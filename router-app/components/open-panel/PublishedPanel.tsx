@@ -15,7 +15,7 @@ export function ContributorCredits({ credits }: { credits: Credit[] }) {
   const { visible, extra } = splitCredits(credits);
   return (
     <div className="op-credits">
-      <span>Open Panel contributors: </span>
+      <span>Community contributors: </span>
       {visible.length
         ? visible.map((c) => c.display_name).join(", ")
         : "No published community credits yet."}
@@ -42,7 +42,7 @@ export function OpenPanelStatus({
   open?: boolean;
 }) {
   return (
-    <section className="op-status" aria-label="Open Panel status">
+    <section className="op-status" aria-label={open?"Open Panel status":"Publication history"}>
       <div>
         <b className="editorial-marker">
           COMMUNITY EDITION · REVISION {data?.feature.current_revision ?? 1}
@@ -75,7 +75,9 @@ export function OpenPanelStatus({
 export function CommunityAdditions({
   additions,
   citations = [],
+  open = true,
 }: {
+  open?: boolean;
   additions: Addition[];
   citations?: PanelCitation[];
 }) {
@@ -85,6 +87,9 @@ export function CommunityAdditions({
       <h2 id="community-heading">Community Additions</h2>
       {!additions.length ? (
         <div className="op-empty-panel">
+          {!open ? (
+            <p>No community additions were published in this edition.</p>
+          ) : (<>
           <b>THIS PANEL IS OPEN</b>
           <p>
             No community additions have been published yet. Bring a correction,
@@ -98,6 +103,7 @@ export function CommunityAdditions({
             Your contribution will enter the private Workshop for editorial
             review. Published additions receive a permanent Panel Citation.
           </small>
+          </>)}
         </div>
       ) : (
         additions.map((a) => (
