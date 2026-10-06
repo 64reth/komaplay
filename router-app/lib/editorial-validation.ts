@@ -1,3 +1,4 @@
+import { editorialFormatSlugs } from "./editorial-formats";
 import { z } from "zod";
 import type { ComposerSection } from "./editorial-alpha";
 import { trustedVideo } from "./media";
@@ -24,7 +25,7 @@ export const panelSubmissionSchema = z.object({
   image: bounded(2000, "Use a shorter feature image address.").refine(value => !value || imageAddress(value), "Choose a feature image using an http or https link, or a local image path."),
   imageAlt: bounded(400, "Shorten the feature image description to 400 characters or fewer."),
   categoryId: z.string().refine(value => !value || z.string().uuid().safeParse(value).success, "Choose a category from the list, or use the default."),
-  format: z.literal("essay", { errorMap: () => ({ message: "Use the Essay format for this panel." }) }),
+  format: z.enum(editorialFormatSlugs, { errorMap: () => ({ message: "Choose an available content format." }) }),
 });
 const text = (label: string) => bounded(20000, `Shorten ${label} to 20,000 characters or fewer.`).min(1, `Add some text to ${label} before submitting.`);
 const list = (label: string) => bounded(20000, `Shorten ${label} to 20,000 characters or fewer.`).refine(value => value.split("\n").some(item => item.trim().replace(/^(?:[-*]|\d+\.)\s*/, "").trim()), `Add at least one item to ${label}, with one item per line.`);

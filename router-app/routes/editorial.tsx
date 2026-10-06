@@ -1,3 +1,4 @@
+import { editorialFormatSlugs, editorialFormatLabels } from "../lib/editorial-formats";
 import {MyKeyRing} from "../components/KeyRingBadge";
 import { prepareEditorialImage } from "../lib/prepare-image";
 import { LatestUploadCoordinator } from "../lib/latest-upload";
@@ -299,6 +300,7 @@ export async function action({ request }: Route.ActionArgs) {
       category_id: z.string().uuid().safeParse(value.categoryId).success
         ? value.categoryId
         : "",
+      format: value.format,
       image: value.image,
       image_alt: value.imageAlt,
       body: documentBodyText(value.sections, value.sectionsJson),
@@ -945,11 +947,10 @@ function FeatureComposer({
             onChange={update("format")}
             aria-label="Content format"
           >
-            <option value="">Choose format…</option>
-            <option value="essay">Essay</option>
+            {editorialFormatSlugs.map(format => <option key={format} value={format}>{editorialFormatLabels[format]}</option>)}
           </select>
           <span className="field-help">
-            Editorial features use the Essay format for alpha.
+            A classification only. Create freely with the same blank canvas.
           </span>
         </label>
         {errors("format")}

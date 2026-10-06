@@ -1,3 +1,4 @@
+import { editorialFormatSlugs } from "./editorial-formats";
 import { z } from "zod";
 import { validateSections } from "./editorial-validation";
 import { trustedVideo } from "./media";
@@ -27,7 +28,7 @@ export const draftSchema = z.object({
   sections: z.string().trim().max(60000).default(""),
   sectionsJson: z.string().trim().max(60000).optional().default(""),
   videoUrl: z.string().trim().max(2000).optional().default(""),
-  format: z.string().default("essay"),
+  format: z.enum(editorialFormatSlugs).default("essay"),
   status: z.enum(["draft", "submitted", "changes_requested", "publish_ready", "published", "archived", "taken_down"]).default("draft"),
 });
 
