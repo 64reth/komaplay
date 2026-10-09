@@ -4,9 +4,11 @@ import type { Issue, Taxonomy } from "../lib/publication";
 export function CurrentIssueHeader({
   issue,
   categories,
+  selected,
 }: {
   issue?: Issue;
   categories: Taxonomy[];
+  selected?: string;
 }) {
   return (
     <section className="cover-brand issue-masthead">
@@ -23,7 +25,7 @@ export function CurrentIssueHeader({
       </small>
       <nav aria-label="Categories">
         {categories.map((c) => (
-          <Link key={c.id} to={`/?category=${c.slug}`}>
+          <Link key={c.id} to={`/?category=${c.slug}`} aria-current={selected === c.slug ? "page" : undefined}>
             {c.name}
           </Link>
         ))}

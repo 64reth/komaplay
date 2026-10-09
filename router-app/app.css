@@ -1252,7 +1252,7 @@ body:has(.editorial-page) {
   color: #555;
 }
 .weekly-drop {
-  margin: 38px 0 68px;
+  margin: 24px 0 56px;
 }
 .weekly-heading {
   display: flex;
@@ -1542,9 +1542,9 @@ body:has(.editorial-page) {
   }
 }
 .issue-home .issue-masthead {
-  height: 42svh;
-  min-height: 420px;
-  padding: 30px 0;
+  height: auto;
+  min-height: 340px;
+  padding: 20px 0;
 }
 .site-handbook-footer {
   padding: 24px max(20px, 5vw);
@@ -2538,7 +2538,7 @@ html {
   .issue-navigation form { grid-column: 1 / -1; width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin: 0; }
   .issue-navigation input { width: 100%; min-height: 44px; padding-inline: 0; }
   .issue-navigation button { min-width: 74px; }
-  .issue-home .issue-masthead { position: relative; inset: auto; transform: none; width: 100%; height: auto; min-height: clamp(300px,76vw,350px); padding: 32px 14px 24px; overflow: hidden; }
+  .issue-home .issue-masthead { position: relative; inset: auto; transform: none; width: 100%; height: auto; min-height: 0; padding: 20px 14px 12px; overflow: hidden; }
   .issue-masthead .editorial-marker { max-width: 34ch; margin: 0 auto 18px; line-height: 1.45; }
   .issue-masthead h1 { width: 100%; margin: 0; font-size: clamp(3.8rem,20.5vw,5.55rem); line-height: .86; transform: none; letter-spacing: -.055em; }
   .issue-masthead h1::after { margin-left: .035em; }
@@ -2580,7 +2580,7 @@ html {
   .feature-panel.panel-wide { flex-basis: 90vw; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
-  .issue-home .issue-masthead { min-height: 260px; }
+  .issue-home .issue-masthead { min-height: 0; }
   .feature-panel.panel-narrow,
   .feature-panel.panel-standard,
   .feature-panel.panel-wide { height: 78svh; min-height: 300px; }
@@ -3191,3 +3191,10 @@ html {
 .feature-empty-copy>p:not(.editorial-marker){font-size:.9rem;line-height:1.5;margin:0 0 20px;max-width:44ch}
 .feature-empty-copy>a{font:700 .7rem monospace;letter-spacing:.08em}
 @media(max-width:760px){.feature-panel.feature-panel-empty{height:clamp(300px,45svh,400px)}}
+
+/* Premium Pass 01: shared state and compact empty history. */
+.issue-masthead nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: .35em; }
+.auth-tabs .op-button { flex: 1; min-height: 44px; padding: 10px 12px; }
+.profile-page section.profile-empty { margin-block: 18px; }
+.profile-empty h2 { margin-bottom: 8px; }
+.profile-empty p { margin-block: 8px; }

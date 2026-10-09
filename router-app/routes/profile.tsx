@@ -378,7 +378,23 @@ export default function Profile() {
               ))}
           </section>
         )}
-        <section id="saved">
+        <section>
+          <h2>WHAT NEXT?</h2>
+          {result.nextPanels.map((f) => (
+            <p key={f.id}>
+              <Link to={`/features/${f.slug}`}>{f.title} →</Link>
+            </p>
+          ))}
+          <div className="profile-actions">
+            <Link className="hub-action" to="/search?status=open">
+              EXPLORE OPEN PANELS →
+            </Link>
+            <Link className="hub-action" to="/profile/settings">
+              EDIT INTERESTS →
+            </Link>
+          </div>
+        </section>
+        <section id="saved" className={result.saved.length ? undefined : "profile-empty"}>
           <h2>SAVED</h2>
           {result.saved.length ? (
             result.saved.map((s) => (
@@ -397,7 +413,7 @@ export default function Profile() {
             <p>No saved panels yet. Use Save on a published panel.</p>
           )}
         </section>
-        <section>
+        <section className={!result.citationHistory.length && !result.publication.some(p => p.published) && !result.authored.length ? "profile-empty" : undefined}>
           <h2>PUBLICATION & CITATIONS</h2>
           {result.historyError && (
             <p role="status">
@@ -452,7 +468,7 @@ export default function Profile() {
                 goes live. Acceptance alone does not count as publication.
               </p>
             )}
-          <h3>ISSUES YOU CONTRIBUTED TO</h3>
+          {(result.authored.length > 0 || result.publication.some(p => p.published)) && <h3>ISSUES YOU CONTRIBUTED TO</h3>}
           {result.issues
             .filter((i) =>
               result.features.some(
@@ -511,31 +527,16 @@ export default function Profile() {
               )}
             </details>
           ))}
-        <section id="panels">
+        <section id="panels" className={panelRows.length ? undefined : "profile-empty"}>
           <h2>YOUR CONTRIBUTIONS</h2>
 
           <PanelDirectory
-            label="My Panels"
+            label="Your contributions"
             rows={panelRows}
-            empty="No panels yet."
+            empty="No contributions yet."
           />
         </section>
-        <section>
-          <h2>WHAT NEXT?</h2>
-          {result.nextPanels.map((f) => (
-            <p key={f.id}>
-              <Link to={`/features/${f.slug}`}>{f.title} →</Link>
-            </p>
-          ))}
-          <div className="profile-actions">
-            <Link className="hub-action" to="/search?status=open">
-              EXPLORE OPEN PANELS →
-            </Link>
-            <Link className="hub-action" to="/profile/settings">
-              EDIT INTERESTS →
-            </Link>
-          </div>
-        </section>
+
       </div>
     </main>
   );

@@ -49,7 +49,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
   );
   return (
     <main className="editorial-page">
-      <Masthead slug={feature.slug} />
+      <Masthead issue={issue} />
       <IssueNavigation />
       <article className="published-panel">
         <div className="published-heading">

@@ -1,7 +1,14 @@
 import {filterFeatures,orderedDrops,stripItems,type Catalogue,type DiscoveryFilters,type Issue} from './publication';
 
+export function homeFilters(filters: DiscoveryFilters, categories: {slug:string}[]): DiscoveryFilters {
+ const category = categories.find(c => c.slug === filters.category)?.slug;
+ const alias = categories.find(c => c.slug === filters.filter)?.slug;
+ return {...filters, category: category ?? alias, filter: category ?? alias ?? filters.filter};
+}
+
 // Compose Home from the public catalogue. No inferred Issue or fallback to archived content.
 export function homePublication(data:Catalogue,filters:DiscoveryFilters={}) {
+ filters=homeFilters(filters,data.categories);
  const issue=data.issues.find(i=>i.status==='current')??data.issues.find(i=>i.status==='finalising');
  const published=issue?data.features.filter(f=>f.issue_id===issue.id&&f.status==='published'&&!['draft','archived','taken_down'].includes(f.lifecycle_status)):[];
  const features=issue?filterFeatures({...data,features:published},{...filters,issue:issue.slug}):[];

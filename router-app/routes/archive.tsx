@@ -47,10 +47,10 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
         {data.message && <p className="op-notice">{data.message}</p>}
         <DiscoveryForm data={data} filters={filters} archive />
         <ArchiveShelf data={data} issues={archiveIssues(data, filters)} />
-        <section>
-          <h2>Loose archived panels</h2>
-          <PanelDirectory label="Loose archived panels" rows={panelRows} empty="No archived panels yet." />
-        </section>
+        {panelRows.length > 0 && <section>
+          <h2>Standalone archived Panels</h2>
+          <PanelDirectory label="Standalone archived Panels" rows={panelRows} empty="No standalone archived Panels." />
+        </section>}
       </div>
     </main>
   );

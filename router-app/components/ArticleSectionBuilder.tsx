@@ -37,8 +37,8 @@ function SectionFields({ section, change, upload, issues, uploadState, onImageEd
   </>;
 }
 
-export function ArticleSectionBuilder({ sections, onChange, upload, uploadStates={}, onImageEdit=()=>{}, onRemove=()=>{} }: { sections: ComposerSection[]; onChange: (sections: ComposerSection[]) => void; upload: (event: React.ChangeEvent<HTMLInputElement>, id: string) => void;uploadStates?:Record<string,UploadState>;onImageEdit?:(id:string)=>void;onRemove?:(id:string)=>void }) {
-  const issues = validateSections(sections);
+export function ArticleSectionBuilder({ sections, onChange, upload, showValidation=true, uploadStates={}, onImageEdit=()=>{}, onRemove=()=>{} }: { showValidation?: boolean; sections: ComposerSection[]; onChange: (sections: ComposerSection[]) => void; upload: (event: React.ChangeEvent<HTMLInputElement>, id: string) => void;uploadStates?:Record<string,UploadState>;onImageEdit?:(id:string)=>void;onRemove?:(id:string)=>void }) {
+  const issues = showValidation ? validateSections(sections) : [];
   return <section aria-label="Article body" className="article-section-builder">
     <h2>Article body</h2>
     {sections.map((section, index) => <fieldset className="composer-module" key={section.id} id={`section-${section.id}-section`} aria-invalid={issues.some(issue => issue.sectionId === section.id)} aria-describedby={issues.some(issue => issue.sectionId === section.id && issue.field === "section") ? `section-${section.id}-section-error` : undefined} tabIndex={-1}>
@@ -52,7 +52,7 @@ export function ArticleSectionBuilder({ sections, onChange, upload, uploadStates
       </div>
     </fieldset>)}
     {!sections.length && <p>Add a section to start writing.</p>}
-    <label>ADD SECTION<select id="panel-sections" aria-describedby={!sections.length ? "panel-sections-error" : undefined} aria-invalid={!sections.length} value="" onChange={e => { if (e.target.value && sections.length < 120) onChange([...sections, createComposerSection(e.target.value as typeof composerSectionTypes[number])]); }}>
+    <label>ADD SECTION<select id="panel-sections" aria-describedby={showValidation && !sections.length ? "panel-sections-error" : undefined} aria-invalid={showValidation && !sections.length} value="" onChange={e => { if (e.target.value && sections.length < 120) onChange([...sections, createComposerSection(e.target.value as typeof composerSectionTypes[number])]); }}>
       <option value="">Choose section type…</option>
       {composerSectionTypes.map(type => <option key={type} value={type} disabled={sections.length >= 120}>{sectionLabels[type]}</option>)}
     </select></label>

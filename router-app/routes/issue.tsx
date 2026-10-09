@@ -28,7 +28,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) =>
 export default function Issue({ loaderData }: Route.ComponentProps) {
   return (
     <main className="editorial-page">
-      <Masthead />
+      <Masthead issue={loaderData.issue} />
       <IssueNavigation />
       {loaderData.all.message && (
         <p className="op-notice">{loaderData.all.message}</p>

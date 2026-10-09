@@ -119,7 +119,7 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
   const { feature, issue, now, access, open } = loaderData;
   return (
     <main className="editorial-page">
-      <Masthead slug={feature.slug} />
+      <Masthead issue={issue} />
       <IssueNavigation />
       <div className="op-workspace workshop-page">
         <header className="workshop-header">

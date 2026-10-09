@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/home";
 import { catalogue } from "../lib/publication.server";
 import {type DiscoveryFilters} from "../lib/publication";
-import {homePublication,homeIssueLabel} from "../lib/home-publication";
+import {homePublication,homeIssueLabel,homeFilters} from "../lib/home-publication";
 import {FeatureStrip} from "../components/FeatureStrip";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
@@ -12,9 +12,9 @@ import { WeeklyDropStrip } from "../components/publication/WeeklyDropStrip";
 import { ClosingPanels } from "../components/publication/ClosingPanels";
 export async function loader({ request }: Route.LoaderArgs) {
   const data = await catalogue();
-  const filters = Object.fromEntries(
+  const filters = homeFilters(Object.fromEntries(
     new URL(request.url).searchParams,
-  ) as DiscoveryFilters;
+  ) as DiscoveryFilters, data.categories);
   return {data,filters,publication:homePublication(data,filters)};
 }
 export const meta: Route.MetaFunction = () => [
@@ -30,9 +30,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const {issue,features,drops,hasArchive,publishedPanelCount,stripItemCount}=publication;
   return (
     <main className="editorial-page issue-home">
-      <Masthead issueLabel={issue?`ISSUE ${String(issue.issue_number).padStart(2,"0")}`:"OPEN PANEL"} />
+      <Masthead issue={issue} />
       <IssueNavigation />
-      <CurrentIssueHeader issue={issue} categories={data.categories} />
+      <CurrentIssueHeader issue={issue} categories={data.categories} selected={filters.category} />
       <IssueFilters selected={filters.filter} />
       {data.message && (
         <p className="publication-setup" role="status">

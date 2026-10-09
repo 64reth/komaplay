@@ -57,7 +57,7 @@ async function context(request: Request, slug?: string) {
 export async function loader({ request, params }: Route.LoaderArgs) {
   const value = await context(request, params.slug);
   return data(
-    { feature: value.feature, state: value.state },
+    { feature: value.feature, issue: value.issue, state: value.state },
     { headers: value.resolved.headers },
   );
 }
@@ -105,7 +105,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
   const returnTo = `/features/${loaderData.feature.slug}/correction`;
   return (
     <main className="editorial-page">
-      <Masthead slug={loaderData.feature.slug} />
+      <Masthead issue={loaderData.issue} />
       <IssueNavigation />
       <div className="op-workspace">
         <Link to={`/features/${loaderData.feature.slug}`}>

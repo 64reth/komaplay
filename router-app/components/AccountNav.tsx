@@ -210,6 +210,7 @@ export function AuthDialog({
         <div className="auth-tabs" aria-label="Account action">
           <button
             type="button"
+            className="op-button"
             aria-pressed={mode === "sign-in"}
             onClick={() => {
               setMode("sign-in");
@@ -220,6 +221,7 @@ export function AuthDialog({
           </button>
           <button
             type="button"
+            className="op-button"
             aria-pressed={mode === "create"}
             onClick={() => {
               setMode("create");
@@ -309,6 +311,7 @@ export function AccountNav() {
     returnTo: string;
   } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const authTrigger = useRef<HTMLElement | null>(null);
   const client = supabaseBrowser(config);
 
   useEffect(() => {
@@ -329,6 +332,7 @@ export function AccountNav() {
 
   useEffect(() => {
     const launch = (event: Event) => {
+      authTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const detail =
         event instanceof CustomEvent
           ? (event.detail as { mode?: AuthMode; returnTo?: string } | undefined)
@@ -382,12 +386,13 @@ export function AccountNav() {
         <button
           ref={button}
           className="account-signin action-primary"
-          onClick={() =>
+          onClick={(event) => {
+            authTrigger.current = event.currentTarget;
             setDialog({
               mode: "sign-in",
               returnTo: location.pathname + location.search,
-            })
-          }
+            });
+          }}
         >
           SIGN IN
         </button>
@@ -410,7 +415,8 @@ export function AccountNav() {
             }
             onClose={() => {
               setDialog(null);
-              button.current?.focus();
+              const target = authTrigger.current?.isConnected ? authTrigger.current : button.current;
+              target?.focus({ preventScroll: true });
             }}
           />
         )}

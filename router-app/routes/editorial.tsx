@@ -519,6 +519,9 @@ function FeatureComposer({
   const pending = navigation.state !== "idle";
   const response = routeActionData;
   const errorSummary = useRef<HTMLDivElement>(null);
+  const [touched, setTouched] = useState<Set<string>>(() => new Set());
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const showRequirements = attemptedSubmit || Boolean(response && "error" in response);
   const submissionIssues = validateEditorialSubmission(
     draft,
     sections,
@@ -535,10 +538,11 @@ function FeatureComposer({
         submissionIssues.push(issue);
     }
   orderIssues(submissionIssues, sections);
+  const visibleIssues = submissionIssues.filter(issue => showRequirements || touched.has(issue.field));
   const attrs = (field: string) =>
-    fieldAttributes(submissionIssues, null, field);
+    fieldAttributes(visibleIssues, null, field);
   const errors = (field: string) => (
-    <FieldErrors issues={submissionIssues} field={field} />
+    <FieldErrors issues={visibleIssues} field={field} />
   );
   useEffect(() => {
     if (response && "error" in response) {
@@ -876,7 +880,7 @@ function FeatureComposer({
       {recovery&&<section className="op-notice"><p>Unsaved writing is available on this device. Recovering keeps its original server version so it cannot overwrite a newer saved draft.</p><button className="op-button" type="button" onClick={()=>{setDraft(recovery.draft);setExpectedUpdatedAt(recovery.version);setCreationKey(recovery.creationKey);setRecovery(null);setRecoveryMessage("RECOVERED");}}>RECOVER WRITING</button><button className="op-button" type="button" onClick={()=>{try{localStorage.removeItem(recovery.key);}catch{/* Storage may be unavailable. */}setRecovery(null);}}>DISCARD LOCAL RECOVERY</button></section>}
       {recoveryMessage&&<p role="status">{recoveryMessage}</p>}
       {blocker.state==="blocked" && <section role="alert" className="composer-outcome composer-outcome-blocked"><h2>You have unsaved changes</h2><p>Stay here to save your draft, or leave and discard these changes.</p><button className="op-button" onClick={()=>blocker.reset()}>KEEP EDITING</button><button className="op-button" onClick={()=>blocker.proceed()}>LEAVE WITHOUT SAVING</button></section>}
-      <Form method="post" action="/editorial" className="op-form" noValidate onSubmit={()=>{sentSignature.current=contentSignature(draft);}}>
+      <Form method="post" action="/editorial" className="op-form" noValidate onBlur={(event)=>{const field=event.target.getAttribute("name");if(field)setTouched(current=>new Set(current).add(field));}} onSubmit={(event)=>{if((event.nativeEvent as SubmitEvent).submitter?.getAttribute("value")==="submit")setAttemptedSubmit(true);sentSignature.current=contentSignature(draft);}}>
         {result.turnstileSiteKey && (
           <SubmissionChallenge
             siteKey={result.turnstileSiteKey}
@@ -1024,6 +1028,7 @@ function FeatureComposer({
         <input type="hidden" name="sectionsJson" value={draft.sectionsJson} />
         <ArticleSectionBuilder
           sections={sections}
+          showValidation={showRequirements}
           onChange={changeSections}
           upload={uploadFeatureImage}
           uploadStates={imageUploads}
@@ -1037,7 +1042,7 @@ function FeatureComposer({
             moderators.
           </p>
           <p>Drafts are private until submitted.</p>
-          {submissionIssues.length > 0 && (
+          {showRequirements && submissionIssues.length > 0 && (
             <div aria-label="Submission requirements">
               <p>
                 <strong>{requirementsMessage(submissionIssues.length)}</strong>

@@ -37,7 +37,7 @@ export function ArchiveIssueCard({
             })
           : "—"}
       </small>
-      <b>{issue.cover_label || "READ THE ISSUE"} ↗</b>
+      <b>READ THE ISSUE ↗</b>
     </Link>
   );
 }
