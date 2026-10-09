@@ -169,7 +169,7 @@ export function PanelCitationDisclosure({
   return (
     <details className="panel-citation">
       <summary>
-        [P//{String(citation.revision_number).padStart(2, "0")}]
+        Panel Citation · P//{String(citation.revision_number).padStart(2, "0")}
       </summary>
       <dl>
         <dt>Credit</dt>

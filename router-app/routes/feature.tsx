@@ -1,7 +1,9 @@
 import {SaveFeature} from "../components/SaveFeature";
-import { data, Link } from "react-router";
+import { data, Link, useRouteLoaderData } from "react-router";
 import type { Route } from "./+types/feature";
 import { catalogue, publicEditorialDocument, publicPanel } from "../lib/publication.server";
+import type { AuthSnapshot } from "../lib/auth";
+import { workshopAccess } from "../lib/workshop";
 import { acceptsContributions } from "../lib/publication";
 import { Masthead } from "../components/Masthead";
 import { IssueNavigation } from "../components/IssueNavigation";
@@ -42,6 +44,9 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
   const issue = all.issues.find((item) => item.id === feature.issue_id)!;
   const archived=issue.status==="archived"||feature.lifecycle_status==="archived";
   const open = acceptsContributions(feature, issue, all.now);
+  const root = useRouteLoaderData("root") as { auth: AuthSnapshot; membership?: {status: "accepted" | "required" | "unavailable"} } | undefined;
+  const access = workshopAccess({auth: root?.auth.state ?? "resolving", account: root?.auth.state === "authenticated" ? root.auth.member.accountStatus : undefined, handbook: root?.membership?.status, open});
+  const canContribute = open && ["signed-out", "onboarding", "member"].includes(access);
   const related = all.relationships.filter(
     (relationship) =>
       relationship.feature_id === feature.id ||
@@ -64,7 +69,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
           </p>
           <h1>{document.header.title}</h1>
           <p className="published-dek">{feature.summary}</p><div className="profile-actions"><SaveFeature feature={feature.id}/><Link to={`/features/${feature.slug}/report`}>REPORT A PROBLEM</Link></div>
-          {archived ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <OpenPanelCountdown feature={feature} issue={issue} now={all.now} />}
+          {archived ? <p className="op-notice">This panel is archived. Public reading remains available, but it has left the current issue spaces.</p> : <div className="panel-participation"><OpenPanelCountdown feature={feature} issue={issue} now={all.now} />{canContribute && <Link className="contribute-link" to={`/features/${feature.slug}/workshop`}>Contribute <span aria-hidden="true">→</span></Link>}</div>}
         </div>
         <div className="published-body">
           <ArticleRenderer document={document} presentation="publication" />

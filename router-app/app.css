@@ -3198,3 +3198,8 @@ html {
 .profile-page section.profile-empty { margin-block: 18px; }
 .profile-empty h2 { margin-bottom: 8px; }
 .profile-empty p { margin-block: 8px; }
+
+/* Contextual participation uses the existing editorial state and link treatment. */
+.panel-participation { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.contribute-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 700 .72rem/1.5 monospace; letter-spacing: .06em; text-transform: uppercase; text-underline-offset: .25em; }
+.contribution-card { scroll-margin-top: 90px; }

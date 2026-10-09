@@ -71,7 +71,7 @@ test("recovery preserves newer writing and handles an ambiguous submitted respon
 test("acceptance and incorporation never imply public publication", () => {
   assert.equal(
     contributionState({ status: "Accepted" }),
-    "ACCEPTED · AWAITING INCORPORATION",
+    "ACCEPTED · NOT YET PUBLISHED",
   );
   assert.equal(
     contributionState({ status: "Accepted", incorporated_at: "now" }),

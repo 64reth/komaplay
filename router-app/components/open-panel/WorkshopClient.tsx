@@ -324,7 +324,7 @@ export function WorkshopClient({
         <h2 id="your-contributions-heading">Your contributions</h2>
         {contributions.length ? (
           contributions.map((item) => (
-            <article className="contribution-card" key={item.id}>
+            <article className="contribution-card" id={`contribution-${item.id}`} tabIndex={-1} key={item.id}>
               <p className="op-eyebrow">
                 {item.type}
               </p>

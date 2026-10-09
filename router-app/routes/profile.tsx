@@ -284,7 +284,7 @@ export default function Profile() {
         contribution.feature?.title ??
         "Panel not currently public · your submission is retained",
       action: contribution.feature ? (
-        <Link to={`/features/${contribution.feature.slug}/workshop`}>
+        <Link to={`/features/${contribution.feature.slug}/workshop#contribution-${contribution.id}`}>
           VIEW →
         </Link>
       ) : (
