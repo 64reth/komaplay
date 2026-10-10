@@ -881,12 +881,15 @@ body:has(.editorial-page) {
   font: 700 0.75rem/1.4 monospace;
   cursor: pointer;
 }
-.op-workspace button:hover,
-.op-button:hover {
+.op-workspace button:hover:not(:disabled),
+.op-button:hover:not(:disabled) {
   background: var(--ink);
   color: var(--paper);
 }
-.op-workspace button:disabled {
+.op-workspace button:disabled,
+.op-button:disabled,
+.op-actions button:disabled,
+.op-session button:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -1380,7 +1383,8 @@ body:has(.editorial-page) {
   margin-top: auto;
   font: 700 0.65rem monospace;
 }
-.archive-issue:hover {
+.archive-issue:hover,
+.archive-issue:focus-visible {
   background: #faf7ef;
 }
 .discovery-form {
@@ -1743,6 +1747,8 @@ body:has(.editorial-page) {
   top: calc(100% + 8px);
   z-index: 20;
   min-width: 190px;
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
   display: grid;
   border: 1px solid currentColor;
   background: Canvas;
@@ -2264,15 +2270,16 @@ figcaption {
 }
 .active-underline:hover,
 .active-underline:focus-visible,
-.active-underline[aria-current="page"] {
+.active-underline[aria-current="page"],
+.active-underline[aria-current="location"] {
   color: var(--color-accent-text);
   background-size: 100% 2px;
 }
 .action-primary {
   border-color: var(--color-ink) !important;
 }
-.action-primary:hover,
-.action-primary:focus-visible {
+.action-primary:hover:not(:disabled),
+.action-primary:focus-visible:not(:disabled) {
   background: var(--color-accent) !important;
   color: var(--color-accent-contrast) !important;
   border-color: var(--color-accent) !important;
@@ -3203,3 +3210,15 @@ html {
 .panel-participation { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
 .contribute-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 700 .72rem/1.5 monospace; letter-spacing: .06em; text-transform: uppercase; text-underline-offset: .25em; }
 .contribution-card { scroll-margin-top: 90px; }
+
+/* Account navigation shares the existing control sizes and restrained timing. */
+.account-nav > button, .account-menu [role="menuitem"] { min-height: 44px; }
+.account-menu [role="menuitem"] { display: flex; align-items: center; text-decoration: none; text-transform: uppercase; }
+.account-menu [role="menuitem"]:is(:hover, :focus-visible):not(:disabled) { background: var(--ink); color: var(--paper); }
+.account-menu [role="menuitem"]:focus-visible { outline-offset: -3px; }
+.account-menu button:disabled { opacity: .4; cursor: default; }
+.auth-close { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.op-button, .account-menu [role="menuitem"], .archive-issue { transition: background-color 160ms ease, color 160ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .op-button, .account-menu [role="menuitem"], .archive-issue { transition: none; }
+}

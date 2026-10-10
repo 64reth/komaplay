@@ -55,7 +55,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
   return (
     <main className="editorial-page">
       <Masthead issue={issue} />
-      <IssueNavigation />
+      <IssueNavigation issue={issue} />
       <article className="published-panel">
         <div className="published-heading">
           <p className="op-eyebrow">
@@ -124,15 +124,7 @@ export default function Feature({ loaderData }: Route.ComponentProps) {
       </article>
       <footer className="op-footer" id="workshop-link">
         <Link to={`/issues/${issue.slug}`}>← {issue.title}</Link>
-        <Link
-          to={
-            open
-              ? `/features/${feature.slug}/workshop`
-              : `/features/${feature.slug}/correction`
-          }
-        >
-          {open ? "ADD TO THIS EDITORIAL →" : "REPORT A CORRECTION →"}
-        </Link>
+
       </footer>
     </main>
   );

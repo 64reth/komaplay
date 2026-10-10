@@ -29,7 +29,7 @@ export default function Issue({ loaderData }: Route.ComponentProps) {
   return (
     <main className="editorial-page">
       <Masthead issue={loaderData.issue} />
-      <IssueNavigation />
+      <IssueNavigation issue={loaderData.issue} />
       {loaderData.all.message && (
         <p className="op-notice">{loaderData.all.message}</p>
       )}

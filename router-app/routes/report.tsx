@@ -106,7 +106,7 @@ export default function Correction({ loaderData }: Route.ComponentProps) {
   return (
     <main className="editorial-page">
       <Masthead issue={loaderData.issue} />
-      <IssueNavigation />
+      <IssueNavigation issue={loaderData.issue} />
       <div className="op-workspace">
         <Link to={`/features/${loaderData.feature.slug}`}>
           ← RETURN TO COMMUNITY EDITION

@@ -120,7 +120,7 @@ export default function Workshop({ loaderData }: Route.ComponentProps) {
   return (
     <main className="editorial-page">
       <Masthead issue={issue} />
-      <IssueNavigation />
+      <IssueNavigation issue={issue} />
       <div className="op-workspace workshop-page">
         <header className="workshop-header">
           <Link className="workshop-back" to={`/features/${feature.slug}`}>

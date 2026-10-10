@@ -89,21 +89,9 @@ export function CommunityAdditions({
         <div className="op-empty-panel">
           {!open ? (
             <p>No community additions were published in this edition.</p>
-          ) : (<>
-          <b>THIS PANEL IS OPEN</b>
-          <p>
-            No community additions have been published yet. Bring a correction,
-            strategy, source, experience or different perspective and help
-            develop the next revision.
-          </p>
-          <Link className="op-button action-primary" to="#workshop-link">
-            ADD TO THIS EDITORIAL →
-          </Link>
-          <small>
-            Your contribution will enter the private Workshop for editorial
-            review. Published additions receive a permanent Panel Citation.
-          </small>
-          </>)}
+          ) : (
+            <p>No community additions have been published yet.</p>
+          )}
         </div>
       ) : (
         additions.map((a) => (

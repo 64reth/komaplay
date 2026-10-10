@@ -312,6 +312,51 @@ export function AccountNav() {
   } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const authTrigger = useRef<HTMLElement | null>(null);
+  const menuContainer = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const openAtEnd = useRef(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const items = menuContainer.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)');
+    (openAtEnd.current ? items?.[items.length - 1] : items?.[0])?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuContainer.current?.contains(event.target)) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [menuOpen]);
+
+  function menuKeys(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target === button.current && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+      event.preventDefault();
+      openAtEnd.current = event.key === "ArrowUp";
+      if (!menuOpen) setMenuOpen(true);
+      else {
+        const items = menuContainer.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)');
+        (openAtEnd.current ? items?.[items.length - 1] : items?.[0])?.focus();
+      }
+      return;
+    }
+    if (!menuOpen) return;
+    if (event.key === "Tab") {
+      // Let the browser move focus before removing the menu from the tab sequence.
+      requestAnimationFrame(() => setMenuOpen(false));
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setMenuOpen(false);
+      button.current?.focus({preventScroll:true});
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const items = [...(menuContainer.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowUp" ? -1 : 1) + items.length) % items.length;
+    items[next]?.focus();
+  }
   const client = supabaseBrowser(config);
 
   useEffect(() => {
@@ -432,49 +477,52 @@ export function AccountNav() {
       .slice(0, 2)
       .toUpperCase() || "KP";
   return (
-    <div className="account-nav">
+    <div className="account-nav" ref={menuContainer} onKeyDown={menuKeys} onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false);
+    }}>
       {accountMessage && <p role="alert">{accountMessage}</p>}
       <button
         ref={button}
         aria-label={`Account menu for ${member.displayName}`}
         aria-haspopup="menu"
+        aria-controls={menuOpen ? menuId : undefined}
         aria-expanded={menuOpen}
-        onClick={() => setMenuOpen((open) => !open)}
+        onClick={() => {openAtEnd.current = false; setMenuOpen((open) => !open);}}
       >
         {initials}
       </button>
       {menuOpen && (
-        <div className="account-menu" role="menu">
+        <div className="account-menu" role="menu" id={menuId} aria-label="Account">
           <Link
-            role="menuitem"
+            role="menuitem" tabIndex={-1}
             to="/profile"
             onClick={() => setMenuOpen(false)}
           >
             VIEW PROFILE
           </Link>
-          <Link role="menuitem" to="/profile/inbox" onClick={() => setMenuOpen(false)}>My Inbox</Link>
+          <Link role="menuitem" tabIndex={-1} to="/profile/inbox" onClick={() => setMenuOpen(false)}>My Inbox</Link>
           <Link
-            role="menuitem"
+            role="menuitem" tabIndex={-1}
             to="/profile/settings"
             onClick={() => setMenuOpen(false)}
           >
             SETTINGS
           </Link>
           <Link
-            role="menuitem"
+            role="menuitem" tabIndex={-1}
             to="/handbook"
             onClick={() => setMenuOpen(false)}
           >
             HANDBOOK
           </Link>
           {data.capabilities?.moderation && (
-            <Link role="menuitem" to="/cover-editor" onClick={() => setMenuOpen(false)}>
+            <Link role="menuitem" tabIndex={-1} to="/cover-editor" onClick={() => setMenuOpen(false)}>
               COVER EDITOR
             </Link>
           )}
           {data.capabilities?.moderation && (
             <Link
-              role="menuitem"
+              role="menuitem" tabIndex={-1}
               to="/moderation"
               onClick={() => setMenuOpen(false)}
             >
@@ -482,13 +530,13 @@ export function AccountNav() {
             </Link>
           )}
           {data.capabilities?.admin && (
-            <Link role="menuitem" to="/admin" onClick={() => setMenuOpen(false)}>
+            <Link role="menuitem" tabIndex={-1} to="/admin" onClick={() => setMenuOpen(false)}>
               ADMIN
             </Link>
           )}
           {data.capabilities?.editorial && (
             <Link
-              role="menuitem"
+              role="menuitem" tabIndex={-1}
               to="/editorial"
               onClick={() => setMenuOpen(false)}
             >
@@ -496,7 +544,7 @@ export function AccountNav() {
             </Link>
           )}
           <button
-            role="menuitem"
+            role="menuitem" tabIndex={-1}
             onClick={async () => {
               if (!client || signingOut) return;
               setSigningOut(true);
